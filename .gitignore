@@ -1,0 +1,83 @@
+# Dependencias
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Entornos virtuales
+entornoIngles/
+venv/
+env/
+ENV/
+
+# Variables de entorno y configuración sensible
+.env
+.env.local
+.env.production
+.env.staging
+*.env
+
+# Archivos de base de datos
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos temporales
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Archivos del sistema
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Angular específico
+/ingles-frontend/dist/
+/ingles-frontend/.angular/
+/ingles-frontend/coverage/
+/ingles-frontend/node_modules/
+
+# Python específico
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Archivos de respaldo
+*.bak
+*.backup
+*.old
+
+# Archivos de certificados y claves
+*.pem
+*.key
+*.crt
+*.p12
+
+# Archivos de configuración local
+config.local.json
+settings.local.py

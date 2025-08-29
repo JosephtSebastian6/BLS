@@ -1,0 +1,237 @@
+# crud.py
+from sqlalchemy.orm import Session
+# Importaciones necesarias para Jinja2
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from passlib.context import CryptContext
+from fastapi import BackgroundTasks, Request, HTTPException
+from pydantic import EmailStr
+import uuid
+from datetime import datetime, timedelta
+from urllib.parse import urljoin
+
+# Importaciones para el envío directo con aiosmtplib
+from aiosmtplib import SMTP
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+import models, schemas
+from config import conf
+
+bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+
+# Función para registrar un nuevo usuario (sin cambios aquí)
+async def registro_user(db: Session, user: schemas.RegistroCreate, background_tasks: BackgroundTasks, request: Request):
+    print(f"DEBUG CRUD: Iniciando registro para usuario: {user.username}, email: {user.email}")
+    print(f"DEBUG CRUD: Datos completos recibidos: {user.dict()}")
+
+    existing_user_email = db.query(models.Registro).filter(models.Registro.email == user.email).first()
+    if existing_user_email:
+        print(f"DEBUG CRUD: ERROR - Email {user.email} ya registrado.")
+        raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado.")
+
+    existing_user_username = db.query(models.Registro).filter(models.Registro.username == user.username).first()
+    if existing_user_username:
+        print(f"DEBUG CRUD: ERROR - Nombre de usuario {user.username} ya registrado.")
+        raise HTTPException(status_code=400, detail="El nombre de usuario ya está registrado.")
+
+    verification_token = str(uuid.uuid4())
+    token_expires_at = datetime.utcnow() + timedelta(hours=24)
+
+    hashed_pw = bcrypt_context.hash(user.password)
+    nuevo_registro = models.Registro(
+        username=user.username,
+        hashed_password=hashed_pw,
+        nombres=user.nombres,
+        apellidos=user.apellidos,
+        email=user.email,
+        email_verified=False,
+        verification_token=verification_token,
+        tipo_usuario=user.tipo_usuario,
+        token_expires_at=token_expires_at
+    )
+
+    try:
+        db.add(nuevo_registro)
+        print("DEBUG CRUD: Objeto de usuario añadido a la sesión de DB.")
+        db.commit()
+        print("DEBUG CRUD: Commit a la base de datos realizado.")
+        db.refresh(nuevo_registro)
+        print(f"DEBUG CRUD: Usuario refrescado desde DB: {nuevo_registro.username}, ID: {nuevo_registro.identificador}")
+    except Exception as e:
+        db.rollback()
+        print(f"DEBUG CRUD: ERROR FATAL en la base de datos durante el commit: {e}")
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor al guardar usuario: {e}")
+
+    base_url_str = str(request.base_url)
+    path_to_verify = f"auth/verify-email?token={verification_token}"
+    verification_url = urljoin(base_url_str, path_to_verify)
+    print(f"DEBUG CRUD: URL de verificación generada: {verification_url}")
+
+    await send_verification_email(
+        recipient_email=nuevo_registro.email,
+        username=nuevo_registro.username,
+        verification_url=verification_url,
+        background_tasks=background_tasks,
+        request=request
+    )
+    print("DEBUG CRUD: Correo de verificación programado para envío.")
+
+    return nuevo_registro
+
+# Función para autenticar un usuario (sin cambios aquí)
+def autenticar_usuario(db: Session, username: str, password: str):
+    user = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if user and bcrypt_context.verify(password, user.hashed_password):
+        return user
+    return None
+
+# --- FUNCIÓN send_verification_email CORREGIDA ---
+# Aquí se usa exclusivamente aiosmtplib para construir y enviar el correo.
+async def send_verification_email(recipient_email: EmailStr, username: str, verification_url: str, background_tasks: BackgroundTasks, request: Request):
+    print(f"DEBUG EMAIL: Preparando el envío de correo a {recipient_email}")
+
+    template_env = Environment(
+        loader=FileSystemLoader(conf.TEMPLATE_FOLDER),
+        autoescape=select_autoescape(["html", "xml"])
+    )
+
+    try:
+        template = template_env.get_template("verification.html")
+        print("DEBUG EMAIL: Plantilla 'verification.html' cargada exitosamente.")
+    except Exception as e:
+        print(f"ERROR EMAIL: No se pudo cargar la plantilla 'verification.html'. Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al cargar la plantilla de correo: {e}")
+
+    rendered_html = template.render(
+        username=username,
+        verification_url=verification_url,
+        request=request
+    )
+    print("DEBUG EMAIL: Plantilla HTML renderizada.")
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = f"{conf.MAIL_FROM_NAME} <{conf.MAIL_FROM}>"
+    msg["To"] = recipient_email
+    msg["Subject"] = "Verifica tu Correo Electrónico"
+
+    html_part = MIMEText(rendered_html, "html", "utf-8")
+    msg.attach(html_part)
+    print("DEBUG EMAIL: Mensaje MIME construido.")
+
+    async def _send_email_task():
+        print(f"DEBUG EMAIL TASK: Iniciando tarea de envío de correo para {recipient_email}")
+        try:
+            client = SMTP(
+                hostname=conf.MAIL_SERVER,
+                port=conf.MAIL_PORT,
+                start_tls=conf.MAIL_STARTTLS,
+                use_tls=conf.MAIL_SSL_TLS,
+                validate_certs=conf.VALIDATE_CERTS
+            )
+            print("DEBUG EMAIL TASK: Cliente SMTP creado.")
+            await client.connect()
+            print("DEBUG EMAIL TASK: Conexión SMTP establecida.")
+            await client.login(conf.MAIL_USERNAME, conf.MAIL_PASSWORD)
+            print("DEBUG EMAIL TASK: Login SMTP exitoso.")
+            
+            status_code, message_response = await client.send_message(msg)
+            await client.quit()
+            print("DEBUG EMAIL TASK: Desconexión SMTP realizada.")
+
+            print(f"DEBUG EMAIL TASK: Correo enviado exitosamente en segundo plano. Estado: {status_code}, Mensaje: {message_response}")
+
+        except Exception as e:
+            print(f"ERROR EMAIL TASK: EXCEPCIÓN al enviar correo en segundo plano: {e}")
+            raise # Re-lanzar la excepción para que FastAPI la capture y la registre
+
+    background_tasks.add_task(_send_email_task)
+    print("DEBUG EMAIL: Tarea de envío de correo añadida a BackgroundTasks.")
+
+def obtener_estudiantes_disponibles(db):
+    return db.query(models.Registro).filter(models.Registro.tipo_usuario == "estudiante").all()
+
+# Obtener clases de un profesor por su identificador
+def obtener_clases_profesor(db, profesor_username):
+    # Devuelve todas las clases de un profesor, incluyendo los estudiantes asociados
+    clases = db.query(models.Clase).filter(models.Clase.profesor_username == profesor_username).all()
+    return clases
+
+# Agendar estudiante a clase (añadir estudiante a la relación muchos a muchos)
+def agendar_estudiante_a_clase(db, clase_id, estudiante_username):
+    from models import Clase, Registro
+    clase = db.query(Clase).filter(Clase.id == clase_id).first()
+    if not clase:
+        return None
+    estudiante = db.query(Registro).filter(Registro.username == estudiante_username).first()
+    if not estudiante:
+        return None
+    if estudiante not in clase.estudiantes:
+        clase.estudiantes.append(estudiante)
+        db.commit()
+        db.refresh(clase)
+    return clase
+
+# Obtener profesor por username
+def get_profesor_by_username(db: Session, username: str):
+    return db.query(models.Registro).filter(
+        models.Registro.username == username
+    ).first()
+# Crear una clase y asociar estudiantes (relación muchos a muchos)
+def crear_clase(db, clase_data):
+    # clase_data debe ser un objeto tipo schemas.ClaseCreate
+    from models import Clase, Registro
+    # Buscar estudiantes por username
+    estudiantes_objs = []
+    if clase_data.estudiantes:
+        estudiantes_objs = db.query(Registro).filter(Registro.username.in_(clase_data.estudiantes)).all()
+
+    nueva_clase = Clase(
+        dia=clase_data.dia,
+        hora=clase_data.hora,
+        tema=clase_data.tema,
+        meet_link=clase_data.meet_link,
+        profesor_username=clase_data.profesor_username,
+        estudiantes=estudiantes_objs
+    )
+    db.add(nueva_clase)
+    db.commit()
+    db.refresh(nueva_clase)
+    return nueva_clase
+
+def update_perfil_estudiante(db, perfil):
+    print(f"DEBUG UPDATE PERFIL: Recibido perfil: {perfil}")
+    user = db.query(models.Registro).filter(models.Registro.username == perfil.get('username')).first()
+    print(f"DEBUG UPDATE PERFIL: Usuario encontrado: {user}")
+    if not user:
+        return None
+    # Actualiza los campos permitidos
+    for campo in [
+        'nombres', 'apellidos', 'numero_identificacion', 'ciudad', 'rh', 'grupo_sanguineo',
+        'ano_nacimiento', 'direccion', 'telefono', 'email', 'profile_image_url'
+    ]:
+        if campo in perfil:
+            setattr(user, campo, perfil[campo])
+    db.commit()
+    db.refresh(user)
+    print(f"DEBUG UPDATE PERFIL: Usuario actualizado: {user}")
+    return user
+
+def obtener_clases_estudiante(db, estudiante_username):
+    """
+    Devuelve todas las clases a las que está inscrito un estudiante.
+    """
+    from models import Clase, Registro
+    estudiante = db.query(Registro).filter(Registro.username == estudiante_username).first()
+    if not estudiante:
+        return []
+    # Relación muchos a muchos: estudiante.clases
+    return estudiante.clases
+
+# crud.py
+def obtener_profesores(db):
+    return db.query(models.Registro).filter(models.Registro.tipo_usuario == "profesor").all()
+
+
+
