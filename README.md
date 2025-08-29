@@ -196,7 +196,7 @@ gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app
 ```bash
 cd ingles-frontend
 npm run build
-# Los archivos estáticos estarán en dist/
+# Los archivos estáticos estarán endist/
 ```
 
 ## 🤝 Contribución
