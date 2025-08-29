@@ -1,0 +1,38 @@
+<!-- dashboard-layout.component.html -->
+<div class="dashboard-layout">
+  <aside class="sidebar">
+    <h3>Menú Estudiante</h3>
+    <ul>
+      <li>
+        <button [routerLink]="['/dashboard-estudiante']" routerLinkActive="active">
+          <span class="material-icons">home</span>
+          <span class="sidebar-text">Inicio</span>
+        </button>
+      </li>
+      <li>
+        <button (click)="navigateIfNotCurrent(unidadesRoute)" [class.active]="currentUrl === unidadesRoute">
+          <span class="material-icons">layers</span>
+          <span class="sidebar-text">Unidades</span>
+        </button>
+      </li>
+      <li>
+        <button [routerLink]="['/mis-cursos']" routerLinkActive="active">
+          <span class="material-icons">book</span>
+          <span class="sidebar-text">Mis Cursos</span>
+        </button>
+      </li>
+      <li>
+        <button (click)="navigateIfNotCurrent('/dashboard-mis-clases-estudiante')" [class.active]="currentUrl === '/dashboard-mis-clases-estudiante'">
+          <span class="material-icons">school</span>
+          <span class="sidebar-text">Mis Clases</span>
+        </button>
+      </li>
+    </ul>
+  </aside>
+
+  <!-- Aquí Angular pintará el contenido dinámico -->
+  <main class="main-content">
+    <ng-content></ng-content>
+    <router-outlet></router-outlet>
+  </main>
+</div>

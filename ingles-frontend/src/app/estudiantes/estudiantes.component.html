@@ -1,0 +1,49 @@
+
+<div class="estudiantes-container">
+  <div class="estudiantes-header">
+    <h2>Estudiantes</h2>
+    <span class="estudiantes-subtitle">Bienvenido al dashboard de estudiantes. Aquí podrás gestionar y visualizar información de los estudiantes.</span>
+  </div>
+  <div class="busqueda-wrapper">
+    <div class="busqueda-input-group">
+      <span class="material-icons busqueda-icon">search</span>
+      <input
+        type="text"
+        [(ngModel)]="busqueda"
+        (input)="filtrarEstudiantes()"
+        placeholder="Buscar estudiante por nombre, apellido, email o usuario"
+        class="busqueda-input"
+      />
+    </div>
+  </div>
+  <div class="tabla-wrapper">
+    <table class="tabla-estudiantes">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Apellidos</th>
+          <th>Email</th>
+          <th>Usuario</th>
+          <th>Ciudad</th>
+          <th>Teléfono</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let est of estudiantesFiltrados">
+          <td>{{ est.nombres }}</td>
+          <td>{{ est.apellidos }}</td>
+          <td>{{ est.email }}</td>
+          <td>{{ est.username }}</td>
+          <td>{{ est.ciudad }}</td>
+          <td>{{ est.telefono }}</td>
+          <td class="acciones">
+            <button mat-icon-button class="accion-btn" title="Ver"><span class="material-icons">visibility</span></button>
+            <button mat-icon-button class="accion-btn" title="Editar"><span class="material-icons">edit</span></button>
+            <button mat-icon-button class="accion-btn" title="Eliminar"><span class="material-icons">delete</span></button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

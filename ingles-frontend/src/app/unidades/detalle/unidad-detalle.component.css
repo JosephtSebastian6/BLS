@@ -1,0 +1,85 @@
+.unidad-detalle-container {
+  padding: 2rem;
+  margin-top: 50px;
+}
+.galeria-subcarpetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+.subcarpeta-card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(37,99,235,0.10);
+  padding: 1.6rem 1.7rem 1.2rem 1.7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 260px;
+  max-width: 340px;
+  flex: 1 1 260px;
+  border: 1.5px solid #e3e8f7;
+  transition: box-shadow 0.2s, border-color 0.2s, transform 0.18s;
+  cursor: pointer;
+  position: relative;
+  margin-bottom: 0.5em;
+}
+.subcarpeta-card:hover {
+  box-shadow: 0 8px 32px rgba(37,99,235,0.18);
+  border-color: #2563eb;
+  background: #f6f8ff;
+  transform: translateY(-2px) scale(1.02);
+}
+.subcarpeta-card .material-icons {
+  font-size: 2.3em;
+  color: #2563eb;
+  margin-right: 0.7rem;
+  margin-bottom: 0.2em;
+}
+.subcarpeta-card h4 {
+  margin: 0 0 0.3em 0;
+  color: #2563eb;
+  font-size: 1.18em;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  text-decoration: none !important;
+  transition: color 0.18s;
+}
+.subcarpeta-card p {
+  margin: 0 0 0.7em 0;
+  color: #263159;
+  font-size: 1.01em;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+}
+.subcarpeta-card .subcarpeta-actions {
+  display: flex;
+  gap: 0.7em;
+  margin-top: 0.7em;
+}
+.subcarpeta-card .subcarpeta-actions button {
+  padding: 0.45em 1.1em;
+  border-radius: 7px;
+  font-weight: 700;
+  font-size: 1em;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px #0001;
+  transition: background 0.18s, color 0.18s;
+}
+.subcarpeta-card .subcarpeta-actions .editar-btn {
+  background: #2563eb;
+  color: #fff;
+}
+.subcarpeta-card .subcarpeta-actions .editar-btn:hover {
+  background: #1746a2;
+}
+.subcarpeta-card .subcarpeta-actions .eliminar-btn {
+  background: #ef4444;
+  color: #fff;
+}
+.subcarpeta-card .subcarpeta-actions .eliminar-btn:hover {
+  background: #b91c1c;
+}

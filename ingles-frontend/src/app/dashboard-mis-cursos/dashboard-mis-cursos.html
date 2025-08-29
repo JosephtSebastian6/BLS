@@ -1,0 +1,88 @@
+<div class="dashboard-layout">
+  <aside class="sidebar">
+    <h3>Menú</h3>
+    <ul>
+      <li>
+        <button [class.active]="false" (click)="router.navigate(['/dashboard-estudiante'])">
+          <span class="material-icons" style="vertical-align: middle;">person</span>
+          <span class="sidebar-text">Mi Perfil</span>
+        </button>
+      </li>
+      <li>
+        <button [class.active]="true">
+          <span class="material-icons" style="vertical-align: middle;">menu_book</span>
+          <span class="sidebar-text">Mis Cursos</span>
+        </button>
+      </li>
+      <li>
+        <button [routerLink]="['/dashboard-progreso']" routerLinkActive="active">
+          <span class="material-icons" style="vertical-align: middle;">trending_up</span>
+          <span class="sidebar-text">Progreso</span>
+        </button>
+      </li>
+      <li>
+        <button disabled>
+          <span class="material-icons" style="vertical-align: middle;">verified</span>
+          <span class="sidebar-text">Certificados</span>
+        </button>
+      </li>
+      <li>
+        <button (click)="router.navigate(['/dashboard-mis-clases-estudiante'])">
+          <span class="material-icons" style="vertical-align: middle;">class</span>
+          <span class="sidebar-text">Mis Clases</span>
+        </button>
+      </li>
+    </ul>
+  </aside>
+  <main class="main-content">
+    <div class="dashboard-cursos-layout">
+      <div class="cursos-header">
+        <h2>Mis Cursos</h2>
+        <button class="btn-pdf">Generar PDF</button>
+      </div>
+      <div class="cursos-filtros">
+        <button class="filtro active">Aprobadas</button>
+        <button class="filtro">No aprobadas</button>
+        <button class="filtro">Reprogramadas</button>
+        <button class="filtro">Canceladas</button>
+        <button class="filtro">Registro</button>
+      </div>
+      <div class="cursos-table-container">
+        <table class="cursos-table">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Fecha</th>
+              <th>Clase</th>
+              <th>Orden</th>
+              <th>Unidad</th>
+              <th>Ciudad</th>
+              <th>Medio</th>
+              <th>Observaciones</th>
+              <th>Estado</th>
+              <th>Opciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let curso of cursos">
+              <td>{{curso.tipo}}</td>
+              <td>{{curso.fecha}}</td>
+              <td>{{curso.clase}}</td>
+              <td>{{curso.orden}}</td>
+              <td>{{curso.unidad}}</td>
+              <td>{{curso.ciudad}}</td>
+              <td>{{curso.medio}}</td>
+              <td>{{curso.observaciones}}</td>
+              <td>{{curso.estado}}</td>
+              <td>
+                <button class="btn-opcion" title="Ver detalles">
+                  <svg width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>

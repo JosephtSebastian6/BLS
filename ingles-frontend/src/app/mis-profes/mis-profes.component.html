@@ -1,0 +1,23 @@
+<div class="mis-profes-container">
+  <h2>Mis Profes</h2>
+  <p>Bienvenido al dashboard de profesores. Aquí podrás gestionar y visualizar información de tus profes.</p>
+
+  <table class="tabla-profes">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Apellidos</th>
+        <th>Email</th>
+        <th>Tipo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let profe of profesores">
+        <td>{{ profe.nombres }}</td>
+        <td>{{ profe.apellidos }}</td>
+        <td>{{ profe.email }}</td>
+        <td>{{ profe.tipo_usuario }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

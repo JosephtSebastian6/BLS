@@ -1,0 +1,752 @@
+/* Ajuste para que las clases se muestren dentro de la celda del calendario */
+/* Clases dentro de la celda del calendario */
+
+.clases-en-celda {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: 8px;
+  width: 100%;
+  position: static;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.nombre-clase-en-celda {
+  font-size: 1.05em;
+  color: #263159;
+  background: #f7faff;
+  border-radius: 8px;
+  margin: 6px 0 0 0;
+  padding: 6px 10px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(37,99,235,0.06);
+  pointer-events: auto;
+}
+.calendario-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 18px;
+  text-align: center;
+  font-size: 1.35em;
+}
+
+.calendario-table td {
+  vertical-align: top;
+  position: relative;
+  height: 120px;
+  min-width: 120px;
+  max-width: 160px;
+  overflow: hidden;
+  padding-bottom: 8px;
+  word-break: break-word;
+}
+.calendario-table td {
+  vertical-align: top;
+  position: relative;
+  height: 120px;
+  min-width: 120px;
+  max-width: 160px;
+  overflow: hidden;
+  padding-bottom: 8px;
+}
+/* Asegura que el contenido de la celda no se desborde */
+.calendario-table td {
+  vertical-align: top;
+  position: relative;
+  height: 120px;
+  min-width: 120px;
+  max-width: 160px;
+  overflow: hidden;
+}
+/* Modal para clases del día */
+.modal-clases {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(30, 41, 59, 0.35);
+  z-index: 1001;
+}
+.modal-content {
+  position: relative;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(37,99,235,0.18);
+  padding: 2.5rem 2.5rem 2rem 2.5rem;
+  min-width: 340px;
+  max-width: 95vw;
+  z-index: 1002;
+  animation: modalIn 0.18s cubic-bezier(.4,1.6,.6,1) both;
+}
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  background: none;
+  border: none;
+  font-size: 2.1rem;
+  color: #2563eb;
+  cursor: pointer;
+  z-index: 1003;
+  transition: color 0.18s;
+}
+.modal-close:hover {
+  color: #ff9800;
+}
+.modal-content h3 {
+  color: #2563eb;
+  margin-bottom: 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.modal-content ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.modal-content li {
+  background: #f7faff;
+  border-radius: 10px;
+  margin-bottom: 1.1em;
+  padding: 1.1em 1.3em;
+  box-shadow: 0 1px 6px rgba(37,99,235,0.07);
+  font-size: 1.08em;
+  color: #263159;
+}
+.modal-content li:last-child {
+  margin-bottom: 0;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(40px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+/* --- NUEVO ESTILO MODERNO Y LIMPIO PARA EL CALENDARIO Y LISTA DE CLASES --- */
+.mis-clases-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 80vh;
+  padding-top: 40px;
+}
+
+.mis-clases-title {
+  font-size: 2.2em;
+  font-weight: 800;
+  color: #263159;
+  margin-bottom: 24px;
+  letter-spacing: 0.5px;
+}
+
+.calendario-wrapper {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(37,99,235,0.10);
+  padding: 60px 80px 50px 80px;
+  min-width: 900px;
+  max-width: 1200px;
+  margin-bottom: 32px;
+}
+
+.calendario-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.calendario-header button {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 1.1em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.calendario-header button:hover {
+  background: #1746a2;
+}
+
+.calendario-header .mes-actual {
+  font-size: 1.15em;
+  font-weight: 700;
+  color: #263159;
+}
+
+.calendario-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 18px;
+  text-align: center;
+  font-size: 1.35em;
+}
+
+.calendario-table th {
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 1.05em;
+  padding-bottom: 6px;
+}
+
+.calendario-table td {
+  padding: 0;
+}
+
+.calendario-dia {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: transparent;
+  color: #263159;
+  font-weight: 700;
+  font-size: 1.25em;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  border: none;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendario-dia:hover,
+.calendario-dia.selected {
+  background: #2563eb;
+  color: #fff;
+}
+
+.calendario-dia.hoy {
+  border: 2px solid #ff9800;
+}
+
+.calendario-dia.inactivo {
+  color: #bbb;
+  cursor: default;
+  background: transparent;
+}
+
+.clases-lista {
+  margin-top: 24px;
+  background: #f7faff;
+  border-radius: 12px;
+  padding: 18px 22px;
+  box-shadow: 0 2px 12px rgba(37,99,235,0.07);
+  max-width: 420px;
+}
+
+.clases-lista h3 {
+  color: #2563eb;
+  font-size: 1.18em;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.clases-lista ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.clases-lista li {
+  margin-bottom: 10px;
+  font-size: 1.08em;
+  color: #263159;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 6px rgba(37,99,235,0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.clases-lista li:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+  .calendario-wrapper {
+    padding: 18px 4vw 14px 4vw;
+    min-width: 0;
+    max-width: 98vw;
+  }
+  .calendario-table {
+    font-size: 1em;
+  }
+  .calendario-dia {
+    width: 38px;
+    height: 38px;
+    font-size: 1em;
+  }
+  .clases-lista {
+    padding: 12px 4vw;
+    max-width: 98vw;
+  }
+}
+
+@import '../layout-profesor/layout-profesor.component.css';
+
+.selected-dia {
+  z-index: 20;
+  background: #eaf3ff !important;
+  border: 2.5px solid #2563eb !important;
+  box-shadow: 0 0 0 4px #2563eb22;
+  min-width: 220px !important;
+  min-height: 180px !important;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.clase-card-expandida {
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(44, 62, 80, 0.13);
+  border-radius: 10px;
+  margin-bottom: 0.7em;
+  padding: 1.2em 1.5em;
+  font-size: 1.05em;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  position: static;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.mis-clases-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.mis-clases-container h2 {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: #2d3a4a;
+  font-size: 2.2rem;
+  font-weight: 700;
+}
+
+.clases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.clase-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(44, 62, 80, 0.08);
+  padding: 2.2rem 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 380px;
+  min-height: 120px;
+  font-size: 1.15rem;
+  transition: box-shadow 0.2s;
+}
+
+.clase-card:hover {
+  box-shadow: 0 4px 16px rgba(44, 62, 80, 0.16);
+}
+
+.clase-info h3 {
+  margin: 0 0 0.5rem 0;
+  color: #1a2233;
+  font-size: 1.3rem;
+}
+
+.clase-info p {
+  margin: 0.2rem 0;
+  color: #4a5a6a;
+  font-size: 1rem;
+}
+
+.activa {
+  color: #27ae60;
+  font-weight: 600;
+}
+
+.inactiva {
+  color: #c0392b;
+  font-weight: 600;
+}
+
+.ver-detalle-btn {
+  background: #2d3a4a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ver-detalle-btn:hover {
+  background: #1a2233;
+}
+
+.no-clases-msg {
+  text-align: center;
+  color: #888;
+  font-size: 1.1rem;
+  margin-top: 2rem;
+}
+
+.semana-tablero {
+  display: flex;
+  justify-content: center;
+  gap: 2.5rem;
+  margin-top: 2.5rem;
+}
+
+.dia-col {
+  flex: 1 1 0;
+  min-width: 170px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dia-titulo {
+  font-weight: 700;
+  font-size: 1.2rem;
+  margin-bottom: 1.2rem;
+  color: #2d3a4a;
+  text-align: center;
+}
+
+.mes-calendario {
+  margin-top: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-left: -8rem;
+}
+
+.calendario-header,
+.calendario-semana {
+  display: flex;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.calendario-dia {
+  flex: 1 1 0;
+  min-width: 130px;
+  min-height: 105px;
+  max-height: 220px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  margin: 2px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.7em 0.7em 0.7em 0.7em;
+  position: relative;
+  transition: box-shadow 0.2s;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.calendario-dia.hoy {
+  border: 2.5px solid #2563eb;
+  box-shadow: 0 0 0 2px #2563eb33;
+  background: #f0f6ff;
+}
+
+.calendario-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 1.2rem;
+}
+
+.calendario-nav-btn {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 2.2rem;
+  height: 2.2rem;
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.calendario-nav-btn:hover {
+  background: #1a2233;
+}
+
+.calendario-mes-titulo {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #2d3a4a;
+  text-transform: capitalize;
+}
+
+.calendario-dia-header {
+  background: #f5f7fa;
+  font-weight: 700;
+  color: #2563eb;
+  text-align: center;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.calendario-fecha {
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 0.5em;
+  font-size: 1.1em;
+}
+
+.clase-card {
+  margin-bottom: 0.4em;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  font-size: 0.92em;
+  box-shadow: 0 1px 2px rgba(44, 62, 80, 0.06);
+  position: relative;
+  cursor: pointer;
+  overflow: visible;
+  padding: 0.2em 0.3em;
+  border-radius: 6px;
+}
+
+.clase-info.clase-detalle {
+  display: none;
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(44, 62, 80, 0.13);
+  padding: 0.7rem 0.8rem;
+  min-width: 120px;
+  min-height: 50px;
+  width: max-content;
+  max-width: 160px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.clase-card.clase-hover:hover .clase-info.clase-detalle {
+  display: block;
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.clase-info.clase-resumida {
+  display: block;
+  text-align: left;
+  padding: 0.2em 0.1em;
+}
+
+.clase-card.clase-hover:hover .clase-info.clase-resumida {
+  opacity: 0.2;
+}
+
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #f5f6fa;
+}
+
+.sidebar {
+  width: 56px;
+  min-width: 56px;
+  background: #fff;
+  color: #222;
+  border-right: 1px solid #ececec;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.03);
+  padding: 100px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: width 0.3s cubic-bezier(.4, 0, .2, 1), min-width 0.3s cubic-bezier(.4, 0, .2, 1);
+  overflow: hidden;
+  z-index: 10;
+}
+
+.sidebar:hover {
+  width: 220px;
+  min-width: 180px;
+}
+
+.sidebar h3 {
+  margin-bottom: 32px;
+  font-weight: 700;
+  font-size: 1.2em;
+  letter-spacing: 1px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  text-align: center;
+  width: 100%;
+}
+
+.sidebar:hover h3 {
+  opacity: 1;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.sidebar:hover ul {
+  opacity: 1;
+}
+
+.sidebar li {
+  margin-bottom: 18px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.sidebar button {
+  width: 90%;
+  padding: 12px 0;
+  background: transparent;
+  color: #222;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar button.active,
+.sidebar button:hover {
+  background: #f0f4ff;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.sidebar button:disabled {
+  color: #aaa;
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.sidebar-text {
+  margin-left: 0.7em;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 0;
+  background: #f5f6fa;
+}
+
+.modal-clases {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(44, 62, 80, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.13);
+  padding: 2.5rem 2.5rem 2rem 2.5rem;
+  min-width: 320px;
+  max-width: 95vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  text-align: left;
+  position: relative;
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #2563eb;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.modal-clase-card {
+  background: #f5f7fa;
+  border-radius: 10px;
+  margin-bottom: 1.2em;
+  padding: 1.1em 1.3em;
+  box-shadow: 0 1px 4px rgba(44, 62, 80, 0.07);
+}
+
+.modal-clase-card h4 {
+  margin: 0 0 0.5em 0;
+  color: #1a2233;
+  font-size: 1.1rem;
+}
+
+.modal-clase-card p {
+  margin: 0.2em 0;
+  color: #4a5a6a;
+  font-size: 0.98rem;
+}
+
+.enlace-meet {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.enlace-meet:hover {
+  color: #1746a2;
+}

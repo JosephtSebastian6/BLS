@@ -1,0 +1,78 @@
+:host {
+  display: block;
+  background-color: #fff;
+  height: 100%;
+}
+
+.calendar-container {
+  padding: 24px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 0 10px;
+}
+
+.calendar-header h3 {
+  font-size: 22px;
+  font-weight: 400;
+  color: #3c4043;
+  margin: 0;
+}
+
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  border: 1px solid #dadce0;
+  background-color: #fff;
+  color: #3c4043;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.btn:hover {
+  background-color: #f1f3f4;
+  border-color: #d2d5d8;
+}
+
+.btn.active {
+  background-color: #e8f0fe;
+  color: #1967d2;
+  border-color: transparent;
+}
+
+.btn-outline-secondary {
+  border: 1px solid #dadce0;
+}
+
+/* Ajustes para que el calendario ocupe el espacio restante */
+.calendar-body {
+  flex-grow: 1;
+}
+
+/* Para que la vista de semana y día tengan scroll si es necesario */
+mwl-calendar-week-view,
+mwl-calendar-day-view {
+  display: block;
+  height: 100%;
+}
+
+
+
+
+
+

@@ -1,0 +1,92 @@
+<div class="subcarpeta-detalle-container">
+  <div style="display:flex;align-items:center;gap:1em;margin-bottom:1.2em;">
+    <button class="volver-btn" (click)="volverADetalleUnidad()" aria-label="Volver atrás">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="12" fill="#2563eb"/>
+        <path d="M13.5 8L9.5 12L13.5 16" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <h2 style="font-size:2.1em;font-weight:700;color:#222;margin:0 0 0 0.2em;letter-spacing:-1px;">Subcarpetas de la unidad</h2>
+  </div>
+
+  <!-- Todo el contenido de archivos y controles ahora está dentro del contenedor principal -->
+  <div *ngIf="tipoUsuario === 'empresa'" style="display:flex;align-items:center;gap:1em;margin-bottom:1.5em;flex-wrap:wrap;">
+    <div class="custom-file-input">
+      <label class="custom-file-label">
+        <span class="material-icons" style="vertical-align:middle;margin-right:0.3em;">attach_file</span>
+        Elegir archivos
+        <input type="file" (change)="onFileSelected($event)" multiple />
+      </label>
+    </div>
+    <button class="limpiar-btn" (click)="limpiarArchivos()">Limpiar archivos</button>
+    <form (ngSubmit)="agregarLink()" class="form-link-fields">
+      <input [(ngModel)]="nombreLink" name="nombreLink" required placeholder="Nombre del link" type="text" />
+      <input [(ngModel)]="nuevoLink" name="nuevoLink" required placeholder="URL" type="url" />
+      <button type="submit">Adjuntar link</button>
+    </form>
+  </div>
+  <div *ngIf="cargandoArchivos" style="margin-bottom:1.2em;min-width:180px;">
+    <div style="font-size:0.97em;color:#2563eb;font-weight:500;">Subiendo archivos...</div>
+    <div style="background:#e5e7eb;border-radius:6px;height:16px;width:100%;margin-top:2px;overflow:hidden;">
+      <div [style.width]="progresoCarga + '%'" style="background:#2563eb;height:100%;transition:width 0.2s;"></div>
+    </div>
+    <div style="font-size:0.85em;color:#444;">{{progresoCarga}}%</div>
+  </div>
+  <div class="archivos-lista" *ngIf="archivos.length">
+    <h4>Archivos adjuntos:</h4>
+    <ul>
+      <li *ngFor="let archivo of archivos">
+        <ng-container *ngIf="archivo.type === 'link'; else archivoNormal">
+          <a [href]="archivo.link" target="_blank" style="color:#2563eb;font-weight:600;text-decoration:underline;">{{ archivo.name }}</a>
+        </ng-container>
+        <ng-template #archivoNormal>
+          <span style="cursor:pointer;text-decoration:underline;" (click)="abrirModal(archivo)">{{ archivo.name }}</span>
+          <ng-container *ngIf="archivo.type && archivo.dataUrl; else soloNombre"></ng-container>
+          <ng-template #soloNombre>
+            <em style="color:gray;">(no visualizable)</em>
+          </ng-template>
+        </ng-template>
+      </li>
+    </ul>
+  </div>
+
+<!-- Modal de previsualización -->
+<div *ngIf="modalArchivo" class="modal-archivo-bg">
+  <div class="modal-archivo">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em;">
+      <h3 style="margin:0;">{{ modalArchivo.name }}</h3>
+      <button (click)="cerrarModal()" style="background:#2563eb;color:#fff;border:none;padding:0.5em 1em;border-radius:4px;cursor:pointer;">Cerrar</button>
+    </div>
+    <div *ngIf="modalArchivo.type && modalArchivo.dataUrl">
+      <div *ngIf="modalArchivo.type.startsWith('image/')">
+        <img [src]="modalArchivo.dataUrl" [alt]="modalArchivo.name" style="max-width:100%;max-height:400px;display:block;margin:auto;" />
+      </div>
+      <div *ngIf="modalArchivo.type === 'application/pdf'">
+        <div style="width:90vw;max-width:900px;height:80vh;max-height:700px;margin:auto;overflow:auto;">
+          <iframe [src]="getSafeUrl(modalArchivo.dataUrl)" width="100%" height="100%" style="border:1px solid #ccc;background:#fafafa;display:block;"></iframe>
+        </div>
+        <div style="text-align:center;margin-top:1em;">
+          <span>¿No se visualiza correctamente? <a [href]="modalArchivo.dataUrl" download="{{modalArchivo.name}}">Descargar PDF</a></span>
+        </div>
+      </div>
+      <div *ngIf="modalArchivo.type.startsWith('audio/')">
+        <audio [src]="modalArchivo.dataUrl" controls style="width:100%;margin:auto;display:block;"></audio>
+      </div>
+      <div *ngIf="modalArchivo.type.startsWith('video/')">
+        <video [src]="modalArchivo.dataUrl" controls width="100%" style="display:block;margin:auto;"></video>
+      </div>
+      <div *ngIf="!modalArchivo.type.startsWith('image/') && modalArchivo.type !== 'application/pdf' && !modalArchivo.type.startsWith('video/')">
+        <div style="text-align:center;margin-top:2em;">
+          <a [href]="modalArchivo.dataUrl" download="{{modalArchivo.name}}" style="color:#2563eb;font-weight:bold;">Descargar archivo</a>
+        </div>
+      </div>
+    </div>
+    <div *ngIf="!modalArchivo.type || !modalArchivo.dataUrl">
+      <p style="text-align:center;">No se puede previsualizar este archivo.<br>
+        <a [href]="modalArchivo.dataUrl" download="{{modalArchivo.name}}" style="color:#2563eb;font-weight:bold;">Descargar archivo</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+ 

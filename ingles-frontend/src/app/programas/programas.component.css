@@ -1,0 +1,122 @@
+.programas-header {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.header-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.65) contrast(1.1);
+}
+.header-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: rgba(38,49,89,0.18);
+}
+.header-logo {
+  max-width: 260px;
+  width: 60%;
+  height: auto;
+  margin: 0 auto;
+  display: block;
+  filter: drop-shadow(0 4px 24px rgba(38,49,89,0.18));
+}
+
+.pilares-corporativos {
+  width: 100%;
+  background: #fff;
+  padding: 48px 0 24px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.pilares-title {
+  color: #263159;
+  font-size: 2.4em;
+  font-weight: 800;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.pilares-desc {
+  color: #263159;
+  font-size: 1.1em;
+  margin-bottom: 32px;
+  text-align: center;
+}
+.pilares-circular {
+  position: relative;
+  width: 700px;
+  max-width: 98vw;
+  height: 370px;
+  margin: 0 auto 32px auto;
+}
+.pilar-item {
+  position: absolute;
+  width: 200px;
+  text-align: center;
+  color: #263159;
+  font-size: 1em;
+  font-weight: 400;
+}
+.pilar-1 { left: 0; top: 90px; }
+.pilar-2 { left: 60px; top: 270px; }
+.pilar-3 { left: 250px; top: 340px; }
+.pilar-4 { right: 60px; top: 270px; }
+.pilar-5 { right: 0; top: 90px; }
+.pilar-num {
+  background: #263159;
+  color: #fff;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+  font-weight: 700;
+  margin: 0 auto 10px auto;
+}
+.pilar-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 180px;
+  height: 180px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 16px rgba(38,49,89,0.10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15em;
+  font-weight: 700;
+  color: #263159;
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .pilares-circular { width: 98vw; height: 420px; }
+  .pilar-item { width: 150px; font-size: 0.95em; }
+  .pilar-center { width: 120px; height: 120px; font-size: 1em; }
+}
+@media (max-width: 600px) {
+  .pilares-circular { height: 600px; }
+  .pilar-1 { left: 0; top: 120px; }
+  .pilar-2 { left: 10px; top: 370px; }
+  .pilar-3 { left: 110px; top: 520px; }
+  .pilar-4 { right: 10px; top: 370px; }
+  .pilar-5 { right: 0; top: 120px; }
+}
+

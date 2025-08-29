@@ -1,0 +1,42 @@
+<div class="dashboard-layout">
+  <aside class="sidebar">
+    <h3>Menú Empresa</h3>
+    <ul>
+      <li>
+        <button [routerLink]="['/dashboard-empresa']" routerLinkActive="active">
+          <span class="material-icons" style="vertical-align: middle;">business</span>
+          <span class="sidebar-text">Inicio</span>
+        </button>
+      </li>
+      <li>
+        <button [routerLink]="['/dashboard-empresa/unidades']" routerLinkActive="active">
+          <span class="material-icons" style="vertical-align: middle;">view_module</span>
+          <span class="sidebar-text">Unidades</span>
+        </button>
+      </li>
+      <li>
+        <button [routerLink]="['/dashboard-empresa/mis-profes']" routerLinkActive="active">
+          <span class="material-icons" style="vertical-align: middle;">school</span>
+          <span class="sidebar-text">Mis profes</span>
+        </button>
+      </li>
+      <li>
+        <button [routerLink]="['/dashboard-empresa-reportes']" routerLinkActive="active">
+          <span class="material-icons" style="vertical-align: middle;">bar_chart</span>
+          <span class="sidebar-text">Reportes</span>
+        </button>
+      </li>
+      <li>
+        <button [routerLink]="['/dashboard-empresa/estudiantes']" routerLinkActive="active">
+          <span class="material-icons" style="vertical-align: middle;">groups</span>
+          <span class="sidebar-text">Estudiantes</span>
+        </button>
+      </li>
+    </ul>
+  </aside>
+  <main class="main-content">
+    <div class="dashboard-empresa-layout">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+</div>

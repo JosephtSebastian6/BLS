@@ -1,0 +1,26 @@
+<header>
+  <h1>BLS</h1>
+  <nav>
+    <div class="nav-links">
+      <ng-container *ngIf="!isLoggedIn">
+        
+        <li><a routerLink="/">Inicio</a></li>
+        <li><a routerLink="/programas">Programas</a></li>
+        <li><a href="#">Nosotros</a></li>
+        <li><a href="#">Contacto</a></li>
+        <a routerLink="/login">Inicio de Sesión</a> |
+        <a routerLink="/register">Registrarse</a>
+       
+        </ng-container>
+      <ng-container *ngIf="isLoggedIn">
+        <button (click)="cerrarSesion()" class="logout-btn" title="Cerrar sesión">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#2563eb" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" />
+          </svg>
+        </button>
+      </ng-container>
+    </div>
+  </nav>
+</header>
+
+<router-outlet></router-outlet>

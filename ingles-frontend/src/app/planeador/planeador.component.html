@@ -1,0 +1,42 @@
+<div class="planeador-calendar">
+  <div class="calendar-header">
+    <button class="calendar-nav" (click)="prevWeek()">&#8592;</button>
+    <span class="calendar-title">{{ getWeekTitle() }}</span>
+    <button class="calendar-nav" (click)="nextWeek()">&#8594;</button>
+  </div>
+  <div class="calendar-table-wrapper">
+    <table class="calendar-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th *ngFor="let day of days; let i = index">
+            {{ day }}<br>
+            <span class="calendar-date">{{ weekDates[i] | date:'d/M' }}</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let hour of hours">
+          <td class="calendar-hour-label">{{ hour }}</td>
+          <td *ngFor="let day of days" class="calendar-cell" (click)="abrirModal(day, hour)">
+            <div *ngFor="let evento of obtenerEventos(day, hour)" class="evento-item">
+              {{ evento.titulo }}
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <!-- Modal para agregar evento -->
+    <div class="modal-bg" *ngIf="modalVisible">
+      <div class="modal">
+        <h3>Agregar evento</h3>
+        <p><strong>Día:</strong> {{ eventoDia }} &nbsp; <strong>Hora:</strong> {{ eventoHora }}</p>
+        <input type="text" [(ngModel)]="nuevoTitulo" placeholder="Título del evento" />
+        <div class="modal-actions">
+          <button (click)="agregarEvento()">Agregar</button>
+          <button (click)="cerrarModal()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

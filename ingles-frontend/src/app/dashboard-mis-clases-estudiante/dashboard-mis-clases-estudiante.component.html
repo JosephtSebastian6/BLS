@@ -1,0 +1,62 @@
+<app-dashboard-layout>
+  <div class="mis-clases-container">
+    <h2 class="mis-clases-title">Mis Clases</h2>
+    <div *ngIf="calendar && calendar.length; else noClases">
+      <div class="calendario-wrapper">
+        <div class="calendario-header">
+          <button (click)="prevMonth()">&#8592;</button>
+          <span class="mes-actual">{{ monthName | titlecase }}</span>
+          <button (click)="nextMonth()">&#8594;</button>
+        </div>
+        <table class="calendario-table">
+          <thead>
+            <tr>
+              <th *ngFor="let dia of diasSemana">{{ dia.nombre }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let semana of calendar">
+              <td *ngFor="let dia of semana" [ngClass]="{'selected-dia': selectedDay && dia.date && dia.date.getTime() === selectedDay.getTime(), 'hoy': isToday(dia.date)}">
+                <button class="calendario-dia"
+                        [ngClass]="{'selected': selectedDay && dia.date && dia.date.getTime() === selectedDay.getTime(), 'hoy': isToday(dia.date), 'inactivo': !dia.date}"
+                        (click)="dia.clases && dia.clases.length ? openClasesModal(dia) : onDayClick(dia.date)"
+                        [disabled]="!dia.date">
+                  <span *ngIf="dia.date">{{ dia.date.getDate() }}</span>
+                </button>
+                <div *ngIf="dia.clases && dia.clases.length" class="clases-en-celda" style="position: absolute; left: 0; right: 0; top: 70px; z-index: 3; width: 100%; display: flex; flex-direction: column; align-items: center; pointer-events: none;">
+                  <ng-container *ngFor="let clase of dia.clases; let i = index">
+                    <div class="nombre-clase-en-celda" [title]="clase.nombre" style="pointer-events: auto;">
+                      <span>{{ clase.nombre }}</span>
+                    </div>
+                  </ng-container>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Modal de clases del día -->
+      <div class="modal-clases" *ngIf="modalDia">
+        <div class="modal-overlay" (click)="closeClasesModal()"></div>
+        <div class="modal-content">
+          <button class="modal-close" (click)="closeClasesModal()">&times;</button>
+          <h3>Clases del {{ modalDia.date | date:'fullDate' }}</h3>
+          <ul>
+            <li *ngFor="let clase of modalDia.clases">
+              <strong>{{ clase.nombre }}</strong><br>
+              <span>Profesor: {{ clase.profesor }}</span><br>
+              <span>Horario: {{ clase.horario }}</span><br>
+              <span *ngIf="clase.meet_link">
+                <strong>Enlace meet:</strong>
+                <a [href]="clase.meet_link" target="_blank" rel="noopener" class="enlace-meet">Ir a la clase</a>
+              </span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <ng-template #noClases>
+      <div class="no-clases-msg">No tienes clases asignadas actualmente.</div>
+    </ng-template>
+  </div>
+</app-dashboard-layout>

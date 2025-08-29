@@ -1,0 +1,33 @@
+<div class="dashboard-layout">
+  <aside class="sidebar">
+    <h3>Menú</h3>
+    <ul>
+      <li>
+        <button [ngClass]="{active: isPerfilActive()}" (click)="irAMiPerfil()">
+          <span class="material-icons" style="vertical-align: middle;">person</span>
+          <span class="sidebar-text">Mi Perfil</span>
+        </button>
+      </li>
+      <li>
+        <button [routerLink]="['/mis-clases']" routerLinkActive="active">
+          <span class="material-icons" style="vertical-align: middle;">class</span>
+          <span class="sidebar-text">Programar Clase</span>
+        </button>
+      </li>
+      <li>
+        <button [routerLink]="['/planeador']" routerLinkActive="active">
+          <span class="material-icons" style="vertical-align: middle;">event_note</span>
+          <span class="sidebar-text">Planeador</span>
+        </button>
+      </li>
+      <li>
+        <button [routerLink]="['/unidades']" routerLinkActive="active">
+          <span class="material-icons" style="vertical-align: middle;">view_module</span>
+          <span class="sidebar-text">Unidades</span>
+        </button>
+      </li>
+    </ul>
+  </aside>
+  <main class="main-content">
+    <router-outlet></router-outlet>
+  </main>

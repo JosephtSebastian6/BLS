@@ -1,0 +1,100 @@
+/* --- PERFIL MODERNO IGUAL QUE ESTUDIANTE --- */
+.perfil-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+  padding-top: 40px;
+}
+.perfil-title {
+  font-size: 2.2em;
+  font-weight: 800;
+  color: #263159;
+  margin-bottom: 24px;
+  letter-spacing: 0.5px;
+}
+.perfil-form {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(37,99,235,0.10);
+  padding: 60px 80px 50px 80px;
+  min-width: 400px;
+  max-width: 420px;
+  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.perfil-foto-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+.perfil-foto img {
+  width: 160px;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 50%;
+  box-shadow: 0 2px 12px rgba(37,99,235,0.10);
+  background: #f7faff;
+}
+.perfil-campos {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.perfil-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.perfil-campo label {
+  font-weight: 600;
+  color: #263159;
+  margin-bottom: 2px;
+}
+.perfil-campo input {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 1.08em;
+  background: #f7faff;
+  color: #263159;
+  transition: border 0.18s;
+}
+.perfil-campo input:focus {
+  border: 1.5px solid #2563eb;
+  outline: none;
+}
+.perfil-btn {
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.15em;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 0;
+  width: 100%;
+  margin-top: 10px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+  transition: background 0.18s;
+}
+.perfil-btn:hover {
+  background: #1746a2;
+}
+.exito {
+  color: #2563eb;
+  font-weight: 600;
+  margin-top: 18px;
+  text-align: center;
+}
+.foto-error {
+  color: #e53e3e;
+  font-size: 1em;
+  margin-top: 8px;
+  text-align: center;
+}

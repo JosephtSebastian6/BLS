@@ -1,0 +1,161 @@
+/* Eventos en celdas */
+.evento-item {
+  background: var(--primary-color);
+  color: white;
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin: 2px 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  cursor: pointer;
+}
+
+/* Modal para agregar evento */
+.modal-bg {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal {
+  background: var(--gray-800);
+  color: var(--gray-100);
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+  padding: 2rem;
+  min-width: 320px;
+  max-width: 90vw;
+  text-align: center;
+}
+.modal input[type="text"] {
+  width: 90%;
+  padding: 0.5rem;
+  margin: 1rem 0;
+  border-radius: 6px;
+  border: 1px solid #00bcd4;
+  background: var(--gray-900);
+  color: var(--gray-100);
+}
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+.modal-actions button {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.modal-actions button:hover {
+  background: var(--primary-light);
+}
+
+body {
+  background: linear-gradient(180deg, var(--gray-900) 0%, var(--gray-800) 100%) !important;
+  color: var(--gray-100);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+
+}
+.planeador-calendar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--gray-900) 0%, var(--gray-800) 100%);
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+  padding: 2.5rem 1.5rem 1.5rem 1.5rem;
+  max-width: 1200px;
+  width: auto;
+  animation: fadeIn 0.7s;
+  margin: 20rem auto 0 auto; /* baja y centra horizontalmente */
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+.calendar-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 1.5rem;
+  color:white}
+.calendar-nav {
+  background: var(--gray-900);
+  color: var(--primary-color);
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.calendar-nav:hover {
+  background: var(--gray-800);
+}
+/* Tabla tipo Google Calendar */
+/* Tabla tipo Google Calendar mejorada */
+.calendar-table-wrapper {
+  display: flex;
+  justify-content: center; /* 👈 centra la tabla dentro */
+  width: 100%;
+}
+.calendar-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  border-radius: 18px;
+  table-layout: fixed;
+}
+.calendar-table th {
+  background: #fff;
+  color: var(--primary-color);
+  font-weight: 600;
+  text-align: center;
+  padding: 1.1rem 0.2rem;
+  border-top: 1px solid #333;
+  border-bottom: 2px solid #00bcd4;
+  font-size: 1.25rem;
+}
+.calendar-table td {
+  background: #fff;
+  border: 1px solid #00bcd4;
+  min-width: 150px;
+  min-height: 70px;
+  text-align: center;
+  vertical-align: top;
+  transition: background 0.2s;
+  font-size: 1.08rem;
+  color: var(--primary-color);
+}
+.calendar-table td.calendar-hour-label {
+  background: #fff;
+  color: var(--primary-color);
+  font-weight: 500;
+  border-right: 2px solid #00bcd4;
+  min-width: 100px;
+  font-size: 1.08rem;
+}
+.calendar-table td.calendar-cell:hover {
+  background: #f5f5f5;
+  cursor: pointer;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
