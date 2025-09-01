@@ -1,0 +1,36 @@
+<div class="matricula-inactiva-container">
+  <div class="matricula-inactiva-card">
+    <div class="icon-container">
+      <span class="material-icons">school_off</span>
+    </div>
+    
+    <h1>Matrícula Inactiva</h1>
+    
+    <p class="mensaje-principal">
+      Tu matrícula en la plataforma de inglés se encuentra <strong>inactiva</strong>.
+    </p>
+    
+    <p class="mensaje-secundario">
+      Para acceder a las funcionalidades de la plataforma, tu matrícula debe estar activa. 
+      Contacta con el administrador para activar tu acceso.
+    </p>
+    
+    <div class="acciones">
+      <button class="btn-contacto" onclick="window.open('mailto:admin@ingles.com', '_blank')">
+        📧 Contactar Administrador
+      </button>
+      
+      <button class="btn-logout" (click)="logout()">
+        🚪 Cerrar Sesión
+      </button>
+    </div>
+    
+    <div class="info-adicional">
+      <p>
+        <strong>¿Necesitas ayuda?</strong><br>
+        Envía un correo a <a href="mailto:admin@ingles.com">admin@ingles.com</a> 
+        o contacta con el equipo de soporte.
+      </p>
+    </div>
+  </div>
+</div>

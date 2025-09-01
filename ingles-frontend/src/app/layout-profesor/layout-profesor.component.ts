@@ -13,7 +13,7 @@ export class LayoutProfesorComponent {
   constructor(private router: Router) {}
 
   irAMisClases() {
-    this.router.navigate(['/mis-clases']);
+    this.router.navigate(['/dashboard-profesor/mis-clases']);
   }
 
   irAMiPerfil() {
@@ -21,10 +21,10 @@ export class LayoutProfesorComponent {
   }
 
   isPerfilActive(): boolean {
-    return this.router.url.startsWith('/dashboard-profesor');
+    return this.router.url === '/dashboard-profesor' || this.router.url === '/dashboard-profesor/';
   }
 
   isClasesActive(): boolean {
-    return this.router.url.includes('/mis-clases');
+    return this.router.url.includes('/dashboard-profesor/mis-clases');
   }
 }

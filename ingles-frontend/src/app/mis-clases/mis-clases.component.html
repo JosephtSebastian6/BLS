@@ -1,79 +1,168 @@
-<div class="calendar-container">
-  <div class="calendar-header">
-    <div class="row text-center">
-      <div class="col-md-4">
-        <div class="btn-group">
-          <div
+<div class="mis-clases-container">
+  <h2>Mis Clases - Programar y Gestionar</h2>
+
+  <!-- Formulario para crear nueva clase -->
+  <div class="crear-clase-section">
+    <h3>Crear Nueva Clase</h3>
+    <form (ngSubmit)="crearClase()" class="nueva-clase-form">
+      <div class="form-group">
+        <label for="dia">Día:</label>
+        <input type="date" id="dia" [(ngModel)]="nuevaClase.dia" name="dia" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="hora">Hora:</label>
+        <input type="time" id="hora" [(ngModel)]="nuevaClase.hora" name="hora" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="tema">Tema:</label>
+        <input type="text" id="tema" [(ngModel)]="nuevaClase.tema" name="tema" placeholder="Ej: Gramática básica" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="meet_link">Link de Meet:</label>
+        <input type="url" id="meet_link" [(ngModel)]="nuevaClase.meet_link" name="meet_link" placeholder="https://meet.google.com/..." required>
+      </div>
+      
+      <button type="submit" [disabled]="creandoClase" class="btn-crear">
+        {{ creandoClase ? 'Creando...' : 'Crear Clase' }}
+      </button>
+      
+      <div *ngIf="errorNuevaClase" class="error-message">{{ errorNuevaClase }}</div>
+      <div *ngIf="exitoNuevaClase" class="success-message">¡Clase creada exitosamente!</div>
+    </form>
+  </div>
+
+  <!-- Calendario -->
+  <div class="calendar-container">
+    <div class="calendar-header">
+      <div class="calendar-controls">
+        <div class="navigation-buttons">
+          <button
             class="btn btn-primary"
             mwlCalendarPreviousView
             [view]="view"
             [(viewDate)]="viewDate"
           >
-            Previous
-          </div>
-          <div
+            Anterior
+          </button>
+          <button
             class="btn btn-outline-secondary"
             mwlCalendarToday
             [(viewDate)]="viewDate"
           >
-            Today
-          </div>
-          <div
+            Hoy
+          </button>
+          <button
             class="btn btn-primary"
             mwlCalendarNextView
             [view]="view"
             [(viewDate)]="viewDate"
           >
-            Next
-          </div>
+            Siguiente
+          </button>
         </div>
-      </div>
-      <div class="col-md-4">
+        
         <h3>{{ viewDate | calendarDate:(view + 'ViewTitle'):'en' }}</h3>
-      </div>
-      <div class="col-md-4">
-        <div class="btn-group">
-          <div
+        
+        <div class="view-buttons">
+          <button
             class="btn btn-primary"
             (click)="setView(CalendarView.Month)"
             [class.active]="view === CalendarView.Month"
           >
-            Month
-          </div>
-          <div
+            Mes
+          </button>
+          <button
             class="btn btn-primary"
             (click)="setView(CalendarView.Week)"
             [class.active]="view === CalendarView.Week"
           >
-            Week
-          </div>
-          <div
+            Semana
+          </button>
+          <button
             class="btn btn-primary"
             (click)="setView(CalendarView.Day)"
             [class.active]="view === CalendarView.Day"
           >
-            Day
-          </div>
+            Día
+          </button>
         </div>
       </div>
     </div>
+
+    <div [ngSwitch]="view">
+      <mwl-calendar-month-view
+        *ngSwitchCase="'month'"
+        [viewDate]="viewDate"
+        [events]="events">
+      </mwl-calendar-month-view>
+      <mwl-calendar-week-view
+        *ngSwitchCase="'week'"
+        [viewDate]="viewDate"
+        [events]="events">
+      </mwl-calendar-week-view>
+      <mwl-calendar-day-view
+        *ngSwitchCase="'day'"
+        [viewDate]="viewDate"
+        [events]="events">
+      </mwl-calendar-day-view>
+    </div>
   </div>
 
-  <div [ngSwitch]="view">
-    <mwl-calendar-month-view
-      *ngSwitchCase="'month'"
-      [viewDate]="viewDate"
-      [events]="events">
-    </mwl-calendar-month-view>
-    <mwl-calendar-week-view
-      *ngSwitchCase="'week'"
-      [viewDate]="viewDate"
-      [events]="events">
-    </mwl-calendar-week-view>
-    <mwl-calendar-day-view
-      *ngSwitchCase="'day'"
-      [viewDate]="viewDate"
-      [events]="events">
-    </mwl-calendar-day-view>
+  <!-- Lista de clases existentes -->
+  <div class="clases-existentes">
+    <h3>Clases Programadas</h3>
+    
+    <div *ngIf="loading" class="loading">Cargando clases...</div>
+    <div *ngIf="error" class="error-message">{{ error }}</div>
+    
+    <div *ngIf="!loading && clases.length === 0" class="no-clases">
+      No tienes clases programadas aún.
+    </div>
+    
+    <div *ngIf="!loading && clases.length > 0" class="clases-lista">
+      <div *ngFor="let clase of clases; let i = index" class="clase-item">
+        <div class="clase-info">
+          <h4>{{ clase.tema }}</h4>
+          <p><strong>Fecha:</strong> {{ clase.dia }}</p>
+          <p><strong>Hora:</strong> {{ clase.hora }}</p>
+          <p><strong>Link:</strong> <a [href]="clase.meet_link" target="_blank">{{ clase.meet_link }}</a></p>
+          <p><strong>Estudiantes inscritos:</strong> {{ clase.estudiantes?.length || 0 }}</p>
+        </div>
+        
+        <!-- Formulario para agendar estudiante -->
+        <div class="agendar-estudiante">
+          <h5>Agendar Estudiante</h5>
+          <select [(ngModel)]="clase.nuevoEstudiante" name="nuevoEstudiante">
+            <option value="">Seleccionar estudiante...</option>
+            <option *ngFor="let estudiante of estudiantesDisponibles" [value]="estudiante.username">
+              {{ estudiante.nombres }} {{ estudiante.apellidos }}
+            </option>
+          </select>
+          <button 
+            (click)="agendarEstudiante(clase.id, i)" 
+            [disabled]="!clase.nuevoEstudiante || clase.agendando"
+            class="btn-agendar"
+          >
+            {{ clase.agendando ? 'Agendando...' : 'Agendar' }}
+          </button>
+          
+          <div *ngIf="clase.errorAgendar" class="error-message">{{ clase.errorAgendar }}</div>
+          <div *ngIf="clase.exitoAgendar" class="success-message">¡Estudiante agendado exitosamente!</div>
+        </div>
+        
+        <!-- Lista de estudiantes inscritos -->
+        <div *ngIf="clase.estudiantes && clase.estudiantes.length > 0" class="estudiantes-inscritos">
+          <h5>Estudiantes Inscritos:</h5>
+          <ul>
+            <li *ngFor="let estudiante of clase.estudiantes">
+              {{ estudiante.nombres }} {{ estudiante.apellidos }}
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
   </div>
 </div>

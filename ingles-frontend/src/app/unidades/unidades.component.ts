@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-unidades',
@@ -17,11 +18,20 @@ export class UnidadesComponent {
   nuevaUnidad = { nombre: '', descripcion: '', subcarpetas: [] as { nombre: string }[] };
   tipoUsuario: string = '';
 
-  constructor(private router: Router) {
-    this.cargarUnidades();
+  constructor(private router: Router, private http: HttpClient) {
     // Para estudiante, lee desde el objeto user en localStorage
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     this.tipoUsuario = user.tipo_usuario || localStorage.getItem('tipo_usuario') || '';
+    
+    if (this.tipoUsuario === 'estudiante') {
+      this.cargarUnidadesHabilitadas();
+    } else {
+      this.cargarUnidades();
+      // Sincronizar unidades existentes al cargar el componente
+      if (this.tipoUsuario === 'empresa') {
+        this.sincronizarConBackend();
+      }
+    }
   }
 
   cargarUnidades() {
@@ -40,6 +50,27 @@ export class UnidadesComponent {
 
   guardarUnidades() {
     localStorage.setItem('unidades', JSON.stringify(this.unidades));
+    this.sincronizarConBackend();
+  }
+
+  sincronizarConBackend() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('No hay token, no se puede sincronizar');
+      return;
+    }
+
+    console.log('Sincronizando unidades:', this.unidades);
+    this.http.post('http://localhost:8000/auth/unidades/sync', this.unidades, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).subscribe({
+      next: (response) => {
+        console.log('✅ Unidades sincronizadas con backend:', response);
+      },
+      error: (error) => {
+        console.error('❌ Error sincronizando unidades:', error);
+      }
+    });
   }
 
   guardarUnidad() {
@@ -63,6 +94,34 @@ export class UnidadesComponent {
     } else {
       this.router.navigate([`/dashboard-empresa/unidades/${idx + 1}`]);
     }
+  }
+
+  cargarUnidadesHabilitadas() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('No hay token, cargando desde localStorage');
+      this.cargarUnidades();
+      return;
+    }
+
+    console.log('Cargando unidades habilitadas desde backend...');
+    this.http.get<any[]>('http://localhost:8000/auth/estudiantes/me/unidades-habilitadas', {
+      headers: { Authorization: `Bearer ${token}` }
+    }).subscribe({
+      next: (unidades) => {
+        console.log('✅ Unidades recibidas del backend:', unidades);
+        this.unidades = unidades.map(u => ({
+          nombre: u.nombre,
+          descripcion: u.descripcion,
+          subcarpetas: []
+        }));
+      },
+      error: (error) => {
+        console.error('❌ Error cargando unidades habilitadas:', error);
+        console.log('Fallback: cargando desde localStorage');
+        this.cargarUnidades();
+      }
+    });
   }
 
   eliminarUnidad(idx: number, event: MouseEvent) {

@@ -33,8 +33,10 @@ export class LoginComponent {
       .subscribe({
         next: (response: any) => {
           this.message = 'Inicio de sesión exitoso.';
-          // Guarda solo el usuario en localStorage
+          // Guarda el usuario y token en localStorage
           localStorage.setItem('user', JSON.stringify(response.usuario));
+          localStorage.setItem('username', response.usuario.username);
+          localStorage.setItem('token', response.access_token);
           // Redirige según el tipo de usuario actualizado
           if (response.tipo_usuario === 'estudiante') {
             this.router.navigate(['/dashboard-estudiante']);
@@ -47,8 +49,17 @@ export class LoginComponent {
           }
         },
         error: (error) => {
-          // Muestra un mensaje de error si el login falla
-          this.message = 'Error al iniciar sesión. Por favor, revisa tus credenciales.';
+          // Maneja diferentes tipos de errores
+          if (error.status === 403) {
+            // Error 403: Matrícula inactiva
+            this.message = error.error.detail || 'Tu matrícula se encuentra inactiva. Contacta con el administrador.';
+          } else if (error.status === 400) {
+            // Error 400: Credenciales incorrectas
+            this.message = 'Credenciales incorrectas. Por favor, revisa tu usuario y contraseña.';
+          } else {
+            // Otros errores
+            this.message = 'Error al iniciar sesión. Por favor, intenta de nuevo.';
+          }
           console.error('Login error:', error);
         }
       });

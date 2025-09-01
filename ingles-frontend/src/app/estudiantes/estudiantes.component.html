@@ -26,6 +26,7 @@
           <th>Usuario</th>
           <th>Ciudad</th>
           <th>Teléfono</th>
+          <th>Unidades</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -37,6 +38,12 @@
           <td>{{ est.username }}</td>
           <td>{{ est.ciudad }}</td>
           <td>{{ est.telefono }}</td>
+          <td class="unidades-cell">
+            <button class="btn-unidades" (click)="abrirModalUnidades(est)" title="Gestionar Unidades">
+              <span class="material-icons">school</span>
+              Unidades
+            </button>
+          </td>
           <td class="acciones">
             <button mat-icon-button class="accion-btn" title="Ver"><span class="material-icons">visibility</span></button>
             <button mat-icon-button class="accion-btn" title="Editar"><span class="material-icons">edit</span></button>
@@ -45,5 +52,40 @@
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Modal para gestionar unidades -->
+  <div class="modal-overlay" *ngIf="mostrarModalUnidades" (click)="cerrarModalUnidades()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Gestionar Unidades - {{ estudianteSeleccionado?.nombres }} {{ estudianteSeleccionado?.apellidos }}</h3>
+        <button class="btn-cerrar" (click)="cerrarModalUnidades()">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="unidades-lista" *ngIf="unidadesEstudiante.length > 0">
+          <div class="unidad-item" *ngFor="let unidad of unidadesEstudiante">
+            <div class="unidad-info">
+              <h4>{{ unidad.nombre }}</h4>
+              <p>{{ unidad.descripcion }}</p>
+            </div>
+            <div class="unidad-toggle">
+              <button 
+                class="btn-toggle"
+                [class.activo]="unidad.habilitada"
+                [class.inactivo]="!unidad.habilitada"
+                (click)="toggleUnidadEstudiante(unidad.id)"
+                [disabled]="cargandoUnidad === unidad.id">
+                {{ unidad.habilitada ? 'Habilitada' : 'Deshabilitada' }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="loading" *ngIf="cargandoUnidades">
+          Cargando unidades...
+        </div>
+      </div>
+    </div>
   </div>
 </div>

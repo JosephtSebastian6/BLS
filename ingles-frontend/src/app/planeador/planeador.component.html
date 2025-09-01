@@ -4,6 +4,18 @@
     <span class="calendar-title">{{ getWeekTitle() }}</span>
     <button class="calendar-nav" (click)="nextWeek()">&#8594;</button>
   </div>
+  
+  <!-- Indicador de carga -->
+  <div *ngIf="loading" class="loading-indicator">
+    <div class="spinner"></div>
+    <p>Cargando clases programadas...</p>
+  </div>
+  
+  <!-- Mensaje de error -->
+  <div *ngIf="error" class="error-message">
+    <p>{{ error }}</p>
+    <button (click)="cargarClasesDelBackend()" class="retry-button">Reintentar</button>
+  </div>
   <div class="calendar-table-wrapper">
     <table class="calendar-table">
       <thead>
@@ -19,15 +31,21 @@
         <tr *ngFor="let hour of hours">
           <td class="calendar-hour-label">{{ hour }}</td>
           <td *ngFor="let day of days" class="calendar-cell" (click)="abrirModal(day, hour)">
-            <div *ngFor="let evento of obtenerEventos(day, hour)" class="evento-item">
-              {{ evento.titulo }}
+            <div *ngFor="let evento of obtenerEventos(day, hour)" 
+                 class="evento-item"
+                 [class.evento-clase]="evento.esClaseBackend"
+                 [class.evento-local]="!evento.esClaseBackend">
+              <div class="evento-titulo">{{ evento.titulo }}</div>
+              <div *ngIf="evento.esClaseBackend && evento.meetLink" class="evento-meet">
+                <a [href]="evento.meetLink" target="_blank" class="meet-link">📹 Meet</a>
+              </div>
             </div>
           </td>
         </tr>
       </tbody>
     </table>
     <!-- Modal para agregar evento -->
-    <div class="modal-bg" *ngIf="modalVisible">
+    <div class="modal-bg" *ngIf="modalVisible && modalTipo === 'agregar'">
       <div class="modal">
         <h3>Agregar evento</h3>
         <p><strong>Día:</strong> {{ eventoDia }} &nbsp; <strong>Hora:</strong> {{ eventoHora }}</p>
@@ -35,6 +53,64 @@
         <div class="modal-actions">
           <button (click)="agregarEvento()">Agregar</button>
           <button (click)="cerrarModal()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para detalles de clase -->
+    <div class="modal-bg" *ngIf="modalVisible && modalTipo === 'detalles'">
+      <div class="modal modal-detalles">
+        <div class="modal-header">
+          <h3>📚 Detalles de la Clase</h3>
+          <button class="close-btn" (click)="cerrarModal()">✕</button>
+        </div>
+        
+        <div class="clase-info" *ngIf="claseSeleccionada">
+          <div class="info-row">
+            <span class="label">📖 Tema:</span>
+            <span class="value">{{ claseSeleccionada.tema }}</span>
+          </div>
+          
+          <div class="info-row">
+            <span class="label">📅 Fecha:</span>
+            <span class="value">{{ formatearFecha(claseSeleccionada.dia) }}</span>
+          </div>
+          
+          <div class="info-row">
+            <span class="label">🕐 Hora:</span>
+            <span class="value">{{ claseSeleccionada.hora }}</span>
+          </div>
+          
+          <div class="info-row" *ngIf="claseSeleccionada.meet_link">
+            <span class="label">📹 Meet:</span>
+            <span class="value">
+              <a [href]="claseSeleccionada.meet_link" target="_blank" class="meet-link-modal">
+                {{ claseSeleccionada.meet_link }}
+              </a>
+            </span>
+          </div>
+          
+          <div class="info-row">
+            <span class="label">👥 Estudiantes:</span>
+            <span class="value">{{ claseSeleccionada.estudiantes?.length || 0 }} inscritos</span>
+          </div>
+          
+          <div class="estudiantes-lista" *ngIf="claseSeleccionada.estudiantes?.length > 0">
+            <h4>Lista de Estudiantes:</h4>
+            <div class="estudiante-item" *ngFor="let estudiante of claseSeleccionada.estudiantes">
+              <span class="estudiante-nombre">{{ estudiante.nombre }}</span>
+              <span class="estudiante-email">{{ estudiante.email }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-actions">
+          <button *ngIf="claseSeleccionada?.meet_link" 
+                  (click)="abrirMeet()" 
+                  class="btn-meet">
+            📹 Unirse a Meet
+          </button>
+          <button (click)="cerrarModal()" class="btn-cerrar">Cerrar</button>
         </div>
       </div>
     </div>

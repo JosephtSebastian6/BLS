@@ -18,7 +18,8 @@ import { addHours, startOfDay } from 'date-fns';
     {
       provide: DateAdapter,
       useFactory: adapterFactory
-    }
+    },
+    CalendarDateFormatter
   ]
 })
 export class MisClasesComponent implements OnInit {
@@ -47,16 +48,45 @@ export class MisClasesComponent implements OnInit {
 
   ngOnInit() {
     const username = localStorage.getItem('username');
+    console.log('Username from localStorage:', username);
+    
     if (username) {
       this.profesorUsername = username;
+    } else {
+      // Intentar obtener de otras fuentes
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      console.log('User object from localStorage:', user);
+      
+      if (user.username) {
+        this.profesorUsername = user.username;
+      }
     }
-    this.cargarClases();
-    this.cargarEstudiantes();
+    
+    console.log('Final profesorUsername:', this.profesorUsername);
+    
+    if (this.profesorUsername) {
+      this.cargarClases();
+      this.cargarEstudiantes();
+    } else {
+      this.error = 'No se pudo obtener el username del profesor';
+      this.loading = false;
+    }
   }
 
   cargarClases() {
     this.loading = true;
-    this.http.get<any[]>(`http://localhost:8000/auth/clases/${this.profesorUsername}`)
+    const token = localStorage.getItem('token');
+    const headers: any = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    this.http.get<any[]>(`http://localhost:8000/auth/clases/${this.profesorUsername}`, {
+      headers: headers
+    })
       .subscribe({
         next: (data) => {
           this.clases = data;
@@ -84,7 +114,18 @@ export class MisClasesComponent implements OnInit {
 
   cargarEstudiantes() {
     this.loadingEstudiantes = true;
-    this.http.get<any[]>('http://localhost:8000/auth/estudiantes-disponibles')
+    const token = localStorage.getItem('token');
+    const headers: any = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    this.http.get<any[]>('http://localhost:8000/auth/estudiantes-disponibles', {
+      headers: headers
+    })
       .subscribe({
         next: (data) => {
           this.estudiantesDisponibles = data;
@@ -101,12 +142,32 @@ export class MisClasesComponent implements OnInit {
     this.errorNuevaClase = '';
     this.exitoNuevaClase = false;
     this.creandoClase = true;
+    
+    // Validar que el profesor_username no esté vacío
+    if (!this.profesorUsername) {
+      this.errorNuevaClase = 'Error: No se pudo identificar al profesor. Por favor, inicia sesión nuevamente.';
+      this.creandoClase = false;
+      return;
+    }
+    
+    const token = localStorage.getItem('token');
+    const headers: any = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const body = {
       ...this.nuevaClase,
       profesor_username: this.profesorUsername,
       estudiantes: []
     };
-    this.http.post('http://localhost:8000/auth/clases/', body).subscribe({
+    
+    this.http.post('http://localhost:8000/auth/clases/', body, {
+      headers: headers
+    }).subscribe({
       next: () => {
         this.exitoNuevaClase = true;
         this.nuevaClase = { dia: '', hora: '', tema: '', meet_link: '' };
@@ -130,7 +191,20 @@ export class MisClasesComponent implements OnInit {
     clase.errorAgendar = '';
     clase.exitoAgendar = false;
     clase.agendando = true;
-    this.http.post(`http://localhost:8000/auth/clases/${claseId}/agendar-estudiante`, { estudiante_username: clase.nuevoEstudiante })
+    
+    const token = localStorage.getItem('token');
+    const headers: any = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    this.http.post(`http://localhost:8000/auth/clases/${claseId}/agendar-estudiante`, 
+      { estudiante_username: clase.nuevoEstudiante },
+      { headers: headers }
+    )
       .subscribe({
         next: (data: any) => {
           clase.exitoAgendar = true;

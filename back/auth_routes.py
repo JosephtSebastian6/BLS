@@ -2,6 +2,7 @@ import fastapi
 # FastAPI and related imports
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, status, Body
 from fastapi.responses import RedirectResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import jwt
 from datetime import timedelta, datetime
@@ -25,6 +26,9 @@ EXPIRATION_MINUTES = 60
 
 
 authRouter = APIRouter()
+
+# Security scheme
+security = HTTPBearer()
 
 
 # Endpoint para actualizar el perfil del estudiante
@@ -63,9 +67,21 @@ def login(user: schemas.LoginUsuario, db: Session = Depends(get_db)):  # Importa
         print("DEBUG LOGIN: Credenciales incorrectas")
         raise HTTPException(status_code=400, detail="Credenciales incorrectas")
 
+    # Verificar si es estudiante con matrícula inactiva
+    if usuario.tipo_usuario == "estudiante" and not usuario.matricula_activa:
+        print("DEBUG LOGIN: Estudiante con matrícula inactiva")
+        raise HTTPException(
+            status_code=403, 
+            detail="Tu matrícula se encuentra inactiva. Contacta con el administrador para activar tu acceso."
+        )
+
     print(f"DEBUG LOGIN: tipo_usuario={getattr(usuario, 'tipo_usuario', None)}")
     expire = datetime.utcnow() + timedelta(minutes=EXPIRATION_MINUTES)
-    to_encode = {"sub": usuario.username, "exp": expire}
+    to_encode = {
+        "sub": usuario.username, 
+        "exp": expire,
+        "tipo_usuario": usuario.tipo_usuario
+    }
     token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     response = {
         "access_token": token,
@@ -280,3 +296,96 @@ from typing import List
 @authRouter.get("/profesor/", response_model=List[schemas.UsuarioResponse])
 def obtener_profesores(db: Session = Depends(get_db)):
     return crud.obtener_profesores(db)
+
+# Endpoints para gestión de matrículas
+@authRouter.get("/matriculas/", response_model=List[schemas.UsuarioResponse])
+def obtener_matriculas(db: Session = Depends(get_db)):
+    """Obtiene todos los estudiantes registrados en la plataforma"""
+    return crud.obtener_estudiantes(db)
+
+@authRouter.put("/matriculas/{username}/toggle")
+def toggle_matricula(username: str, db: Session = Depends(get_db)):
+    """Activa o desactiva la matrícula de un estudiante"""
+    estudiante = crud.toggle_matricula_estudiante(db, username)
+    if not estudiante:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+    return {
+        "username": estudiante.username,
+        "matricula_activa": estudiante.matricula_activa,
+        "message": f"Matrícula {'activada' if estudiante.matricula_activa else 'desactivada'} exitosamente"
+    }
+
+# Endpoints para gestión de unidades
+@authRouter.post("/unidades/sync")
+def sincronizar_unidades(unidades: List[dict], db: Session = Depends(get_db)):
+    """Sincroniza las unidades del frontend con la base de datos"""
+    return crud.sincronizar_unidades(db, unidades)
+
+@authRouter.get("/unidades/", response_model=List[dict])
+def obtener_unidades(db: Session = Depends(get_db)):
+    """Obtiene todas las unidades disponibles"""
+    return crud.obtener_unidades(db)
+
+@authRouter.get("/estudiantes/me/unidades-habilitadas")
+def obtener_unidades_habilitadas_estudiante(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    """Obtiene solo las unidades habilitadas para el estudiante actual"""
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        tipo_usuario: str = payload.get("tipo_usuario")
+        
+        print(f"Token decodificado - Usuario: {username}, Tipo: {tipo_usuario}")
+        
+        if not username:
+            raise HTTPException(status_code=401, detail="Token inválido - no se encontró username")
+        
+        if tipo_usuario != "estudiante":
+            print(f"Acceso denegado - tipo_usuario: {tipo_usuario} (esperado: estudiante)")
+            raise HTTPException(status_code=403, detail=f"Solo estudiantes pueden acceder a este endpoint. Tipo actual: {tipo_usuario}")
+        
+        return crud.obtener_unidades_habilitadas_estudiante(db, username)
+    except jwt.JWTError as e:
+        print(f"Error JWT: {e}")
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+@authRouter.get("/estudiantes/{username}/unidades")
+def obtener_unidades_estudiante(username: str, db: Session = Depends(get_db)):
+    """Obtiene las unidades habilitadas para un estudiante específico"""
+    return crud.obtener_unidades_estudiante(db, username)
+
+@authRouter.put("/estudiantes/{username}/unidades/{unidad_id}/toggle")
+def toggle_unidad_estudiante(username: str, unidad_id: int, db: Session = Depends(get_db)):
+    """Habilita o deshabilita una unidad para un estudiante"""
+    resultado = crud.toggle_unidad_estudiante(db, username, unidad_id)
+    if resultado is None:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+    return {"habilitada": resultado}
+
+# Endpoints para gestión de asignaciones profesor-estudiante
+@authRouter.get("/profesores/{profesor_username}/estudiantes")
+def obtener_estudiantes_asignados(profesor_username: str, db: Session = Depends(get_db)):
+    """Obtiene los estudiantes asignados a un profesor"""
+    estudiantes = crud.obtener_estudiantes_asignados(db, profesor_username)
+    return [schemas.UsuarioResponse.from_orm(est) for est in estudiantes]
+
+@authRouter.post("/profesores/{profesor_username}/estudiantes/{estudiante_username}")
+def asignar_estudiante_profesor(profesor_username: str, estudiante_username: str, db: Session = Depends(get_db)):
+    """Asigna un estudiante a un profesor"""
+    resultado = crud.asignar_estudiante_profesor(db, profesor_username, estudiante_username)
+    if not resultado:
+        raise HTTPException(status_code=404, detail="Profesor o estudiante no encontrado")
+    return {"message": "Estudiante asignado correctamente"}
+
+@authRouter.delete("/profesores/{profesor_username}/estudiantes/{estudiante_username}")
+def desasignar_estudiante_profesor(profesor_username: str, estudiante_username: str, db: Session = Depends(get_db)):
+    """Desasigna un estudiante de un profesor"""
+    resultado = crud.desasignar_estudiante_profesor(db, profesor_username, estudiante_username)
+    if not resultado:
+        raise HTTPException(status_code=404, detail="Profesor o estudiante no encontrado")
+    return {"message": "Estudiante desasignado correctamente"}
+
+@authRouter.get("/estudiantes")
+def obtener_todos_estudiantes(db: Session = Depends(get_db)):
+    """Obtiene todos los estudiantes registrados"""
+    estudiantes = crud.obtener_estudiantes(db)
+    return [schemas.UsuarioResponse.from_orm(est) for est in estudiantes]

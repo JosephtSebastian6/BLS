@@ -71,6 +71,229 @@ mwl-calendar-day-view {
   height: 100%;
 }
 
+/* Estilos para el contenedor principal */
+.mis-clases-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.mis-clases-container h2 {
+  color: #1967d2;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+/* Estilos para el formulario de crear clase */
+.crear-clase-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+}
+
+.crear-clase-section h3 {
+  color: #3c4043;
+  margin-bottom: 20px;
+}
+
+.nueva-clase-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 500;
+  margin-bottom: 5px;
+  color: #3c4043;
+}
+
+.form-group input, .form-group select {
+  padding: 10px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.btn-crear {
+  background-color: #1967d2;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.btn-crear:hover:not(:disabled) {
+  background-color: #1557b0;
+}
+
+.btn-crear:disabled {
+  background-color: #dadce0;
+  cursor: not-allowed;
+}
+
+/* Estilos para la sección de clases existentes */
+.clases-existentes {
+  margin-top: 30px;
+}
+
+.clases-existentes h3 {
+  color: #3c4043;
+  margin-bottom: 20px;
+}
+
+.clases-lista {
+  display: grid;
+  gap: 20px;
+}
+
+.clase-item {
+  background: white;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.clase-info h4 {
+  color: #1967d2;
+  margin-bottom: 10px;
+}
+
+.clase-info p {
+  margin: 5px 0;
+  color: #3c4043;
+}
+
+.clase-info a {
+  color: #1967d2;
+  text-decoration: none;
+}
+
+.clase-info a:hover {
+  text-decoration: underline;
+}
+
+/* Estilos para agendar estudiante */
+.agendar-estudiante {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e8eaed;
+}
+
+.agendar-estudiante h5 {
+  color: #3c4043;
+  margin-bottom: 10px;
+}
+
+.agendar-estudiante select {
+  padding: 8px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  margin-right: 10px;
+  min-width: 200px;
+}
+
+.btn-agendar {
+  background-color: #34a853;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-agendar:hover:not(:disabled) {
+  background-color: #2d8f47;
+}
+
+.btn-agendar:disabled {
+  background-color: #dadce0;
+  cursor: not-allowed;
+}
+
+/* Estilos para estudiantes inscritos */
+.estudiantes-inscritos {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e8eaed;
+}
+
+.estudiantes-inscritos h5 {
+  color: #3c4043;
+  margin-bottom: 10px;
+}
+
+.estudiantes-inscritos ul {
+  list-style: none;
+  padding: 0;
+}
+
+.estudiantes-inscritos li {
+  background: #e8f0fe;
+  padding: 8px 12px;
+  margin: 5px 0;
+  border-radius: 4px;
+  color: #1967d2;
+}
+
+/* Mensajes de estado */
+.loading {
+  text-align: center;
+  color: #5f6368;
+  padding: 20px;
+}
+
+.error-message {
+  color: #d93025;
+  background: #fce8e6;
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.success-message {
+  color: #137333;
+  background: #e6f4ea;
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.no-clases {
+  text-align: center;
+  color: #5f6368;
+  padding: 40px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+/* Estilos para los controles del calendario */
+.calendar-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.navigation-buttons, .view-buttons {
+  display: flex;
+  gap: 8px;
+}
+
 
 
 

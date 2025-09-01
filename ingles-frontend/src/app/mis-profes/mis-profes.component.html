@@ -1,6 +1,6 @@
 <div class="mis-profes-container">
   <h2>Mis Profes</h2>
-  <p>Bienvenido al dashboard de profesores. Aquí podrás gestionar y visualizar información de tus profes.</p>
+  <p>Gestiona profesores y asigna estudiantes a cada uno.</p>
 
   <table class="tabla-profes">
     <thead>
@@ -8,7 +8,8 @@
         <th>Nombre</th>
         <th>Apellidos</th>
         <th>Email</th>
-        <th>Tipo</th>
+        <th>Estudiantes Asignados</th>
+        <th>Acciones</th>
       </tr>
     </thead>
     <tbody>
@@ -16,8 +17,46 @@
         <td>{{ profe.nombres }}</td>
         <td>{{ profe.apellidos }}</td>
         <td>{{ profe.email }}</td>
-        <td>{{ profe.tipo_usuario }}</td>
+        <td>{{ contarEstudiantesAsignados(profe.username) }}</td>
+        <td>
+          <button class="btn-gestionar" (click)="abrirModalEstudiantes(profe)">
+            Gestionar Estudiantes
+          </button>
+        </td>
       </tr>
     </tbody>
   </table>
+
+  <!-- Modal para gestionar estudiantes del profesor -->
+  <div class="modal-overlay" *ngIf="mostrarModal" (click)="cerrarModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Gestionar Estudiantes - {{ profesorSeleccionado?.nombres }} {{ profesorSeleccionado?.apellidos }}</h3>
+        <button class="btn-cerrar" (click)="cerrarModal()">&times;</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="estudiantes-lista" *ngIf="!cargandoEstudiantes; else loadingTemplate">
+          <div class="estudiante-item" *ngFor="let estudiante of todosEstudiantes">
+            <div class="estudiante-info">
+              <span class="nombre">{{ estudiante.nombres }} {{ estudiante.apellidos }}</span>
+              <span class="username">@{{ estudiante.username }}</span>
+            </div>
+            <button 
+              class="btn-toggle"
+              [class.asignado]="estaAsignado(estudiante.username)"
+              [class.no-asignado]="!estaAsignado(estudiante.username)"
+              (click)="toggleAsignacion(estudiante.username)"
+              [disabled]="procesandoAsignacion">
+              {{ estaAsignado(estudiante.username) ? 'Desasignar' : 'Asignar' }}
+            </button>
+          </div>
+        </div>
+        
+        <ng-template #loadingTemplate>
+          <div class="loading">Cargando estudiantes...</div>
+        </ng-template>
+      </div>
+    </div>
+  </div>
 </div>

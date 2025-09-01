@@ -9,7 +9,6 @@ import { DashboardComponent } from './auth/dashboard/dashboard'
 import { DashboardEstudiante } from './dashboard-estudiante/dashboard-estudiante';
 import { DashboardMisCursos } from './dashboard-mis-cursos/dashboard-mis-cursos';
 import { DashboardEmpresaComponent } from './dashboard-empresa/dashboard-empresa';
-import { DashboardFuncionarioComponent } from './dashboard-profesor/dashboard-profesor';
 import { DashboardProfesorComponent } from './dashboard-profesor/dashboard-profesor.component';
 import { MisClasesComponent } from './mis-clases/mis-clases.component';
 import { PlaneadorComponent } from './planeador/planeador.component';
@@ -23,6 +22,9 @@ import { UnidadDetalleComponent } from './unidades/detalle/unidad-detalle.compon
 import { SubcarpetaDetalleComponent } from './unidades/detalle/subcarpeta-detalle.component';
 import { MisProfesComponent } from './mis-profes/mis-profes.component';
 import { EstudiantesComponent } from './estudiantes/estudiantes.component';
+import { MatriculasComponent } from './matriculas/matriculas.component';
+import { MatriculaInactivaComponent } from './matricula-inactiva/matricula-inactiva.component';
+import { MatriculaGuard } from './auth/matricula.guard';
 
 export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
@@ -34,7 +36,7 @@ export const routes: Routes = [
   {
     path: 'dashboard-estudiante',
     component: DashboardEstudiante,
-    canActivate: [RoleGuard],
+    canActivate: [RoleGuard, MatriculaGuard],
     data: { expectedRole: 'estudiante' },
     children: [
       { path: 'unidades', component: UnidadesComponent },
@@ -54,22 +56,19 @@ export const routes: Routes = [
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
       { path: 'mis-profes', component: MisProfesComponent },
-      { path: 'estudiantes', component: EstudiantesComponent }
+      { path: 'estudiantes', component: EstudiantesComponent },
+      { path: 'matriculas', component: MatriculasComponent }
     ]
   },
-  { path: 'dashboard-funcionario', component: DashboardFuncionarioComponent },
   {
-    path: '',
+    path: 'dashboard-profesor',
     component: LayoutProfesorComponent,
     canActivate: [RoleGuard],
     data: { expectedRole: 'profesor' },
     children: [
-      { path: 'dashboard-profesor', component: DashboardProfesorComponent },
+      { path: '', component: DashboardProfesorComponent },
       { path: 'mis-clases', component: MisClasesComponent },
       { path: 'planeador', component: PlaneadorComponent },
-      {path: 'dashboard-profesor/unidades',component: UnidadesComponent},
-      {path: 'dashboard-profesor/unidades/:id',component: UnidadesComponent},
-      {path: 'dashboard-profesor/unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent},
       { path: 'unidades', component: UnidadesComponent },
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
@@ -79,4 +78,5 @@ export const routes: Routes = [
   { path: 'dashboard-progreso', component: DashboardProgresoComponent },
   { path: 'dashboard-mis-clases-estudiante', component: DashboardMisClasesEstudianteComponent },
   { path: 'programas', component: ProgramasComponent },
+  { path: 'matricula-inactiva', component: MatriculaInactivaComponent },
 ];

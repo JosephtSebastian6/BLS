@@ -1,56 +1,58 @@
-<div class="perfil-container">
-  <form *ngIf="perfil" (ngSubmit)="onSubmit()" class="perfil-form">
-    <h2 class="perfil-title">Mi Perfil</h2>
-    <div class="perfil-foto-container">
-      <div class="perfil-foto">
+<div class="dashboard-profesor-layout">
+  <form *ngIf="perfil" (ngSubmit)="onSubmit()" class="perfil-form-freepik">
+    <div class="perfil-form-fields">
+      <h2>Información Personal</h2>
+      <div class="perfil-form-grid-freepik">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input id="email" type="email" [(ngModel)]="perfil.email" name="email" placeholder="tu@email.com" />
+        </div>
+        <div class="form-group">
+          <label for="numero_identificacion">Número de Identificación</label>
+          <input id="numero_identificacion" type="text" [(ngModel)]="perfil.numero_identificacion" name="numero_identificacion" placeholder="123456789" />
+        </div>
+        <div class="form-group">
+          <label for="nombres">Nombres</label>
+          <input id="nombres" type="text" [(ngModel)]="perfil.nombres" name="nombres" placeholder="Tus nombres" />
+        </div>
+        <div class="form-group">
+          <label for="apellidos">Apellidos</label>
+          <input id="apellidos" type="text" [(ngModel)]="perfil.apellidos" name="apellidos" placeholder="Tus apellidos" />
+        </div>
+        <div class="form-group">
+          <label for="ciudad">Ciudad</label>
+          <input id="ciudad" type="text" [(ngModel)]="perfil.ciudad" name="ciudad" placeholder="Tu ciudad" />
+        </div>
+        <div class="form-group">
+          <label for="ano_nacimiento">Año de Nacimiento</label>
+          <input id="ano_nacimiento" type="number" [(ngModel)]="perfil.ano_nacimiento" name="ano_nacimiento" placeholder="1990" min="1900" max="2010" />
+        </div>
+        <div class="form-group">
+          <label for="direccion">Dirección</label>
+          <input id="direccion" type="text" [(ngModel)]="perfil.direccion" name="direccion" placeholder="Tu dirección completa" />
+        </div>
+        <div class="form-group">
+          <label for="telefono">Teléfono</label>
+          <input id="telefono" type="tel" [(ngModel)]="perfil.telefono" name="telefono" placeholder="+57 300 123 4567" />
+        </div>
+        <div class="form-group">
+          <label for="profile_image_url">URL de Imagen de Perfil</label>
+          <input id="profile_image_url" type="url" [(ngModel)]="perfil.profile_image_url" name="profile_image_url" (input)="onImagenInputChange()" placeholder="https://ejemplo.com/tu-foto.jpg" />
+        </div>
+      </div>
+      <button type="submit" class="btn-guardar-modern">Guardar cambios</button>
+      <div *ngIf="mensajeExito" class="exito">{{mensajeExito}}</div>
+    </div>
+    <div class="perfil-foto-freepik">
+      <div class="perfil-foto-oval">
         <img *ngIf="perfil.profile_image_url" [src]="perfil.profile_image_url" alt="Foto de perfil" (error)="onImagenError()" />
         <span *ngIf="imagenInvalida" class="foto-error">No se pudo cargar la imagen</span>
       </div>
-    </div>
-    <div class="perfil-campos">
-      <div class="perfil-campo">
-        <label>Usuario:</label>
-        <input [(ngModel)]="perfil.username" name="username" disabled />
-      </div>
-      <div class="perfil-campo">
-        <label>Email:</label>
-        <input [(ngModel)]="perfil.email" name="email" />
-      </div>
-      <div class="perfil-campo">
-        <label>Nombres:</label>
-        <input [(ngModel)]="perfil.nombres" name="nombres" />
-      </div>
-      <div class="perfil-campo">
-        <label>Apellidos:</label>
-        <input [(ngModel)]="perfil.apellidos" name="apellidos" />
-      </div>
-      <div class="perfil-campo">
-        <label>Número Identificación:</label>
-        <input [(ngModel)]="perfil.numero_identificacion" name="numero_identificacion" />
-      </div>
-      <div class="perfil-campo">
-        <label>Ciudad:</label>
-        <input [(ngModel)]="perfil.ciudad" name="ciudad" />
-      </div>
-      <div class="perfil-campo">
-        <label>Año Nacimiento:</label>
-        <input [(ngModel)]="perfil.ano_nacimiento" name="ano_nacimiento" />
-      </div>
-      <div class="perfil-campo">
-        <label>Dirección:</label>
-        <input [(ngModel)]="perfil.direccion" name="direccion" />
-      </div>
-      <div class="perfil-campo">
-        <label>Teléfono:</label>
-        <input [(ngModel)]="perfil.telefono" name="telefono" />
-      </div>
-      <div class="perfil-campo">
-        <label>URL de imagen de perfil:</label>
-        <input [(ngModel)]="perfil.profile_image_url" name="profile_image_url" (input)="onImagenInputChange()" />
+      <div class="perfil-nombre-modern">
+        <h3>{{ perfil.username }}</h3>
+        <span class="perfil-rol">Profesor</span>
       </div>
     </div>
-    <button type="submit" class="perfil-btn">Guardar cambios</button>
-    <div *ngIf="mensajeExito" class="exito">{{mensajeExito}}</div>
   </form>
   <router-outlet></router-outlet>
 </div>

@@ -1,0 +1,96 @@
+<div class="matriculas-container">
+  <div class="matriculas-header">
+    <h2>📋 Gestión de Matrículas</h2>
+    <p>Administra y supervisa las matrículas de estudiantes en los diferentes cursos de inglés.</p>
+  </div>
+
+  <!-- Indicador de carga -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Cargando matrículas...</p>
+  </div>
+
+  <!-- Mensaje de error -->
+  <div *ngIf="error" class="error-container">
+    <p>{{ error }}</p>
+  </div>
+
+  <!-- Tabla de matrículas -->
+  <div *ngIf="!loading && !error" class="matriculas-table-container">
+    <div class="table-header">
+      <h3>Lista de Matrículas</h3>
+      <div class="table-stats">
+        <span class="stat-item">
+          <strong>{{ matriculas.length }}</strong> matrículas registradas
+        </span>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table class="matriculas-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Estudiante</th>
+            <th>Email</th>
+            <th>Curso</th>
+            <th>Profesor</th>
+            <th>Fecha Matrícula</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let matricula of matriculas" class="matricula-row">
+            <td class="matricula-id">{{ matricula.id }}</td>
+            <td class="matricula-estudiante">
+              <div class="estudiante-info">
+                <span class="estudiante-nombre">{{ matricula.estudiante }}</span>
+              </div>
+            </td>
+            <td class="matricula-email">{{ matricula.email }}</td>
+            <td class="matricula-curso">
+              <span class="curso-badge">{{ matricula.curso }}</span>
+            </td>
+            <td class="matricula-profesor">{{ matricula.profesor }}</td>
+            <td class="matricula-fecha">{{ matricula.fechaMatricula | date:'dd/MM/yyyy' }}</td>
+            <td class="matricula-estado">
+              <span class="estado-badge" [class]="getEstadoClass(matricula.estado)">
+                {{ matricula.estado }}
+              </span>
+            </td>
+            <td class="matricula-acciones">
+              <button 
+                class="btn-accion btn-toggle" 
+                [class.btn-activar]="matricula.estado === 'Inactiva'"
+                [class.btn-desactivar]="matricula.estado === 'Activa'"
+                [title]="matricula.estado === 'Activa' ? 'Desactivar matrícula' : 'Activar matrícula'"
+                (click)="toggleMatricula(matricula.estudianteUsername)">
+                {{ matricula.estado === 'Activa' ? '🔒' : '🔓' }}
+              </button>
+              <button class="btn-accion btn-ver" title="Ver detalles">
+                👁️
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Resumen de estados -->
+    <div class="estados-resumen">
+      <div class="resumen-item">
+        <span class="resumen-numero">{{ getMatriculasPorEstado('Activa').length }}</span>
+        <span class="resumen-label">Activas</span>
+      </div>
+      <div class="resumen-item">
+        <span class="resumen-numero">{{ getMatriculasPorEstado('Pendiente').length }}</span>
+        <span class="resumen-label">Pendientes</span>
+      </div>
+      <div class="resumen-item">
+        <span class="resumen-numero">{{ getMatriculasPorEstado('Inactiva').length }}</span>
+        <span class="resumen-label">Inactivas</span>
+      </div>
+    </div>
+  </div>
+</div>

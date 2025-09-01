@@ -5,7 +5,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from Clever_MySQL_conn import Base
-from datetime import datetime, timedelta
+from datetime import datetime, datetime as dt, timedelta
 from sqlalchemy import Table
 
 class Registro(Base):
@@ -30,6 +30,7 @@ class Registro(Base):
     verification_token = Column(String(255), nullable=True)
     tipo_usuario = Column(String(20), nullable=False)  # estudiante, profesor, empresa
     token_expires_at = Column(DateTime, nullable=True)
+    matricula_activa = Column(Boolean, default=True)  # Para estudiantes: si pueden acceder a la plataforma
 
 
 
@@ -58,3 +59,27 @@ class Clase(Base):
         secondaryjoin="Registro.identificador==clase_estudiante.c.estudiante_id",
         backref="clases"
     )
+
+# Tabla para unidades
+class Unidad(Base):
+    __tablename__ = "unidad"
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(100), nullable=False)
+    descripcion = Column(String(255), nullable=True)
+    orden = Column(Integer, default=0)
+
+# Tabla intermedia para estudiante-unidad (qué unidades tiene habilitadas cada estudiante)
+estudiante_unidad = Table(
+    'estudiante_unidad', Base.metadata,
+    Column('estudiante_id', Integer, ForeignKey('estudiante.identificador'), primary_key=True),
+    Column('unidad_id', Integer, ForeignKey('unidad.id'), primary_key=True),
+    Column('habilitada', Boolean, default=True)
+)
+
+# Tabla intermedia para profesor-estudiante (qué estudiantes están asignados a cada profesor)
+profesor_estudiante = Table(
+    'profesor_estudiante', Base.metadata,
+    Column('profesor_id', Integer, ForeignKey('estudiante.identificador'), primary_key=True),
+    Column('estudiante_id', Integer, ForeignKey('estudiante.identificador'), primary_key=True),
+    Column('fecha_asignacion', DateTime, default=datetime.utcnow)
+)

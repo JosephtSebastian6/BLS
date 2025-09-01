@@ -52,6 +52,7 @@ class UsuarioResponse(BaseModel):
     telefono: str | None = None
     profile_image_url: str | None = None
     tipo_usuario: str
+    matricula_activa: bool | None = None
 
     class Config:
         from_attributes = True

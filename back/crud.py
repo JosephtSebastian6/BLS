@@ -233,5 +233,197 @@ def obtener_clases_estudiante(db, estudiante_username):
 def obtener_profesores(db):
     return db.query(models.Registro).filter(models.Registro.tipo_usuario == "profesor").all()
 
+def obtener_estudiantes(db):
+    """Obtiene todos los estudiantes registrados en la plataforma"""
+    return db.query(models.Registro).filter(models.Registro.tipo_usuario == "estudiante").all()
 
+def toggle_matricula_estudiante(db: Session, username: str):
+    """Activa o desactiva la matrícula de un estudiante"""
+    estudiante = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if estudiante:
+        estudiante.matricula_activa = not estudiante.matricula_activa
+        db.commit()
+        db.refresh(estudiante)
+    return estudiante
 
+# Funciones CRUD para gestión de unidades
+def sincronizar_unidades(db: Session, unidades_frontend: list):
+    """Sincroniza las unidades del frontend con la base de datos"""
+    # Limpiar unidades existentes
+    db.query(models.Unidad).delete()
+    db.commit()
+    
+    # Insertar nuevas unidades
+    for i, unidad in enumerate(unidades_frontend):
+        nueva_unidad = models.Unidad(
+            nombre=unidad.get('nombre', ''),
+            descripcion=unidad.get('descripcion', ''),
+            orden=i + 1
+        )
+        db.add(nueva_unidad)
+    
+    db.commit()
+    return {"message": f"Se sincronizaron {len(unidades_frontend)} unidades"}
+
+def obtener_unidades(db: Session):
+    """Obtiene todas las unidades disponibles"""
+    unidades = db.query(models.Unidad).order_by(models.Unidad.orden).all()
+    return [{"id": u.id, "nombre": u.nombre, "descripcion": u.descripcion, "orden": u.orden} for u in unidades]
+
+def toggle_unidad_estudiante(db: Session, username: str, unidad_id: int):
+    """Habilita o deshabilita una unidad para un estudiante"""
+    estudiante = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if not estudiante:
+        return None
+    
+    # Verificar si ya existe la relación
+    relacion = db.query(models.estudiante_unidad).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
+        models.estudiante_unidad.c.unidad_id == unidad_id
+    ).first()
+    
+    if relacion:
+        # Actualizar estado existente
+        db.execute(
+            models.estudiante_unidad.update().where(
+                (models.estudiante_unidad.c.estudiante_id == estudiante.identificador) &
+                (models.estudiante_unidad.c.unidad_id == unidad_id)
+            ).values(habilitada=not relacion.habilitada)
+        )
+        nuevo_estado = not relacion.habilitada
+    else:
+        # Crear nueva relación (por defecto habilitada, así que la deshabilitamos)
+        db.execute(
+            models.estudiante_unidad.insert().values(
+                estudiante_id=estudiante.identificador,
+                unidad_id=unidad_id,
+                habilitada=False
+            )
+        )
+        nuevo_estado = False
+    
+    db.commit()
+    return nuevo_estado
+
+def obtener_unidades_habilitadas_estudiante(db: Session, username: str):
+    """Obtiene las unidades habilitadas para un estudiante específico, o todas si no tiene ninguna configurada"""
+    estudiante = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if not estudiante:
+        return []
+    
+    # Primero verificar si el estudiante tiene alguna configuración de unidades
+    tiene_configuracion = db.query(models.estudiante_unidad).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador
+    ).first()
+    
+    if not tiene_configuracion:
+        # Si no tiene configuración, mostrar todas las unidades disponibles
+        todas_unidades = db.query(models.Unidad).order_by(models.Unidad.orden).all()
+        return [{"id": u.id, "nombre": u.nombre, "descripcion": u.descripcion, "orden": u.orden} for u in todas_unidades]
+    
+    # Si tiene configuración, obtener solo las habilitadas
+    query = db.query(
+        models.Unidad.id,
+        models.Unidad.nombre,
+        models.Unidad.descripcion,
+        models.Unidad.orden
+    ).join(
+        models.estudiante_unidad,
+        models.Unidad.id == models.estudiante_unidad.c.unidad_id
+    ).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
+        models.estudiante_unidad.c.habilitada == True
+    ).order_by(models.Unidad.orden)
+    
+    unidades_habilitadas = []
+    for unidad in query.all():
+        unidades_habilitadas.append({
+            "id": unidad.id,
+            "nombre": unidad.nombre,
+            "descripcion": unidad.descripcion,
+            "orden": unidad.orden
+        })
+    
+    return unidades_habilitadas
+
+# Funciones CRUD para gestión de asignaciones profesor-estudiante
+def obtener_estudiantes_asignados(db: Session, profesor_username: str):
+    """Obtiene los estudiantes asignados a un profesor"""
+    profesor = db.query(models.Registro).filter(
+        models.Registro.username == profesor_username,
+        models.Registro.tipo_usuario == "profesor"
+    ).first()
+    
+    if not profesor:
+        return []
+    
+    estudiantes = db.query(models.Registro).join(
+        models.profesor_estudiante,
+        models.Registro.identificador == models.profesor_estudiante.c.estudiante_id
+    ).filter(
+        models.profesor_estudiante.c.profesor_id == profesor.identificador,
+        models.Registro.tipo_usuario == "estudiante"
+    ).all()
+    
+    return estudiantes
+
+def asignar_estudiante_profesor(db: Session, profesor_username: str, estudiante_username: str):
+    """Asigna un estudiante a un profesor"""
+    profesor = db.query(models.Registro).filter(
+        models.Registro.username == profesor_username,
+        models.Registro.tipo_usuario == "profesor"
+    ).first()
+    
+    estudiante = db.query(models.Registro).filter(
+        models.Registro.username == estudiante_username,
+        models.Registro.tipo_usuario == "estudiante"
+    ).first()
+    
+    if not profesor or not estudiante:
+        return False
+    
+    # Verificar si ya está asignado
+    existing = db.execute(
+        models.profesor_estudiante.select().where(
+            models.profesor_estudiante.c.profesor_id == profesor.identificador,
+            models.profesor_estudiante.c.estudiante_id == estudiante.identificador
+        )
+    ).first()
+    
+    if existing:
+        return True  # Ya está asignado
+    
+    # Crear nueva asignación
+    db.execute(
+        models.profesor_estudiante.insert().values(
+            profesor_id=profesor.identificador,
+            estudiante_id=estudiante.identificador
+        )
+    )
+    db.commit()
+    return True
+
+def desasignar_estudiante_profesor(db: Session, profesor_username: str, estudiante_username: str):
+    """Desasigna un estudiante de un profesor"""
+    profesor = db.query(models.Registro).filter(
+        models.Registro.username == profesor_username,
+        models.Registro.tipo_usuario == "profesor"
+    ).first()
+    
+    estudiante = db.query(models.Registro).filter(
+        models.Registro.username == estudiante_username,
+        models.Registro.tipo_usuario == "estudiante"
+    ).first()
+    
+    if not profesor or not estudiante:
+        return False
+    
+    # Eliminar asignación
+    db.execute(
+        models.profesor_estudiante.delete().where(
+            models.profesor_estudiante.c.profesor_id == profesor.identificador,
+            models.profesor_estudiante.c.estudiante_id == estudiante.identificador
+        )
+    )
+    db.commit()
+    return True
