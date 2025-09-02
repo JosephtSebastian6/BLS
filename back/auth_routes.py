@@ -351,7 +351,12 @@ def obtener_unidades_habilitadas_estudiante(credentials: HTTPAuthorizationCreden
 @authRouter.get("/estudiantes/{username}/unidades")
 def obtener_unidades_estudiante(username: str, db: Session = Depends(get_db)):
     """Obtiene las unidades habilitadas para un estudiante específico"""
-    return crud.obtener_unidades_estudiante(db, username)
+    return crud.obtener_unidades_habilitadas_estudiante(db, username)
+
+@authRouter.get("/estudiantes/{username}/unidades/estado")
+def obtener_estado_unidades_estudiante(username: str, db: Session = Depends(get_db)):
+    """Obtiene todas las unidades con su estado (habilitada/deshabilitada) para gestión"""
+    return crud.obtener_estado_unidades_estudiante(db, username)
 
 @authRouter.put("/estudiantes/{username}/unidades/{unidad_id}/toggle")
 def toggle_unidad_estudiante(username: str, unidad_id: int, db: Session = Depends(get_db)):

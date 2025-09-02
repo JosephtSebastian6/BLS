@@ -27,10 +27,6 @@ export class UnidadesComponent {
       this.cargarUnidadesHabilitadas();
     } else {
       this.cargarUnidades();
-      // Sincronizar unidades existentes al cargar el componente
-      if (this.tipoUsuario === 'empresa') {
-        this.sincronizarConBackend();
-      }
     }
   }
 

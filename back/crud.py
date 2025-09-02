@@ -249,7 +249,11 @@ def toggle_matricula_estudiante(db: Session, username: str):
 # Funciones CRUD para gestión de unidades
 def sincronizar_unidades(db: Session, unidades_frontend: list):
     """Sincroniza las unidades del frontend con la base de datos"""
-    # Limpiar unidades existentes
+    # Primero eliminar las relaciones en estudiante_unidad
+    db.execute(models.estudiante_unidad.delete())
+    db.commit()
+    
+    # Luego eliminar las unidades existentes
     db.query(models.Unidad).delete()
     db.commit()
     
@@ -292,7 +296,8 @@ def toggle_unidad_estudiante(db: Session, username: str, unidad_id: int):
         )
         nuevo_estado = not relacion.habilitada
     else:
-        # Crear nueva relación (por defecto habilitada, así que la deshabilitamos)
+        # Si no existe relación, significa que está "habilitada" por defecto (mostrando todas)
+        # Así que al hacer toggle, la deshabilitamos
         db.execute(
             models.estudiante_unidad.insert().values(
                 estudiante_id=estudiante.identificador,
@@ -306,12 +311,12 @@ def toggle_unidad_estudiante(db: Session, username: str, unidad_id: int):
     return nuevo_estado
 
 def obtener_unidades_habilitadas_estudiante(db: Session, username: str):
-    """Obtiene las unidades habilitadas para un estudiante específico, o todas si no tiene ninguna configurada"""
+    """Obtiene las unidades habilitadas para un estudiante específico"""
     estudiante = db.query(models.Registro).filter(models.Registro.username == username).first()
     if not estudiante:
         return []
     
-    # Primero verificar si el estudiante tiene alguna configuración de unidades
+    # Verificar si el estudiante tiene alguna configuración de unidades
     tiene_configuracion = db.query(models.estudiante_unidad).filter(
         models.estudiante_unidad.c.estudiante_id == estudiante.identificador
     ).first()
@@ -322,7 +327,7 @@ def obtener_unidades_habilitadas_estudiante(db: Session, username: str):
         return [{"id": u.id, "nombre": u.nombre, "descripcion": u.descripcion, "orden": u.orden} for u in todas_unidades]
     
     # Si tiene configuración, obtener solo las habilitadas
-    query = db.query(
+    unidades_habilitadas_query = db.query(
         models.Unidad.id,
         models.Unidad.nombre,
         models.Unidad.descripcion,
@@ -336,7 +341,7 @@ def obtener_unidades_habilitadas_estudiante(db: Session, username: str):
     ).order_by(models.Unidad.orden)
     
     unidades_habilitadas = []
-    for unidad in query.all():
+    for unidad in unidades_habilitadas_query.all():
         unidades_habilitadas.append({
             "id": unidad.id,
             "nombre": unidad.nombre,
@@ -344,7 +349,67 @@ def obtener_unidades_habilitadas_estudiante(db: Session, username: str):
             "orden": unidad.orden
         })
     
+    # Obtener también las unidades que no tienen configuración específica (están habilitadas por defecto)
+    unidades_configuradas = db.query(models.estudiante_unidad.c.unidad_id).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador
+    ).all()
+    
+    ids_configuradas = [row[0] for row in unidades_configuradas]
+    
+    # Agregar unidades sin configuración (habilitadas por defecto)
+    unidades_sin_config = db.query(models.Unidad).filter(
+        ~models.Unidad.id.in_(ids_configuradas)
+    ).order_by(models.Unidad.orden).all()
+    
+    for unidad in unidades_sin_config:
+        unidades_habilitadas.append({
+            "id": unidad.id,
+            "nombre": unidad.nombre,
+            "descripcion": unidad.descripcion,
+            "orden": unidad.orden
+        })
+    
+    # Ordenar por orden
+    unidades_habilitadas.sort(key=lambda x: x["orden"])
+    
     return unidades_habilitadas
+
+def obtener_estado_unidades_estudiante(db: Session, username: str):
+    """Obtiene todas las unidades con su estado (habilitada/deshabilitada) para un estudiante"""
+    estudiante = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if not estudiante:
+        return []
+    
+    # Obtener todas las unidades
+    todas_unidades = db.query(models.Unidad).order_by(models.Unidad.orden).all()
+    
+    # Obtener configuraciones del estudiante
+    configuraciones = {}
+    relaciones = db.query(models.estudiante_unidad).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador
+    ).all()
+    
+    for relacion in relaciones:
+        configuraciones[relacion.unidad_id] = relacion.habilitada
+    
+    # Verificar si el estudiante tiene alguna configuración
+    tiene_configuracion = len(relaciones) > 0
+    
+    # Construir respuesta con estado
+    resultado = []
+    for unidad in todas_unidades:
+        # Usar el estado específico de la configuración, o True por defecto si no existe
+        habilitada = configuraciones.get(unidad.id, True)
+        
+        resultado.append({
+            "id": unidad.id,
+            "nombre": unidad.nombre,
+            "descripcion": unidad.descripcion,
+            "orden": unidad.orden,
+            "habilitada": habilitada
+        })
+    
+    return resultado
 
 # Funciones CRUD para gestión de asignaciones profesor-estudiante
 def obtener_estudiantes_asignados(db: Session, profesor_username: str):

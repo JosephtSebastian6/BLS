@@ -1,0 +1,86 @@
+.analisis-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.progreso-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px #0001;
+}
+
+.progreso-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.progreso-bar {
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progreso-fill {
+  height: 100%;
+  background: #22c55e;
+}
+
+.metricas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.metrica-card {
+  background: #fff;
+  padding: 14px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px #0001;
+}
+
+.metrica-titulo {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.metrica-valor {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.metrica-descripcion {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.desempeno-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px #0001;
+  padding: 16px;
+}
+
+.unidad-item { margin-top: 10px; }
+
+.unidad-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.unidad-bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.unidad-fill {
+  height: 100%;
+  background: #3b82f6;
+}

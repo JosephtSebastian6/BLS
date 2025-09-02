@@ -73,7 +73,7 @@ export class EstudiantesComponent implements OnInit {
     this.cargandoUnidades = true;
     const token = localStorage.getItem('token');
     
-    this.http.get<Unidad[]>(`http://localhost:8000/auth/estudiantes/${username}/unidades`, {
+    this.http.get<Unidad[]>(`http://localhost:8000/auth/estudiantes/${username}/unidades/estado`, {
       headers: { Authorization: `Bearer ${token}` }
     }).subscribe({
       next: (unidades) => {

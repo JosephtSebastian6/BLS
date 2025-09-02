@@ -25,6 +25,7 @@ import { EstudiantesComponent } from './estudiantes/estudiantes.component';
 import { MatriculasComponent } from './matriculas/matriculas.component';
 import { MatriculaInactivaComponent } from './matricula-inactiva/matricula-inactiva.component';
 import { MatriculaGuard } from './auth/matricula.guard';
+import { AnalisisEstudianteComponent } from './analisis-estudiante/analisis-estudiante.component';
 
 export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
@@ -43,6 +44,7 @@ export const routes: Routes = [
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
       { path: 'planeador', component: PlaneadorComponent },
+      { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },
     ]
   },
   { path: 'dashboard-mis-cursos', component: DashboardMisCursos },
@@ -57,7 +59,8 @@ export const routes: Routes = [
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
       { path: 'mis-profes', component: MisProfesComponent },
       { path: 'estudiantes', component: EstudiantesComponent },
-      { path: 'matriculas', component: MatriculasComponent }
+      { path: 'matriculas', component: MatriculasComponent },
+      { path: 'analisis-estudiante', component: AnalisisEstudianteComponent }
     ]
   },
   {
@@ -72,6 +75,7 @@ export const routes: Routes = [
       { path: 'unidades', component: UnidadesComponent },
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
+      { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },
     ]
   },
   { path: 'home', component: HomeComponent },

@@ -1,0 +1,37 @@
+<div class="analisis-container">
+  <h2>Análisis del Estudiante</h2>
+
+  <!-- Barra de progreso general -->
+  <div class="progreso-card">
+    <div class="progreso-header">
+      <span>Progreso general</span>
+      <span>{{ progreso }}%</span>
+    </div>
+    <div class="progreso-bar">
+      <div class="progreso-fill" [style.width.%]="progreso"></div>
+    </div>
+  </div>
+
+  <!-- Métricas rápidas -->
+  <div class="metricas-grid">
+    <div class="metrica-card" *ngFor="let m of metricas">
+      <div class="metrica-titulo">{{ m.titulo }}</div>
+      <div class="metrica-valor">{{ m.valor }}</div>
+      <div class="metrica-descripcion">{{ m.descripcion }}</div>
+    </div>
+  </div>
+
+  <!-- Desempeño por unidad (barras simples) -->
+  <div class="desempeno-card">
+    <h3>Desempeño por Unidad</h3>
+    <div class="unidad-item" *ngFor="let item of desempeno">
+      <div class="unidad-header">
+        <span>{{ item.nombre }}</span>
+        <span>{{ item.score }}%</span>
+      </div>
+      <div class="unidad-bar">
+        <div class="unidad-fill" [style.width.%]="item.score"></div>
+      </div>
+    </div>
+  </div>
+</div>
