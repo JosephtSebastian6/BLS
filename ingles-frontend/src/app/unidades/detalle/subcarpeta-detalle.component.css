@@ -23,52 +23,87 @@
   box-shadow: 0 2px 12px #2563eb22;
 }
 .form-link-fields button[type="submit"] {
-  background: linear-gradient(90deg,#2563eb 60%,#1746a2 100%);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 0.7em 1.3em;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  color: #667eea;
   font-weight: 700;
-  font-size: 1.08em;
+  padding: 0.8rem 1.5rem;
+  border-radius: 12px;
   cursor: pointer;
-  box-shadow: 0 2px 8px #0001;
-  transition: background 0.18s, box-shadow 0.18s;
+  font-size: 1rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .form-link-fields button[type="submit"]:hover {
-  background: linear-gradient(90deg,#1746a2 60%,#2563eb 100%);
-  box-shadow: 0 4px 16px #2563eb22;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.98);
+  color: #4f46e5;
 }
 /* Estilos modernos para el panel de subcarpeta */
 .subcarpeta-detalle-container {
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 8px 32px rgba(37,99,235,0.13);
-  padding: 2.2rem 2.5rem 2.2rem 2.5rem;
-  max-width: 540px;
-  margin: 60px auto 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-}
-.subcarpeta-detalle-container h2 {
-  font-size: 2em;
-  font-weight: 800;
-  color: #222;
-  margin-bottom: 1.2em;
-  letter-spacing: -1px;
-}
-.subcarpeta-detalle-container .volver-btn {
-  background: #2563eb;
+  padding: 2rem;
+  margin-top: 50px;
+  background: transparent;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
   border: none;
-  border-radius: 50%;
-  padding: 0.3em;
-  margin-right: 0.7em;
-  box-shadow: 0 2px 8px #0001;
-  cursor: pointer;
-  transition: background 0.18s;
+  box-shadow: none;
 }
-.subcarpeta-detalle-container .volver-btn:hover {
-  background: #1746a2;
+.header-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1rem 0;
+}
+
+.volver-btn {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  border-radius: 50%;
+  padding: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 50px;
+  height: 50px;
+}
+
+.volver-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.volver-btn svg circle {
+  fill: #667eea;
+  transition: fill 0.3s ease;
+}
+
+.volver-btn:hover svg circle {
+  fill: #4f46e5;
+}
+
+.titulo-subcarpeta {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #1f2937;
+  margin: 0;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 .subcarpeta-detalle-container form {
   display: flex;
@@ -88,34 +123,44 @@
 }
 .custom-file-label {
   display: inline-block;
-  background: linear-gradient(90deg,#2563eb 60%,#1746a2 100%);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  color: #667eea;
   font-weight: 700;
-  padding: 0.7em 1.3em;
-  border-radius: 8px;
+  padding: 0.8rem 1.5rem;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 1.08em;
-  box-shadow: 0 2px 8px #0001;
-  transition: background 0.18s, box-shadow 0.18s;
-  border: none;
+  font-size: 1rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .custom-file-label:hover {
-  background: linear-gradient(90deg,#1746a2 60%,#2563eb 100%);
-  box-shadow: 0 4px 16px #2563eb22;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.98);
+  color: #4f46e5;
 }
 .subcarpeta-detalle-container button.limpiar-btn {
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 0.5em 1em;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
   font-weight: 700;
+  padding: 0.8rem 1.5rem;
+  border-radius: 12px;
   cursor: pointer;
   margin-left: 0.5em;
-  transition: background 0.18s;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .subcarpeta-detalle-container button.limpiar-btn:hover {
-  background: #b91c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+  border-color: #ef4444;
+  background: rgba(255, 255, 255, 0.98);
+  color: #dc2626;
 }
 .subcarpeta-detalle-container input[type="text"],
 .subcarpeta-detalle-container input[type="url"] {
@@ -262,25 +307,6 @@
   flex-direction: column;
   align-items: center;
 }
-.subcarpeta-detalle-container {
-  padding: 3.5rem 2.5rem 2.5rem 2.5rem;
-  max-width: 700px;
-  margin: 3.5rem auto 0 auto;
-  background: #fff;
-  border-radius: 22px;
-  box-shadow: 0 4px 32px rgba(37,99,235,0.10);
-  min-height: 600px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-.subcarpeta-detalle-container h2 {
-  font-size: 2.1em;
-  font-weight: 700;
-  color: #222;
-  margin: 0 0 0 0.2em;
-  letter-spacing: -1px;
-}
 input[type="file"] {
   font-size: 1em;
   padding: 0.5em;
@@ -341,4 +367,50 @@ input[type="file"] {
 }
 .limpiar-btn:hover {
   background: #be123c;
+}
+
+/* Estilos para sistema de subida de estudiantes */
+.upload-zone-estudiante {
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 2em;
+  text-align: center;
+  margin-bottom: 1em;
+  background: #f8fafc;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.upload-zone-estudiante:hover {
+  border-color: #2563eb;
+  background: #f1f5f9;
+}
+
+.upload-zone-estudiante.drag-over {
+  border-color: #2563eb;
+  background: #dbeafe;
+  transform: scale(1.02);
+}
+
+.archivos-subidos-lista {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.archivos-subidos-lista::-webkit-scrollbar {
+  width: 6px;
+}
+
+.archivos-subidos-lista::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.archivos-subidos-lista::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.archivos-subidos-lista::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

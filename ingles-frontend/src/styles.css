@@ -103,7 +103,7 @@ html, body {
   background: white;
   border-radius: var(--border-radius-xl);
   box-shadow: var(--shadow-lg);
-  border: 1px solid var(--gray-200);
+  border: none;
   overflow: hidden;
   transition: all var(--transition-normal);
 }

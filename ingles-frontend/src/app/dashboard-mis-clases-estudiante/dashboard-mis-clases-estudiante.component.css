@@ -15,19 +15,23 @@
   padding-right: 8px;
 }
 .nombre-clase-en-celda {
-  font-size: 1.05em;
-  color: #263159;
-  background: #f7faff;
+  font-size: 0.9rem;
+  color: #667eea;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(102, 126, 234, 0.2);
   border-radius: 8px;
   margin: 6px 0 0 0;
-  padding: 6px 10px;
+  padding: 0.4rem 0.6rem;
   max-width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(37,99,235,0.06);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   pointer-events: auto;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 .calendario-table {
   width: 100%;
@@ -88,9 +92,11 @@
 }
 .modal-content {
   position: relative;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(37,99,235,0.18);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   padding: 2.5rem 2.5rem 2rem 2.5rem;
   min-width: 340px;
   max-width: 95vw;
@@ -101,22 +107,34 @@
   position: absolute;
   top: 12px;
   right: 18px;
-  background: none;
-  border: none;
-  font-size: 2.1rem;
-  color: #2563eb;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.5rem;
+  color: #667eea;
   cursor: pointer;
   z-index: 1003;
-  transition: color 0.18s;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .modal-close:hover {
-  color: #ff9800;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: #ef4444;
+  color: #ef4444;
 }
 .modal-content h3 {
-  color: #2563eb;
-  margin-bottom: 1.2rem;
-  font-size: 1.25rem;
+  color: #667eea;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 .modal-content ul {
   list-style: none;
@@ -146,25 +164,36 @@
   align-items: center;
   justify-content: flex-start;
   min-height: 80vh;
-  padding-top: 40px;
+  padding: 2rem;
+  background: transparent;
 }
 
 .mis-clases-title {
-  font-size: 2.2em;
+  font-size: 2.5rem;
   font-weight: 800;
-  color: #263159;
-  margin-bottom: 24px;
-  letter-spacing: 0.5px;
+  color: #1f2937;
+  margin: 0 0 2rem 0;
+  text-align: center;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.calendario-wrapper {
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 4px 24px rgba(37,99,235,0.10);
-  padding: 60px 80px 50px 80px;
-  min-width: 900px;
-  max-width: 1200px;
-  margin-bottom: 32px;
+.calendar-container {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 20px;
+  padding: 2rem;
+  margin: 6rem auto;
+  max-width: 800px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  top: 80px;
 }
 
 .calendario-header {
@@ -176,24 +205,32 @@
 }
 
 .calendario-header button {
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 16px;
-  font-size: 1.1em;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  color: #667eea;
   font-weight: 700;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
   cursor: pointer;
-  transition: background 0.2s;
+  font-size: 1rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .calendario-header button:hover {
-  background: #1746a2;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.98);
+  color: #4f46e5;
 }
 
 .calendario-header .mes-actual {
-  font-size: 1.15em;
+  font-size: 1.8rem;
   font-weight: 700;
-  color: #263159;
+  color: #667eea;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .calendario-table {
@@ -205,10 +242,12 @@
 }
 
 .calendario-table th {
-  color: #2563eb;
+  color: #667eea;
   font-weight: 700;
-  font-size: 1.05em;
-  padding-bottom: 6px;
+  font-size: 1.1rem;
+  padding-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .calendario-table td {
@@ -219,27 +258,35 @@
   width: 70px;
   height: 70px;
   border-radius: 50%;
-  background: transparent;
-  color: #263159;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  color: #667eea;
   font-weight: 700;
   font-size: 1.25em;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s;
-  border: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .calendario-dia:hover,
 .calendario-dia.selected {
-  background: #2563eb;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  border-color: transparent;
 }
 
 .calendario-dia.hoy {
-  border: 2px solid #ff9800;
+  border: 3px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  font-weight: 800;
 }
 
 .calendario-dia.inactivo {
@@ -341,7 +388,7 @@
 .mis-clases-container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 9rem 1rem;
 }
 
 .mis-clases-container h2 {
@@ -415,8 +462,15 @@
 
 .no-clases-msg {
   text-align: center;
-  color: #888;
-  font-size: 1.1rem;
+  color: #6b7280;
+  padding: 3rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  font-size: 1.2rem;
+  font-weight: 500;
   margin-top: 2rem;
 }
 
@@ -582,7 +636,7 @@
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
-  background: #f5f6fa;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
 }
 
 .sidebar {
@@ -741,12 +795,19 @@
 }
 
 .enlace-meet {
-  color: #2563eb;
+  color: #667eea;
   font-weight: 600;
   text-decoration: underline;
-  transition: color 0.2s;
+  transition: color 0.3s ease;
+  padding: 0.3rem 0.6rem;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 6px;
+  display: inline-block;
+  margin-top: 0.5rem;
 }
 
 .enlace-meet:hover {
-  color: #1746a2;
+  color: #4f46e5;
+  background: rgba(102, 126, 234, 0.2);
+  transform: translateY(-1px);
 }

@@ -1,12 +1,20 @@
 :host {
   display: block;
-  background-color: #fff;
-  height: 100%;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
 }
 
 .calendar-container {
-  padding: 24px;
-  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
 }
@@ -20,10 +28,12 @@
 }
 
 .calendar-header h3 {
-  font-size: 22px;
-  font-weight: 400;
-  color: #3c4043;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #667eea;
   margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .btn-group {
@@ -32,27 +42,33 @@
 }
 
 .btn {
-  border: 1px solid #dadce0;
-  background-color: #fff;
-  color: #3c4043;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  color: #667eea;
   font-family: 'Google Sans', Roboto, Arial, sans-serif;
   font-size: 14px;
-  font-weight: 500;
-  border-radius: 4px;
-  padding: 8px 16px;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 0.6rem 1.2rem;
   cursor: pointer;
-  transition: background-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn:hover {
-  background-color: #f1f3f4;
-  border-color: #d2d5d8;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.98);
+  color: #4f46e5;
 }
 
 .btn.active {
-  background-color: #e8f0fe;
-  color: #1967d2;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   border-color: transparent;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
 }
 
 .btn-outline-secondary {
@@ -73,28 +89,58 @@ mwl-calendar-day-view {
 
 /* Estilos para el contenedor principal */
 .mis-clases-container {
-  padding: 20px;
+  padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
+  background: transparent;
 }
 
 .mis-clases-container h2 {
-  color: #1967d2;
-  margin-bottom: 30px;
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #1f2937;
+  margin: 0 0 2rem 0;
   text-align: center;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Estilos para el formulario de crear clase */
 .crear-clase-section {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 30px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .crear-clase-section h3 {
-  color: #3c4043;
-  margin-bottom: 20px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 1.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative;
+  padding-bottom: 0.5rem;
+}
+
+.crear-clase-section h3::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 2px;
 }
 
 .nueva-clase-form {
@@ -116,25 +162,41 @@ mwl-calendar-day-view {
 }
 
 .form-group input, .form-group select {
-  padding: 10px;
-  border: 1px solid #dadce0;
-  border-radius: 4px;
+  padding: 0.8rem;
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 10px;
   font-size: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  transition: all 0.3s ease;
+}
+
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background: rgba(255, 255, 255, 1);
 }
 
 .btn-crear {
-  background-color: #1967d2;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  color: #667eea;
+  font-weight: 700;
+  padding: 0.8rem 1.5rem;
+  border-radius: 12px;
   cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
+  font-size: 1rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-crear:hover:not(:disabled) {
-  background-color: #1557b0;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.98);
+  color: #4f46e5;
 }
 
 .btn-crear:disabled {
@@ -148,8 +210,25 @@ mwl-calendar-day-view {
 }
 
 .clases-existentes h3 {
-  color: #3c4043;
-  margin-bottom: 20px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 1.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative;
+  padding-bottom: 0.5rem;
+}
+
+.clases-existentes h3::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 2px;
 }
 
 .clases-lista {
@@ -158,16 +237,30 @@ mwl-calendar-day-view {
 }
 
 .clase-item {
-  background: white;
-  border: 1px solid #dadce0;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.clase-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .clase-info h4 {
-  color: #1967d2;
-  margin-bottom: 10px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #667eea;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .clase-info p {
@@ -176,11 +269,14 @@ mwl-calendar-day-view {
 }
 
 .clase-info a {
-  color: #1967d2;
+  color: #667eea;
   text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
 }
 
 .clase-info a:hover {
+  color: #4f46e5;
   text-decoration: underline;
 }
 
@@ -197,25 +293,41 @@ mwl-calendar-day-view {
 }
 
 .agendar-estudiante select {
-  padding: 8px;
-  border: 1px solid #dadce0;
-  border-radius: 4px;
+  padding: 0.6rem;
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 8px;
   margin-right: 10px;
   min-width: 200px;
+  background: rgba(255, 255, 255, 0.9);
+  transition: all 0.3s ease;
+}
+
+.agendar-estudiante select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .btn-agendar {
-  background-color: #34a853;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(52, 168, 83, 0.3);
+  color: #34a853;
+  font-weight: 700;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
   cursor: pointer;
-  font-weight: 500;
+  font-size: 0.9rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-agendar:hover:not(:disabled) {
-  background-color: #2d8f47;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  border-color: #34a853;
+  background: rgba(255, 255, 255, 0.98);
+  color: #2d8f47;
 }
 
 .btn-agendar:disabled {
@@ -241,11 +353,19 @@ mwl-calendar-day-view {
 }
 
 .estudiantes-inscritos li {
-  background: #e8f0fe;
-  padding: 8px 12px;
-  margin: 5px 0;
-  border-radius: 4px;
-  color: #1967d2;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 0.8rem 1rem;
+  margin: 0.5rem 0;
+  border-radius: 10px;
+  color: #667eea;
+  font-weight: 600;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  transition: all 0.3s ease;
+}
+
+.estudiantes-inscritos li:hover {
+  background: rgba(102, 126, 234, 0.15);
+  transform: translateX(5px);
 }
 
 /* Mensajes de estado */
@@ -273,10 +393,15 @@ mwl-calendar-day-view {
 
 .no-clases {
   text-align: center;
-  color: #5f6368;
-  padding: 40px;
-  background: #f8f9fa;
-  border-radius: 8px;
+  color: #6b7280;
+  padding: 3rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  font-size: 1.1rem;
+  font-weight: 500;
 }
 
 /* Estilos para los controles del calendario */

@@ -45,7 +45,6 @@ export class DashboardMisClasesEstudianteComponent implements OnInit {
     { label: 'Mi Perfil', route: '/dashboard-estudiante', icon: 'person' },
     { label: 'Mis Cursos', route: '/dashboard-mis-cursos', icon: 'menu_book' },
     { label: 'Mis Clases', route: '/dashboard-mis-clases-estudiante', icon: 'class' },
-    { label: 'Progreso', route: '/dashboard-progreso', icon: 'trending_up' },
     { label: 'Certificados', route: '', icon: 'verified', disabled: true }
   ];
 

@@ -1,12 +1,12 @@
 <div class="subcarpeta-detalle-container">
-  <div style="display:flex;align-items:center;gap:1em;margin-bottom:1.2em;">
+  <div class="header-container">
     <button class="volver-btn" (click)="volverADetalleUnidad()" aria-label="Volver atrás">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="12" fill="#2563eb"/>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="12" fill="#667eea"/>
         <path d="M13.5 8L9.5 12L13.5 16" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </button>
-    <h2 style="font-size:2.1em;font-weight:700;color:#222;margin:0 0 0 0.2em;letter-spacing:-1px;">Subcarpetas de la unidad</h2>
+    <h2 class="titulo-subcarpeta">Subcarpetas de la unidad</h2>
   </div>
 
   <!-- Todo el contenido de archivos y controles ahora está dentro del contenedor principal -->
@@ -32,7 +32,8 @@
     </div>
     <div style="font-size:0.85em;color:#444;">{{progresoCarga}}%</div>
   </div>
-  <div class="archivos-lista" *ngIf="archivos.length">
+  <!-- SECCIÓN PARA EMPRESA (sistema actual) -->
+  <div class="archivos-lista" *ngIf="archivos.length && tipoUsuario === 'empresa'">
     <h4>Archivos adjuntos:</h4>
     <ul>
       <li *ngFor="let archivo of archivos">
@@ -48,6 +49,118 @@
         </ng-template>
       </li>
     </ul>
+  </div>
+
+  <!-- SECCIÓN PARA ESTUDIANTES - MOSTRAR ARCHIVOS DE EMPRESA -->
+  <div class="archivos-lista" *ngIf="archivos.length && tipoUsuario === 'estudiante'">
+    <h4>Archivos de la subcarpeta:</h4>
+    <ul>
+      <li *ngFor="let archivo of archivos">
+        <ng-container *ngIf="archivo.type === 'link'; else archivoNormal">
+          <a [href]="archivo.link" target="_blank" style="color:#2563eb;font-weight:600;text-decoration:underline;">{{ archivo.name }}</a>
+        </ng-container>
+        <ng-template #archivoNormal>
+          <span style="cursor:pointer;text-decoration:underline;" (click)="abrirModal(archivo)">{{ archivo.name }}</span>
+          <ng-container *ngIf="archivo.type && archivo.dataUrl; else soloNombre"></ng-container>
+          <ng-template #soloNombre>
+            <em style="color:gray;">(no visualizable)</em>
+          </ng-template>
+        </ng-template>
+      </li>
+    </ul>
+  </div>
+
+  <!-- SECCIÓN EXCLUSIVA PARA ESTUDIANTES EN SOLO TAREAS -->
+  <div *ngIf="tipoUsuario === 'estudiante' && esSoloTareas()" style="margin-bottom:2em;">
+    <h3 style="color:#2563eb;margin-bottom:1em;">📁 Subir Archivos de Tarea</h3>
+    
+    <!-- Zona de drag & drop -->
+    <div class="upload-zone-estudiante" 
+         [class.drag-over]="isDragOverEstudiante"
+         (dragover)="onDragOverEstudiante($event)"
+         (dragleave)="onDragLeaveEstudiante($event)"
+         (drop)="onDropEstudiante($event)"
+         style="border:2px dashed #cbd5e1;border-radius:8px;padding:2em;text-align:center;margin-bottom:1em;background:#f8fafc;transition:all 0.3s;">
+      
+      <div style="color:#64748b;margin-bottom:1em;">
+        <span class="material-icons" style="font-size:3em;color:#2563eb;">cloud_upload</span>
+      </div>
+      
+      <p style="margin:0.5em 0;color:#475569;font-weight:500;">
+        Arrastra tus archivos aquí o 
+        <label style="color:#2563eb;cursor:pointer;text-decoration:underline;">
+          selecciona archivos
+          <input type="file" (change)="onFileSelectedEstudiante($event)" multiple style="display:none;" 
+                 accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip,.rar">
+        </label>
+      </p>
+      
+      <p style="margin:0;color:#64748b;font-size:0.9em;">
+        Máximo {{MAX_FILE_SIZE_MB}}MB por archivo • PDF, DOC, TXT, imágenes, ZIP
+      </p>
+    </div>
+    
+    <!-- Archivos seleccionados para subir -->
+    <div *ngIf="archivosEstudianteSeleccionados.length" style="margin-bottom:1em;">
+      <h4 style="color:#374151;margin-bottom:0.5em;">Archivos seleccionados:</h4>
+      <ul style="list-style:none;padding:0;">
+        <li *ngFor="let archivo of archivosEstudianteSeleccionados" 
+            style="display:flex;align-items:center;padding:0.5em;background:#f1f5f9;border-radius:4px;margin-bottom:0.3em;">
+          <span class="material-icons" style="color:#2563eb;margin-right:0.5em;">description</span>
+          <span style="flex:1;">{{archivo.name}}</span>
+          <span style="color:#64748b;font-size:0.85em;">{{formatearTamano(archivo.size)}}</span>
+        </li>
+      </ul>
+      
+      <div style="display:flex;gap:0.5em;margin-top:1em;">
+        <button (click)="subirArchivosEstudiante()" 
+                [disabled]="uploadingEstudiante"
+                style="background:#2563eb;color:white;border:none;padding:0.7em 1.5em;border-radius:6px;cursor:pointer;font-weight:500;">
+          <span *ngIf="!uploadingEstudiante">📤 Subir Archivos</span>
+          <span *ngIf="uploadingEstudiante">⏳ Subiendo...</span>
+        </button>
+        
+        <button (click)="archivosEstudianteSeleccionados = []"
+                style="background:#6b7280;color:white;border:none;padding:0.7em 1.5em;border-radius:6px;cursor:pointer;">
+          Cancelar
+        </button>
+      </div>
+    </div>
+    
+    <!-- Lista de archivos ya subidos -->
+    <div *ngIf="archivosEstudianteSubidos.length" style="margin-top:1.5em;">
+      <h4 style="color:#374151;margin-bottom:1em;">📋 Mis Archivos Subidos</h4>
+      <div class="archivos-subidos-lista">
+        <div *ngFor="let archivo of archivosEstudianteSubidos" 
+             style="display:flex;align-items:center;padding:1em;background:white;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:0.5em;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <div style="display:flex;align-items:center;gap:0.5em;">
+            <span class="material-icons" style="color:#3b82f6;">description</span>
+            <div style="flex:1;">
+              <div style="font-weight:500;">{{ archivo.original_name }}</div>
+              <div style="font-size:0.85em;color:#64748b;">
+                {{ formatearTamano(archivo.size) }} • {{ formatearFecha(archivo.upload_date) }}
+              </div>
+            </div>
+            <button (click)="abrirModalEstudiante(archivo)" 
+                    style="background:#10b981;color:#fff;border:none;padding:0.4em;border-radius:4px;cursor:pointer;display:flex;align-items:center;margin-right:0.5em;" 
+                    title="Ver archivo">
+              <span class="material-icons" style="font-size:1.2em;">visibility</span>
+            </button>
+            <button (click)="eliminarArchivoEstudiante(archivo)" 
+                    style="background:#ef4444;color:#fff;border:none;padding:0.4em;border-radius:4px;cursor:pointer;display:flex;align-items:center;" 
+                    title="Eliminar archivo">
+              <span class="material-icons" style="font-size:1.2em;">delete</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div *ngIf="!archivosEstudianteSubidos.length && tipoUsuario === 'estudiante' && esSoloTareas()" 
+         style="text-align:center;padding:2em;color:#64748b;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+      <span class="material-icons" style="font-size:3em;color:#cbd5e1;display:block;margin-bottom:0.5em;">folder_open</span>
+      <p style="margin:0;">No has subido archivos aún</p>
+    </div>
   </div>
 
 <!-- Modal de previsualización -->

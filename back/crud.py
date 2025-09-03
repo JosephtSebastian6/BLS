@@ -468,6 +468,124 @@ def asignar_estudiante_profesor(db: Session, profesor_username: str, estudiante_
     db.commit()
     return True
 
+# ==========================
+# Tracking & Analytics (Nuevo)
+# ==========================
+
+def _ensure_progreso_row(db: Session, username: str, unidad_id: int):
+    row = db.query(models.EstudianteProgresoUnidad).filter(
+        models.EstudianteProgresoUnidad.username == username,
+        models.EstudianteProgresoUnidad.unidad_id == unidad_id
+    ).first()
+    if not row:
+        row = models.EstudianteProgresoUnidad(
+            username=username,
+            unidad_id=unidad_id,
+            porcentaje_completado=0,
+            score=0,
+            tiempo_dedicado_min=0,
+            ultima_actividad_at=datetime.utcnow()
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+    return row
+
+def track_activity(db: Session, username: str, unidad_id: int, tipo_evento: str, duracion_min: int | None = None, metadata: dict | None = None):
+    evento = models.ActividadEstudiante(
+        username=username,
+        unidad_id=unidad_id,
+        tipo_evento=tipo_evento,
+        duracion_min=duracion_min,
+        metadata_json=metadata or {},
+        creado_at=datetime.utcnow()
+    )
+    db.add(evento)
+
+    # Acumular tiempo si corresponde
+    if duracion_min and duracion_min > 0:
+        row = _ensure_progreso_row(db, username, unidad_id)
+        row.tiempo_dedicado_min = (row.tiempo_dedicado_min or 0) + int(duracion_min)
+        row.ultima_actividad_at = datetime.utcnow()
+        db.add(row)
+
+    db.commit()
+    return {"ok": True}
+
+def upsert_progreso_score(db: Session, username: str, unidad_id: int, porcentaje_completado: int | None = None, score: int | None = None):
+    row = _ensure_progreso_row(db, username, unidad_id)
+    if porcentaje_completado is not None:
+        row.porcentaje_completado = max(0, min(100, int(porcentaje_completado)))
+    if score is not None:
+        row.score = max(0, min(100, int(score)))
+    row.ultima_actividad_at = datetime.utcnow()
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+def get_analytics_resumen(db: Session, username: str, desde: datetime | None = None, hasta: datetime | None = None):
+    # Tiempo total desde tabla agregada
+    q = db.query(models.EstudianteProgresoUnidad).filter(models.EstudianteProgresoUnidad.username == username)
+    tiempo_total = sum([(r.tiempo_dedicado_min or 0) for r in q.all()])
+
+    # Progreso general: promedio de porcentaje_completado de las unidades con fila; si no hay filas, 0
+    rows = q.all()
+    if rows:
+        progreso_general = sum([r.porcentaje_completado or 0 for r in rows]) / len(rows)
+    else:
+        progreso_general = 0
+
+    # Unidades completadas
+    unidades_completadas = db.query(models.EstudianteProgresoUnidad).filter(
+        models.EstudianteProgresoUnidad.username == username,
+        models.EstudianteProgresoUnidad.porcentaje_completado == 100
+    ).count()
+
+    # Racha de días: contar días consecutivos con eventos
+    eventos = db.query(models.ActividadEstudiante).filter(
+        models.ActividadEstudiante.username == username
+    ).order_by(models.ActividadEstudiante.creado_at.desc()).all()
+    dias = sorted({e.creado_at.date() for e in eventos}, reverse=True)
+    racha = 0
+    if dias:
+        hoy = datetime.utcnow().date()
+        cursor = hoy
+        for d in dias:
+            if d == cursor:
+                racha += 1
+                cursor = cursor - timedelta(days=1)
+            elif d < cursor:
+                # hueco
+                break
+
+    return {
+        "progreso_general": round(progreso_general, 2),
+        "unidades_completadas": int(unidades_completadas),
+        "tiempo_dedicado_min": int(tiempo_total),
+        "racha_dias": int(racha)
+    }
+
+def get_analytics_unidades(db: Session, username: str, desde: datetime | None = None, hasta: datetime | None = None):
+    # Traer todas las unidades para siempre renderizar lista completa
+    unidades = db.query(models.Unidad).order_by(models.Unidad.orden).all()
+    prog_rows = db.query(models.EstudianteProgresoUnidad).filter(
+        models.EstudianteProgresoUnidad.username == username
+    ).all()
+    prog_map = {(r.unidad_id): r for r in prog_rows}
+
+    resultado = []
+    for u in unidades:
+        r = prog_map.get(u.id)
+        resultado.append({
+            "unidad_id": u.id,
+            "nombre": u.nombre,
+            "porcentaje_completado": int(r.porcentaje_completado) if r else 0,
+            "score": int(r.score) if r else 0,
+            "tiempo_min": int(r.tiempo_dedicado_min) if r else 0
+        })
+    return resultado
+
 def desasignar_estudiante_profesor(db: Session, profesor_username: str, estudiante_username: str):
     """Desasigna un estudiante de un profesor"""
     profesor = db.query(models.Registro).filter(

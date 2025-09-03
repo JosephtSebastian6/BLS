@@ -2,7 +2,7 @@
 
 
 # Imports
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, JSON
 from sqlalchemy.orm import relationship
 from Clever_MySQL_conn import Base
 from datetime import datetime, datetime as dt, timedelta
@@ -83,3 +83,25 @@ profesor_estudiante = Table(
     Column('estudiante_id', Integer, ForeignKey('estudiante.identificador'), primary_key=True),
     Column('fecha_asignacion', DateTime, default=datetime.utcnow)
 )
+
+# Tabla de eventos de actividad del estudiante
+class ActividadEstudiante(Base):
+    __tablename__ = "actividad_estudiante"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), ForeignKey('estudiante.username'), nullable=False)
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=False)
+    tipo_evento = Column(String(20), nullable=False)  # start | heartbeat | end
+    duracion_min = Column(Integer, nullable=True)
+    metadata_json = Column(JSON, nullable=True)
+    creado_at = Column(DateTime, default=datetime.utcnow)
+
+# Tabla agregada de progreso por unidad
+class EstudianteProgresoUnidad(Base):
+    __tablename__ = "estudiante_progreso_unidad"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), ForeignKey('estudiante.username'), nullable=False)
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=False)
+    porcentaje_completado = Column(Integer, default=0)
+    score = Column(Integer, default=0)
+    tiempo_dedicado_min = Column(Integer, default=0)
+    ultima_actividad_at = Column(DateTime, nullable=True)

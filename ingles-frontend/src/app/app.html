@@ -5,7 +5,20 @@
       <ng-container *ngIf="!isLoggedIn">
         
         <li><a routerLink="/">Inicio</a></li>
-        <li><a routerLink="/programas">Programas</a></li>
+        <li class="dropdown">
+          <a routerLink="/programas" class="dropdown-toggle">Programas 
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 10l5 5 5-5z"/>
+            </svg>
+          </a>
+          <ul class="dropdown-menu">
+            <li><a routerLink="/ben">BEN - Business English Program</a></li>
+            <li><a routerLink="/ief">IEF - Inglés para Entidades Financieras</a></li>
+            <li><a routerLink="/exp">EXP - Executive Plus</a></li>
+            <li><a routerLink="/ipc">IPC - Inglés para Contabilidad</a></li>
+            <li><a routerLink="/ete">ETE - English Test Empresarial</a></li>
+          </ul>
+        </li>
         <li><a href="#">Nosotros</a></li>
         <li><a href="#">Contacto</a></li>
         <a routerLink="/login">Inicio de Sesión</a> |

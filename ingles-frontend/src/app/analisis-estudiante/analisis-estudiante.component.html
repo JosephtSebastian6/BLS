@@ -1,5 +1,5 @@
 <div class="analisis-container">
-  <h2>Análisis del Estudiante</h2>
+  <h2 class="page-title">Análisis del Estudiante</h2>
 
   <!-- Barra de progreso general -->
   <div class="progreso-card">
@@ -18,6 +18,29 @@
       <div class="metrica-titulo">{{ m.titulo }}</div>
       <div class="metrica-valor">{{ m.valor }}</div>
       <div class="metrica-descripcion">{{ m.descripcion }}</div>
+    </div>
+  </div>
+
+  <!-- Progreso por unidades específicas -->
+  <div class="unidades-progreso-grid">
+    <div class="unidad-progreso-card" *ngFor="let unidad of unidadesProgreso">
+      <div class="unidad-progreso-header">
+        <h4>{{ unidad.nombre }}</h4>
+        <span class="unidad-porcentaje">{{ unidad.progreso }}%</span>
+      </div>
+      <div class="unidad-progreso-bar">
+        <div class="unidad-progreso-fill" [style.width.%]="unidad.progreso"></div>
+      </div>
+      <div class="unidad-stats">
+        <div class="stat-item">
+          <span class="stat-label">Tiempo</span>
+          <span class="stat-value">{{ unidad.tiempo }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Score</span>
+          <span class="stat-value">{{ unidad.score }}/100</span>
+        </div>
+      </div>
     </div>
   </div>
 

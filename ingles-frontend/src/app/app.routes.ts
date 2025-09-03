@@ -14,7 +14,6 @@ import { MisClasesComponent } from './mis-clases/mis-clases.component';
 import { PlaneadorComponent } from './planeador/planeador.component';
 import { LayoutProfesorComponent } from './layout-profesor/layout-profesor.component';
 import { HomeComponent } from './home/home';
-import { DashboardProgresoComponent } from './dashboard-progreso/dashboard-progreso'; // Asegúrate de importar el nuevo componente
 import { DashboardMisClasesEstudianteComponent } from './dashboard-mis-clases-estudiante/dashboard-mis-clases-estudiante.component';
 import { ProgramasComponent } from './programas/programas.component';
 import { UnidadesComponent } from './unidades/unidades.component';
@@ -26,6 +25,11 @@ import { MatriculasComponent } from './matriculas/matriculas.component';
 import { MatriculaInactivaComponent } from './matricula-inactiva/matricula-inactiva.component';
 import { MatriculaGuard } from './auth/matricula.guard';
 import { AnalisisEstudianteComponent } from './analisis-estudiante/analisis-estudiante.component';
+import { BenDashboard } from './ben-dashboard/ben-dashboard';
+import { IefDashboard } from './ief-dashboard/ief-dashboard';
+import { ExpDashboard } from './exp-dashboard/exp-dashboard';
+import { IpcDashboard } from './ipc-dashboard/ipc-dashboard';
+import { EteDashboard } from './ete-dashboard/ete-dashboard';
 
 export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
@@ -45,6 +49,7 @@ export const routes: Routes = [
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
       { path: 'planeador', component: PlaneadorComponent },
       { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },
+      { path: 'analisis-estudiante/:username', component: AnalisisEstudianteComponent },
     ]
   },
   { path: 'dashboard-mis-cursos', component: DashboardMisCursos },
@@ -60,7 +65,8 @@ export const routes: Routes = [
       { path: 'mis-profes', component: MisProfesComponent },
       { path: 'estudiantes', component: EstudiantesComponent },
       { path: 'matriculas', component: MatriculasComponent },
-      { path: 'analisis-estudiante', component: AnalisisEstudianteComponent }
+      { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },
+      { path: 'analisis-estudiante/:username', component: AnalisisEstudianteComponent }
     ]
   },
   {
@@ -76,11 +82,16 @@ export const routes: Routes = [
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
       { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },
+      { path: 'analisis-estudiante/:username', component: AnalisisEstudianteComponent },
     ]
   },
   { path: 'home', component: HomeComponent },
-  { path: 'dashboard-progreso', component: DashboardProgresoComponent },
   { path: 'dashboard-mis-clases-estudiante', component: DashboardMisClasesEstudianteComponent },
   { path: 'programas', component: ProgramasComponent },
+  { path: 'ben', component: BenDashboard },
+  { path: 'ief', component: IefDashboard },
+  { path: 'exp', component: ExpDashboard },
+  { path: 'ipc', component: IpcDashboard },
+  { path: 'ete', component: EteDashboard },
   { path: 'matricula-inactiva', component: MatriculaInactivaComponent },
 ];

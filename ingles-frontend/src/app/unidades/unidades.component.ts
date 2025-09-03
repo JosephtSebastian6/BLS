@@ -1,9 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { AnalyticsService } from '../services/analytics.service';
 
 @Component({
   selector: 'app-unidades',
@@ -18,7 +19,7 @@ export class UnidadesComponent {
   nuevaUnidad = { nombre: '', descripcion: '', subcarpetas: [] as { nombre: string }[] };
   tipoUsuario: string = '';
 
-  constructor(private router: Router, private http: HttpClient) {
+  constructor(private router: Router, private http: HttpClient, private analyticsService: AnalyticsService) {
     // Para estudiante, lee desde el objeto user en localStorage
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     this.tipoUsuario = user.tipo_usuario || localStorage.getItem('tipo_usuario') || '';
@@ -125,5 +126,22 @@ export class UnidadesComponent {
     if (!confirm('¿Seguro que deseas eliminar esta unidad? Esta acción no se puede deshacer.')) return;
     this.unidades.splice(idx, 1);
     this.guardarUnidades();
+  }
+
+  entregarUnidad(idx: number, event: MouseEvent) {
+    event.stopPropagation();
+    
+    const unidadId = idx + 1; // Asumiendo que el ID de la unidad es idx + 1
+    
+    this.analyticsService.upsertProgreso(unidadId, 100, 100).subscribe({
+      next: (response) => {
+        console.log('✅ Unidad entregada exitosamente:', response);
+        alert('¡Unidad entregada exitosamente! Progreso: 100%, Score: 100');
+      },
+      error: (error) => {
+        console.error('❌ Error entregando unidad:', error);
+        alert('Error al entregar la unidad. Por favor intenta de nuevo.');
+      }
+    });
   }
 }

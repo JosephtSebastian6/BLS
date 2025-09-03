@@ -1,14 +1,18 @@
 import fastapi
 # FastAPI and related imports
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, status, Body
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, status, Body, UploadFile, File
 from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from jose import jwt
+from sqlalchemy import text, func, and_
 from datetime import timedelta, datetime
 import uuid
 from pydantic import EmailStr
 from fastapi import Body
+import os
+import shutil
+from pathlib import Path
+import jwt
 # Local imports
 import crud
 import models
@@ -394,3 +398,357 @@ def obtener_todos_estudiantes(db: Session = Depends(get_db)):
     """Obtiene todos los estudiantes registrados"""
     estudiantes = crud.obtener_estudiantes(db)
     return [schemas.UsuarioResponse.from_orm(est) for est in estudiantes]
+
+# ==========================
+# Tracking & Analytics (Nuevos)
+# ==========================
+
+def _username_from_token(credentials: HTTPAuthorizationCredentials):
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload.get("sub"), payload.get("tipo_usuario")
+    except Exception:
+        return None, None
+
+@authRouter.post("/tracking/start")
+def tracking_start(
+    unidad_id: int = Body(..., embed=True),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    username, _ = _username_from_token(credentials)
+    if not username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    return crud.track_activity(db, username=username, unidad_id=unidad_id, tipo_evento="start")
+
+@authRouter.post("/tracking/heartbeat")
+def tracking_heartbeat(
+    unidad_id: int = Body(..., embed=True),
+    duracion_min: int = Body(..., embed=True),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    username, _ = _username_from_token(credentials)
+    if not username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    return crud.track_activity(db, username=username, unidad_id=unidad_id, tipo_evento="heartbeat", duracion_min=duracion_min)
+
+@authRouter.post("/tracking/end")
+def tracking_end(
+    unidad_id: int = Body(..., embed=True),
+    duracion_min: int | None = Body(None, embed=True),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    username, _ = _username_from_token(credentials)
+    if not username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    return crud.track_activity(db, username=username, unidad_id=unidad_id, tipo_evento="end", duracion_min=duracion_min)
+
+@authRouter.put("/progreso/{unidad_id}")
+def upsert_progreso(
+    unidad_id: int,
+    body: dict = Body(...),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    username, _ = _username_from_token(credentials)
+    if not username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    porcentaje = body.get("porcentaje_completado")
+    score = body.get("score")
+    row = crud.upsert_progreso_score(db, username=username, unidad_id=unidad_id, porcentaje_completado=porcentaje, score=score)
+    return {
+        "unidad_id": row.unidad_id,
+        "porcentaje_completado": row.porcentaje_completado,
+        "score": row.score,
+        "tiempo_dedicado_min": row.tiempo_dedicado_min
+    }
+
+@authRouter.get("/analytics/estudiantes/{username}/resumen")
+def analytics_resumen(username: str, db: Session = Depends(get_db)):
+    return crud.get_analytics_resumen(db, username=username)
+
+@authRouter.get("/analytics/estudiantes/{username}/unidades")
+def analytics_unidades(username: str, db: Session = Depends(get_db)):
+    return crud.get_analytics_unidades(db, username=username)
+
+# Sistema de archivos para estudiantes - FUERA del backend
+UPLOAD_DIR = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+def get_current_user_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Extrae el username del token JWT"""
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Token inválido")
+        return username
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+@authRouter.post("/estudiantes/subcarpetas/{unidad_id}/{subcarpeta_nombre}/upload")
+async def upload_student_file(
+    unidad_id: int,
+    subcarpeta_nombre: str,
+    files: list[UploadFile] = File(...),
+    current_user: str = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Endpoint EXCLUSIVO para estudiantes - subir archivos a SOLO TAREAS"""
+    
+    # RESTRICCIÓN: Solo subcarpeta "SOLO TAREAS"
+    if subcarpeta_nombre != "SOLO TAREAS":
+        raise HTTPException(
+            status_code=403, 
+            detail="Los estudiantes solo pueden subir archivos a 'SOLO TAREAS'"
+        )
+    
+    # Verificar acceso del estudiante a la unidad
+    print(f"🔍 DEBUG: current_user={current_user}, unidad_id={unidad_id}, subcarpeta={subcarpeta_nombre}")
+    
+    # Primero obtener el ID del estudiante
+    estudiante = db.query(models.Registro).filter(models.Registro.username == current_user).first()
+    if not estudiante:
+        print(f"❌ DEBUG: Usuario {current_user} no encontrado")
+        raise HTTPException(status_code=403, detail="Usuario no encontrado")
+    
+    print(f"✅ DEBUG: Estudiante encontrado: ID={estudiante.identificador}")
+    
+    # Verificar relación en tabla estudiante_unidad
+    acceso = db.query(models.estudiante_unidad).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
+        models.estudiante_unidad.c.unidad_id == unidad_id,
+        models.estudiante_unidad.c.habilitada == True
+    ).first()
+    
+    print(f"🔍 DEBUG: Buscando acceso para estudiante_id={estudiante.identificador}, unidad_id={unidad_id}")
+    print(f"🔍 DEBUG: Resultado acceso: {acceso}")
+    
+    if not acceso:
+        print(f"❌ DEBUG: Sin acceso - estudiante_id={estudiante.identificador}, unidad_id={unidad_id}")
+        raise HTTPException(status_code=403, detail="No tienes acceso a esta unidad")
+    
+    # Directorio específico para estudiantes
+    student_dir = UPLOAD_DIR / "estudiantes" / current_user / f"unidad_{unidad_id}" / "SOLO_TAREAS"
+    student_dir.mkdir(parents=True, exist_ok=True)
+    
+    print(f"✅ DEBUG: Directorio creado: {student_dir}")
+    
+    # Procesar múltiples archivos
+    allowed_extensions = {'.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png', '.zip', '.rar'}
+    uploaded_files = []
+    
+    for file in files:
+        print(f"🔍 DEBUG: Procesando archivo: {file.filename}")
+        
+        # Validar extensión
+        file_extension = Path(file.filename).suffix.lower()
+        if file_extension not in allowed_extensions:
+            print(f"❌ DEBUG: Archivo rechazado: {file.filename} - extensión {file_extension}")
+            continue
+        
+        # Nombre único
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_filename = f"{timestamp}_{file.filename}"
+        file_path = student_dir / safe_filename
+        
+        try:
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            
+            uploaded_files.append({
+                "filename": safe_filename,
+                "original_filename": file.filename,
+                "file_size": file_path.stat().st_size,
+            })
+            print(f"✅ DEBUG: Archivo guardado: {safe_filename}")
+            
+        except Exception as e:
+            print(f"❌ DEBUG: Error guardando {file.filename}: {e}")
+            if file_path.exists():
+                file_path.unlink()
+    
+    return {
+        "message": f"Archivos subidos exitosamente: {len(uploaded_files)}",
+        "uploaded_files": uploaded_files,
+        "unidad_id": unidad_id,
+        "subcarpeta": subcarpeta_nombre,
+        "uploaded_by": current_user,
+        "upload_date": datetime.now().isoformat()
+    }
+
+@authRouter.get("/estudiantes/subcarpetas/{unidad_id}/{subcarpeta_nombre}/files")
+def get_student_files(
+    unidad_id: int,
+    subcarpeta_nombre: str,
+    current_user: str = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Listar archivos subidos por el estudiante"""
+    
+    if subcarpeta_nombre != "SOLO TAREAS":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    
+    # Verificar acceso
+    # Primero obtener el ID del estudiante
+    estudiante = db.query(models.Registro).filter(models.Registro.username == current_user).first()
+    if not estudiante:
+        raise HTTPException(status_code=403, detail="Usuario no encontrado")
+    
+    # Verificar relación en tabla estudiante_unidad
+    acceso = db.query(models.estudiante_unidad).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
+        models.estudiante_unidad.c.unidad_id == unidad_id,
+        models.estudiante_unidad.c.habilitada == True
+    ).first()
+    
+    if not acceso:
+        raise HTTPException(status_code=403, detail="Sin acceso a esta unidad")
+    
+    student_dir = UPLOAD_DIR / "estudiantes" / current_user / f"unidad_{unidad_id}" / "SOLO_TAREAS"
+    
+    if not student_dir.exists():
+        return {"files": []}
+    
+    files = []
+    for file_path in student_dir.iterdir():
+        if file_path.is_file():
+            stat = file_path.stat()
+            files.append({
+                "filename": file_path.name,
+                "original_name": file_path.name.split('_', 2)[-1] if '_' in file_path.name else file_path.name,
+                "size": stat.st_size,
+                "upload_date": datetime.fromtimestamp(stat.st_mtime).isoformat()
+            })
+    
+    return {"files": files}
+
+@authRouter.get("/estudiantes/subcarpetas/{unidad_id}/{subcarpeta_nombre}/files/{filename}")
+def get_student_file(
+    unidad_id: int,
+    subcarpeta_nombre: str,
+    filename: str,
+    current_user: str = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Servir archivo específico del estudiante"""
+    
+    if subcarpeta_nombre != "SOLO TAREAS":
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    
+    # Verificar acceso (mismo código que en get_student_files)
+    estudiante = db.query(models.Registro).filter(models.Registro.username == current_user).first()
+    if not estudiante:
+        raise HTTPException(status_code=403, detail="Usuario no encontrado")
+    
+    acceso = db.query(models.estudiante_unidad).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
+        models.estudiante_unidad.c.unidad_id == unidad_id,
+        models.estudiante_unidad.c.habilitada == True
+    ).first()
+    
+    if not acceso:
+        raise HTTPException(status_code=403, detail="Sin acceso a esta unidad")
+    
+    # Buscar archivo
+    student_dir = UPLOAD_DIR / "estudiantes" / current_user / f"unidad_{unidad_id}" / "SOLO_TAREAS"
+    file_path = student_dir / filename
+    
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    
+    # Determinar tipo de contenido
+    import mimetypes
+    content_type, _ = mimetypes.guess_type(str(file_path))
+    if content_type is None:
+        content_type = "application/octet-stream"
+    
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=str(file_path),
+        media_type=content_type,
+        filename=filename
+    )
+
+@authRouter.get("/estudiantes/resumen")
+def get_resumen_estudiante(
+    current_user: str = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Obtener resumen de progreso del estudiante"""
+    
+    # Obtener datos del estudiante
+    estudiante = db.query(models.Registro).filter(models.Registro.username == current_user).first()
+    if not estudiante:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+    
+    # Calcular métricas
+    total_tiempo = db.query(func.sum(models.ActividadEstudiante.duracion_min)).filter(
+        models.ActividadEstudiante.username == current_user
+    ).scalar() or 0
+    
+    # Contar unidades habilitadas
+    unidades_habilitadas = db.query(func.count(models.estudiante_unidad.c.unidad_id)).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
+        models.estudiante_unidad.c.habilitada == True
+    ).scalar() or 0
+    
+    # Calcular progreso general (basado en tiempo dedicado)
+    progreso_general = min(100, (total_tiempo / 60) * 2) if total_tiempo > 0 else 0
+    
+    # Calcular racha de días (simplificado)
+    dias_recientes = db.query(func.count(func.distinct(func.date(models.ActividadEstudiante.creado_at)))).filter(
+        models.ActividadEstudiante.username == current_user,
+        models.ActividadEstudiante.creado_at >= datetime.now() - timedelta(days=7)
+    ).scalar() or 0
+    
+    return {
+        "progreso_general": int(progreso_general),
+        "unidades_completadas": unidades_habilitadas,
+        "tiempo_dedicado_min": int(total_tiempo),
+        "racha_dias": dias_recientes
+    }
+
+@authRouter.get("/estudiantes/analytics/unidades")
+def get_analytics_unidades(
+    current_user: str = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Obtener analytics por unidad del estudiante"""
+    
+    estudiante = db.query(models.Registro).filter(models.Registro.username == current_user).first()
+    if not estudiante:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+    
+    # Obtener unidades habilitadas con tiempo dedicado
+    unidades_query = db.query(
+        models.estudiante_unidad.c.unidad_id,
+        func.coalesce(func.sum(models.ActividadEstudiante.duracion_min), 0).label('tiempo_total')
+    ).outerjoin(
+        models.ActividadEstudiante,
+        and_(
+            models.ActividadEstudiante.username == current_user,
+            models.ActividadEstudiante.unidad_id == models.estudiante_unidad.c.unidad_id
+        )
+    ).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
+        models.estudiante_unidad.c.habilitada == True
+    ).group_by(models.estudiante_unidad.c.unidad_id).all()
+    
+    analytics = []
+    for unidad_id, tiempo_total in unidades_query:
+        # Calcular progreso basado en tiempo (ejemplo: 30 min = 100%)
+        progreso = min(100, (tiempo_total / 30) * 100) if tiempo_total > 0 else 0
+        
+        analytics.append({
+            "unidad_id": unidad_id,
+            "tiempo_dedicado_min": int(tiempo_total),
+            "actividades_completadas": 0,  # TODO: implementar conteo real
+            "ultima_actividad": datetime.now().isoformat(),
+            "progreso_porcentaje": int(progreso)
+        })
+    
+    return analytics

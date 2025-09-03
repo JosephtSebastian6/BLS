@@ -1,16 +1,18 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
+import { AnalyticsService } from '../../services/analytics.service';
 
 @Component({
   selector: 'app-unidad-detalle',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, HttpClientModule],
   templateUrl: './unidad-detalle.component.html',
   styleUrls: ['./unidad-detalle.component.css']
 })
-export class UnidadDetalleComponent implements OnInit {
+export class UnidadDetalleComponent implements OnInit, OnDestroy {
   editandoIdx: number | null = null;
   editNombre: string = '';
   editDescripcion: string = '';
@@ -40,7 +42,8 @@ export class UnidadDetalleComponent implements OnInit {
   unidadId: string | null = null;
   subcarpetas: Array<{ nombre: string; descripcion?: string; archivos?: { name: string }[] }> = [];
 
-  constructor(private route: ActivatedRoute, private router: Router) {
+  private heartbeatId: any;
+  constructor(private route: ActivatedRoute, private router: Router, private analytics: AnalyticsService) {
     this.unidadId = this.route.snapshot.paramMap.get('id');
     this.cargarSubcarpetas();
     // Detecta tipo de usuario
@@ -86,7 +89,32 @@ export class UnidadDetalleComponent implements OnInit {
 
   ngOnInit() {
     this.cargarArchivosDeLocalStorage();
+    // Tracking start + heartbeat
+    if (this.unidadId) {
+      const idNum = Number(this.unidadId);
+      this.analytics.trackingStart(idNum).subscribe({ next: () => {}, error: () => {} });
+      this.heartbeatId = setInterval(() => {
+        this.analytics.trackingHeartbeat(idNum, 1).subscribe({ next: () => {}, error: () => {} });
+      }, 60000);
+      window.addEventListener('beforeunload', this._onBeforeUnload);
+    }
   }
+
+  ngOnDestroy(): void {
+    if (this.heartbeatId) clearInterval(this.heartbeatId);
+    window.removeEventListener('beforeunload', this._onBeforeUnload);
+    if (this.unidadId) {
+      const idNum = Number(this.unidadId);
+      this.analytics.trackingEnd(idNum).subscribe({ next: () => {}, error: () => {} });
+    }
+  }
+
+  private _onBeforeUnload = () => {
+    if (this.unidadId) {
+      const idNum = Number(this.unidadId);
+      this.analytics.trackingEnd(idNum).subscribe({ next: () => {}, error: () => {} });
+    }
+  };
 
   cargarArchivosDeLocalStorage() {
     if (!this.unidadId) return;

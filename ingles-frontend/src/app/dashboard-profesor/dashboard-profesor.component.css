@@ -1,28 +1,66 @@
-/* --- PERFIL MODERNO IGUAL QUE ESTUDIANTE --- */
+/* Variables CSS corporativas */
+:root {
+  --primary-color: #667eea;
+  --secondary-color: #764ba2;
+  --text-dark: #1f2937;
+  --text-light: #6b7280;
+  --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(102, 126, 234, 0.2);
+  --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.1);
+  --border-radius: 20px;
+  --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fondo corporativo */
+body {
+  background: var(--bg-gradient);
+  min-height: 100vh;
+}
+
 .dashboard-profesor-layout {
+  background: transparent;
   width: 100%;
-  min-height: calc(100vh - 100px);
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-8) var(--spacing-4);
-  background: linear-gradient(135deg, var(--gray-50) 0%, var(--primary-bg) 100%);
+  padding: 2rem;
 }
 
-/* --- FORMULARIO DE PERFIL --- */
+/* Formulario de perfil con glassmorphism */
 .perfil-form-freepik {
   display: flex;
   flex-direction: row;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  padding: 32px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-soft);
+  padding: 3rem;
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
-  border: 1px solid #e5e7eb;
-  gap: 40px;
+  gap: 3rem;
   align-items: flex-start;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.perfil-form-freepik::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+}
+
+.perfil-form-freepik:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 }
 
 .perfil-form-fields {
@@ -31,65 +69,111 @@
 }
 
 .perfil-form-fields h2 {
-  font-size: 1.25rem; /* 20px */
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 24px;
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 12px;
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--glass-border);
+  padding-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .perfil-form-grid-freepik {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 2rem;
 }
 
 .form-group label {
   display: block;
-  font-size: 0.875rem; /* 14px */
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .form-group input {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 0.875rem; /* 14px */
-  background: #f9fafb;
-  color: #111827;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  padding: 1rem 1.2rem;
+  border: 2px solid var(--glass-border);
+  border-radius: 12px;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  color: var(--text-dark);
+  transition: var(--transition);
+  font-weight: 500;
 }
 
 .form-group input:focus {
-  border-color: #2563eb;
+  border-color: var(--primary-color);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
 }
 
 .perfil-foto-freepik {
-  min-width: 280px;
+  min-width: 320px;
   order: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 24px;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  transition: var(--transition);
+}
+
+.perfil-foto-freepik:hover {
+  background: rgba(255, 255, 255, 0.8);
+  transform: scale(1.02);
 }
 
 .perfil-foto-oval {
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
   overflow: hidden;
-  background: #f3f4f6;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  box-shadow: var(--shadow-soft);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
+  margin-bottom: 1.5rem;
+  border: 4px solid rgba(255, 255, 255, 0.8);
+  transition: var(--transition);
+  position: relative;
+}
+
+.perfil-foto-oval::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  z-index: -1;
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.perfil-foto-oval:hover::before {
+  opacity: 1;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 .perfil-foto-oval img {
@@ -103,49 +187,86 @@
 }
 
 .perfil-nombre-modern h3 {
-  font-size: 1.125rem; /* 18px */
-  font-weight: 600;
-  color: #111827;
-  margin: 0 0 4px 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .perfil-rol {
-  font-size: 0.875rem; /* 14px */
-  color: #4b5563;
-  background: #e5e7eb;
-  border-radius: 9999px;
-  padding: 4px 12px;
-  font-weight: 500;
+  font-size: 0.9rem;
+  color: white;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  border-radius: 20px;
+  padding: 0.6rem 1.5rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  transition: var(--transition);
+}
+
+.perfil-rol:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
 .btn-guardar-modern {
-  background-color: #2563eb;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
   color: white;
   border: none;
-  border-radius: 8px;
-  padding: 12px 24px;
-  font-size: 0.875rem; /* 14px */
-  font-weight: 600;
+  border-radius: 12px;
+  padding: 1rem 2.5rem;
+  font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: background-color 0.2s;
-  margin-top: 24px;
+  transition: var(--transition);
+  margin-top: 2rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-guardar-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: var(--transition);
+}
+
+.btn-guardar-modern:hover::before {
+  left: 100%;
 }
 
 .btn-guardar-modern:hover {
-  background-color: #1d4ed8;
+  transform: translateY(-3px);
+  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
 }
 
 .exito {
-  margin-top: 1rem;
-  padding: 1rem;
-  background: rgba(76, 175, 80, 0.1);
-  border: 1px solid #4caf50;
-  border-radius: 8px;
-  color: #4caf50;
+  margin-top: 1.5rem;
+  padding: 1.2rem;
+  background: rgba(34, 197, 94, 0.1);
+  backdrop-filter: blur(10px);
+  border: 2px solid #22c55e;
+  border-radius: 12px;
+  color: #16a34a;
   text-align: center;
-  font-weight: 600;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.2);
 }
 
 .foto-error {
@@ -155,24 +276,39 @@
 }
 
 @media (max-width: 768px) {
+  .dashboard-profesor-layout {
+    padding: 1rem;
+  }
+  
   .perfil-form-freepik {
     flex-direction: column;
-    gap: 24px;
+    gap: 2rem;
+    padding: 2rem;
   }
 
   .perfil-foto-freepik {
-    order: 1; /* Foto primero en móvil */
+    order: 1;
     min-width: auto;
     width: 100%;
-    padding-top: 0;
+    padding: 1.5rem;
   }
 
   .perfil-form-fields {
-    order: 2; /* Formulario después */
+    order: 2;
     width: 100%;
   }
 
   .perfil-form-grid-freepik {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .perfil-foto-oval {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .perfil-form-fields h2 {
+    font-size: 1.5rem;
   }
 }
