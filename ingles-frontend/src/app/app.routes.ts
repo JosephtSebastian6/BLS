@@ -30,12 +30,13 @@ import { IefDashboard } from './ief-dashboard/ief-dashboard';
 import { ExpDashboard } from './exp-dashboard/exp-dashboard';
 import { IpcDashboard } from './ipc-dashboard/ipc-dashboard';
 import { EteDashboard } from './ete-dashboard/ete-dashboard';
+import { Nosotros } from './nosotros/nosotros';
 
 export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
   { path: 'login', component: LoginComponent },
   { path: 'auth/verify-email', component: VerifyEmailComponent },
-  { path: '', redirectTo: '/login', pathMatch: 'full' },
+  { path: '', redirectTo: '/home', pathMatch: 'full' },
   { path: 'email-verified-success', component: EmailVerifiedSuccessComponent },
   { path: 'dashboard', component: DashboardComponent },
   {
@@ -86,6 +87,7 @@ export const routes: Routes = [
     ]
   },
   { path: 'home', component: HomeComponent },
+  { path: 'nosotros', component: Nosotros },
   { path: 'dashboard-mis-clases-estudiante', component: DashboardMisClasesEstudianteComponent },
   { path: 'programas', component: ProgramasComponent },
   { path: 'ben', component: BenDashboard },

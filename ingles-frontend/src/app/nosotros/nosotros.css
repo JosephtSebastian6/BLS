@@ -1,0 +1,648 @@
+/* Header de Nosotros */
+.nosotros-header {
+  background: #2c3e50;
+  min-height: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 60px 20px;
+}
+
+.header-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 1200px;
+}
+
+.header-logo {
+  max-width: 500px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Sección Quiénes somos */
+.quienes-somos-section {
+  background: #f8fafc;
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.quienes-somos-section h2 {
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 50px;
+  text-align: center;
+}
+
+.quienes-somos-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.quienes-somos-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+}
+
+.quienes-somos-list li {
+  font-size: 1.7rem;
+  color: #4a5568;
+  line-height: 1.8;
+  margin-bottom: 20px;
+  padding-left: 30px;
+  position: relative;
+}
+
+.quienes-somos-list li::before {
+  content: "•";
+  color: #667eea;
+  font-size: 1.5rem;
+  position: absolute;
+  left: 0;
+  top: -2px;
+}
+
+/* Sección Misión y Visión */
+.mision-vision-section {
+  position: relative;
+  min-height: 500px;
+}
+
+.mision-vision-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.mision-vision-container {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 500px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.mision-side {
+  background: #2c3e50;
+  color: white;
+  padding: 60px 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.vision-side {
+  background: #ffffff;
+  color: #2c3e50;
+  padding: 60px 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.mision-side h3,
+.vision-side h3 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.divider-line {
+  width: 100px;
+  height: 3px;
+  background: #667eea;
+  margin-bottom: 25px;
+}
+
+.mision-side p,
+.vision-side p {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* Sección Parallax */
+.parallax-section {
+  height: 800px;
+  background-image: url('https://static.wixstatic.com/media/2dcb45_de62d85c394943df97c6397af85bd42d~mv2.jpg/v1/fill/w_3000,h_1570,al_t,q_90,enc_auto/2dcb45_de62d85c394943df97c6397af85bd42d~mv2.jpg');
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  position: relative;
+}
+
+.parallax-image {
+  display: none;
+}
+
+/* Sección Principios */
+.principios-section {
+  padding: 80px 0;
+  background-color: #f8f9fa;
+}
+
+.principios-section .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.principios-section h2 {
+  text-align: center;
+  font-size: 4rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 30px;
+}
+
+.bible-verse {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.bible-verse h3 {
+  font-size: 3rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.bible-verse p {
+  font-size: 2rem;
+  color: #666;
+  font-style: italic;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.principios-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  margin-top: 50px;
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+  align-items: flex-start;
+}
+
+.principio-item {
+  text-align: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  transition: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: auto;
+}
+
+.principio-item:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.principio-icon {
+  margin: 0 auto 25px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.icon-circle {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: 2px solid #4a90e2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  position: relative;
+}
+
+.icon-circle span {
+  font-size: 10px;
+  font-weight: 600;
+  color: #4a90e2;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 70px;
+  display: block;
+}
+
+.icon-circle.with-image {
+  padding: 0;
+  overflow: hidden;
+}
+
+.icon-circle.with-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.principio-item h4 {
+  font-size: 3rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 15px;
+  line-height: 1.3;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.principio-item p {
+  font-size: 1.7rem;
+  line-height: 1.5;
+  color: #666;
+  margin: 0;
+  text-align: center;
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Segunda Sección Parallax */
+.parallax-section-2 {
+  height: 800px;
+  background-image: url('https://static.wixstatic.com/media/2dcb45_d5cee75a729c4cfeb09cc7d084d69bff~mv2.jpg/v1/fill/w_3000,h_1570,al_c,q_90,enc_auto/2dcb45_d5cee75a729c4cfeb09cc7d084d69bff~mv2.jpg');
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  position: relative;
+}
+
+.parallax-image-2 {
+  display: none;
+}
+
+/* Sección Impacto Social */
+.impacto-social-section {
+  padding: 80px 0;
+  background-color: white;
+  color: #2c3e50;
+}
+
+.impacto-social-section .container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.impacto-social-section h2 {
+  text-align: center;
+  font-size: 4rem;
+  font-weight: 700;
+  margin-bottom: 50px;
+  color: #2c3e50;
+}
+
+.impacto-content {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.impacto-content p {
+  font-size: 1.5rem;
+  line-height: 1.8;
+  margin-bottom: 25px;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.impacto-content .intro-text {
+  font-weight: 600;
+  font-size: 2rem;
+}
+
+.impacto-content .final-text {
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
+.fundaciones-logos {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-bottom: 60px;
+  flex-wrap: wrap;
+}
+
+.logo-item {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease;
+}
+
+.logo-item:hover {
+  transform: translateY(-5px);
+}
+
+.logo-item img {
+  height: 150px;
+  width: auto;
+  display: block;
+}
+
+.bible-quote {
+  text-align: center;
+  border-top: 2px solid #667eea;
+  padding-top: 40px;
+}
+
+.bible-quote h3 {
+  font-size: 3rem;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: #667eea;
+}
+
+.bible-quote p {
+  font-size: 1.7rem;
+  font-style: italic;
+  margin: 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Sección Impacto Ambiental */
+.impacto-ambiental-section {
+  padding: 80px 0;
+  background-color: #f8f9fa;
+  color: #2c3e50;
+}
+
+.impacto-ambiental-section .container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.impacto-ambiental-section h2 {
+  text-align: center;
+  font-size: 4rem;
+  font-weight: 700;
+  margin-bottom: 50px;
+  color: #2c3e50;
+}
+
+.ambiental-content {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.ambiental-content p {
+  font-size: 1.5rem;
+  line-height: 1.8;
+  margin: 0;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.video-container {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto;
+  max-width: 800px;
+}
+
+.video-container iframe {
+  width: 100%;
+  height: 450px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .nosotros-header {
+    min-height: 300px;
+    padding: 40px 20px;
+  }
+  
+  .header-logo {
+    max-width: 350px;
+  }
+
+  .principios-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  
+  .principios-section {
+    padding: 60px 0;
+  }
+  
+  .principios-section h2 {
+    font-size: 2rem;
+  }
+  
+  .parallax-section {
+    height: 300px;
+  }
+  
+  .parallax-image {
+    background-attachment: scroll;
+  }
+  
+  .quienes-somos-section {
+    padding: 60px 20px;
+  }
+  
+  .quienes-somos-section h2 {
+    font-size: 2rem;
+    margin-bottom: 30px;
+  }
+  
+  .quienes-somos-list li {
+    font-size: 1rem;
+    padding-left: 25px;
+  }
+  
+  .mision-vision-container {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  
+  .mision-side,
+  .vision-side {
+    padding: 40px 30px;
+  }
+  
+  .mision-side h3,
+  .vision-side h3 {
+    font-size: 2rem;
+  }
+  
+  .mision-side p,
+  .vision-side p {
+    font-size: 1rem;
+  }
+}
+
+/* Footer */
+.footer {
+  background: #2c3e50;
+  color: white;
+  padding: 3rem 0 1rem;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0 2rem;
+  gap: 4rem;
+}
+
+.footer-left {
+  display: flex;
+  gap: 3rem;
+  align-items: flex-start;
+}
+
+.footer-logo {
+  flex-shrink: 0;
+}
+
+.footer-logo-img {
+  width: 120px;
+  height: auto;
+}
+
+.footer-info h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: white;
+}
+
+.footer-info > p {
+  font-size: 0.9rem;
+  color: #bdc3c7;
+  margin-bottom: 1rem;
+}
+
+.footer-contact p {
+  font-size: 0.85rem;
+  color: #bdc3c7;
+  margin-bottom: 0.3rem;
+  line-height: 1.4;
+}
+
+.footer-right {
+  text-align: right;
+}
+
+.footer-social h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: white;
+}
+
+.social-links {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 35px;
+  height: 35px;
+  background: #34495e;
+  border-radius: 8px;
+  color: white;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.social-link:hover {
+  background: #667eea;
+  transform: translateY(-2px);
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.footer-links a {
+  color: #bdc3c7;
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: color 0.3s ease;
+}
+
+.footer-links a:hover {
+  color: white;
+}
+
+.footer-bottom {
+  border-top: 1px solid #34495e;
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  text-align: center;
+}
+
+.footer-bottom p {
+  font-size: 0.8rem;
+  color: #95a5a6;
+  margin: 0;
+}
+
+/* Footer responsive styles */
+@media (max-width: 768px) {
+  .footer-content {
+    flex-direction: column;
+    gap: 2rem;
+    text-align: center;
+  }
+  
+  .footer-left {
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  
+  .footer-right {
+    text-align: center;
+  }
+  
+  .social-links {
+    justify-content: center;
+  }
+}

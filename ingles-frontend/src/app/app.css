@@ -61,7 +61,7 @@ nav {
 
 .nav-links {
   display: flex;
-  gap: var(--spacing-4);
+  gap: 2.5rem;
   align-items: center;
 }
 
