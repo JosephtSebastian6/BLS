@@ -1,4 +1,4 @@
-<div class="subcarpeta-detalle-container">
+<div class="subcarpeta-detalle-container" [ngClass]="{ profesor: tipoUsuario === 'profesor' }">
   <div class="header-container">
     <button class="volver-btn" (click)="volverADetalleUnidad()" aria-label="Volver atrás">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -7,6 +7,32 @@
       </svg>
     </button>
     <h2 class="titulo-subcarpeta">Subcarpetas de la unidad</h2>
+  </div>
+
+  <!-- SECCIÓN PARA PROFESOR - LECTURA DE ARCHIVOS -->
+  <div class="archivos-lista" *ngIf="archivos.length && tipoUsuario === 'profesor'">
+    <h4>Archivos de la subcarpeta:</h4>
+    <ul>
+      <li *ngFor="let archivo of archivos">
+        <ng-container *ngIf="archivo.type === 'link'; else archivoNormalProfesor">
+          <a [href]="archivo.link" target="_blank" style="color:#2563eb;font-weight:600;text-decoration:underline;">{{ archivo.name }}</a>
+        </ng-container>
+        <ng-template #archivoNormalProfesor>
+          <span style="cursor:pointer;text-decoration:underline;" (click)="abrirModal(archivo)">{{ archivo.name }}</span>
+          <ng-container *ngIf="archivo.type && archivo.dataUrl; else soloNombreProfesor"></ng-container>
+          <ng-template #soloNombreProfesor>
+            <em style="color:gray;">(no visualizable)</em>
+          </ng-template>
+        </ng-template>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Vacío para profesor -->
+  <div *ngIf="!archivos.length && tipoUsuario === 'profesor'" 
+       style="text-align:center;padding:2em;color:#64748b;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+    <span class="material-icons" style="font-size:3em;color:#cbd5e1;display:block;margin-bottom:0.5em;">folder_open</span>
+    <p style="margin:0;">No hay archivos en esta subcarpeta.</p>
   </div>
 
   <!-- Todo el contenido de archivos y controles ahora está dentro del contenedor principal -->

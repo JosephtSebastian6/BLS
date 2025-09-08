@@ -211,6 +211,26 @@ def ver_clases_profesor(profesor_username: str, db: Session = Depends(get_db)):
         ))
     return respuesta
 
+# DELETE batch: eliminar clases con más de N días (default 15). Opcional filtrar por profesor.
+@authRouter.delete("/clases/antiguas")
+def eliminar_clases_antiguas(
+    dias: int = 15,
+    profesor_username: str | None = None,
+    db: Session = Depends(get_db)
+):
+    try:
+        eliminadas = crud.eliminar_clases_antiguas(db, dias=dias, profesor_username=profesor_username)
+        return {"eliminadas": eliminadas, "dias": dias, "profesor_username": profesor_username}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error eliminando clases antiguas: {e}")
+
+@authRouter.delete("/clases/{clase_id}")
+def eliminar_clase(clase_id: int, db: Session = Depends(get_db)):
+    ok = crud.eliminar_clase(db, clase_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Clase no encontrada o no se pudo eliminar")
+    return {"eliminada": True, "id": clase_id}
+
 # POST: Agendar estudiante a clase
 from pydantic import BaseModel
 from fastapi import Body

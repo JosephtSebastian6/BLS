@@ -1,4 +1,4 @@
-<div class="unidad-detalle-container">
+<div class="unidad-detalle-container" [ngClass]="{ profesor: tipoUsuario === 'profesor' }">
   <div class="header-container">
     <button class="volver-btn" (click)="volverAUnidades()" aria-label="Volver atrás">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

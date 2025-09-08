@@ -1,74 +1,98 @@
 
 .mis-profes-container {
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 8px 32px rgba(37,99,235,0.13);
-  padding: 2.2rem 2.5rem 2.2rem 2.5rem;
-  max-width: 700px;
-  margin: 60px auto 0 auto;
+  background: rgba(255,255,255,0.95);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+  border: 1px solid rgba(102,126,234,0.20);
+  padding: 2.25rem 2.5rem;
+  max-width: 1100px;
+  margin: 56px auto 0 auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  overflow-x: auto;
+  backdrop-filter: blur(8px);
 }
 .mis-profes-container h2 {
-  font-size: 2em;
-  font-weight: 800;
-  color: #2563eb;
-  margin-bottom: 1.2em;
-  letter-spacing: -1px;
+  font-size: 2rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  margin: 0 0 .5rem 0;
+  letter-spacing: .3px;
+  text-transform: uppercase;
 }
 .mis-profes-container p {
-  color: #263159;
-  font-size: 1.08em;
-  margin-bottom: 1.5em;
+  color: #6b7280;
+  font-size: .95rem;
+  margin: 0 0 1.25rem 0;
 }
 .tabla-profes {
   width: 100%;
-  border-collapse: collapse;
-  margin-top: 1.2em;
-  background: #f6f8ff;
-  border-radius: 12px;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-top: .5rem;
+  background: #ffffff;
+  border: 1px solid rgba(102,126,234,0.18);
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 2px 8px #0001;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+  table-layout: fixed;
 }
 .tabla-profes th, .tabla-profes td {
-  padding: 0.9em 1.1em;
+  padding: 1rem 1.1rem;
   text-align: left;
+  word-wrap: break-word;
+  overflow: hidden;
 }
+
+/* Definir anchos específicos para las columnas */
+.tabla-profes th:nth-child(1), .tabla-profes td:nth-child(1) { width: 15%; } /* Nombre */
+.tabla-profes th:nth-child(2), .tabla-profes td:nth-child(2) { width: 15%; } /* Apellidos */
+.tabla-profes th:nth-child(3), .tabla-profes td:nth-child(3) { width: 25%; } /* Email */
+.tabla-profes th:nth-child(4), .tabla-profes td:nth-child(4) { width: 15%; text-align: center; } /* Estudiantes */
+.tabla-profes th:nth-child(5), .tabla-profes td:nth-child(5) { width: 30%; text-align: center; } /* Acciones */
 .tabla-profes th {
-  background: #2563eb;
+  background: linear-gradient(135deg, #667eea, #5a6ee6);
   color: #fff;
-  font-weight: 700;
-  font-size: 1.08em;
-  border-bottom: 2px solid #e3e8f7;
+  font-weight: 800;
+  font-size: .95rem;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  border-bottom: 1px solid rgba(255,255,255,0.25);
 }
-.tabla-profes tr {
-  border-bottom: 1px solid #e3e8f7;
-}
+.tabla-profes tr { border-bottom: 1px dashed rgba(0,0,0,.06); transition: background .2s ease; }
+.tabla-profes tbody tr:hover { background: rgba(102,126,234,0.06); }
 .tabla-profes tr:last-child {
   border-bottom: none;
 }
-.tabla-profes td {
-  font-size: 1.05em;
-  color: #263159;
-}
+.tabla-profes td { font-size: .95rem; color: #1f2937; }
+
+/* Redondeo de extremos para primera/última celda */
+.tabla-profes thead th:first-child { border-top-left-radius: 16px; }
+.tabla-profes thead th:last-child  { border-top-right-radius: 16px; }
+.tabla-profes tbody tr:last-child td:first-child { border-bottom-left-radius: 16px; }
+.tabla-profes tbody tr:last-child td:last-child  { border-bottom-right-radius: 16px; }
 
 /* Botón gestionar estudiantes */
 .btn-gestionar {
-  background: #2563eb;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
+  background: #667eea;
+  color: #fff;
+  border: 2px solid #667eea;
+  padding: .55rem .9rem;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 0.9em;
-  font-weight: 600;
-  transition: all 0.2s ease;
+  font-size: .9rem;
+  font-weight: 700;
+  transition: transform .2s cubic-bezier(.4,0,.2,1), box-shadow .2s cubic-bezier(.4,0,.2,1), background .2s; 
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(102,126,234,.25);
 }
 
 .btn-gestionar:hover {
-  background: #1d4ed8;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #667eea, #5a6ee6);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 40px rgba(102,126,234,.35);
 }
 
 /* Modal */
@@ -86,19 +110,20 @@
 }
 
 .modal-content {
-  background: white;
-  border-radius: 12px;
+  background: rgba(255,255,255,0.98);
+  border-radius: 20px;
   width: 90%;
-  max-width: 600px;
+  max-width: 720px;
   max-height: 80vh;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(102,126,234,0.18);
 }
 
 .modal-header {
-  background: #2563eb;
+  background: linear-gradient(135deg, #667eea, #5a6ee6);
   color: white;
-  padding: 20px;
+  padding: 18px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -106,8 +131,10 @@
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.2em;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-transform: uppercase;
 }
 
 .btn-cerrar {
@@ -141,9 +168,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px;
+  padding: 14px 16px;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 12px;
   background: #f9fafb;
 }
 
@@ -167,30 +194,20 @@
 .btn-toggle {
   padding: 8px 16px;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9em;
-  transition: all 0.2s ease;
+  font-weight: 700;
+  font-size: .9rem;
+  transition: transform .2s ease, filter .2s ease;
 }
 
-.btn-toggle.asignado {
-  background: #dc2626;
-  color: white;
-}
+.btn-toggle.asignado { background: #dc2626; color: white; box-shadow: 0 6px 20px rgba(220,38,38,.25); }
 
-.btn-toggle.asignado:hover {
-  background: #b91c1c;
-}
+.btn-toggle.asignado:hover { background: #b91c1c; transform: translateY(-1px); }
 
-.btn-toggle.no-asignado {
-  background: #16a34a;
-  color: white;
-}
+.btn-toggle.no-asignado { background: #16a34a; color: white; box-shadow: 0 6px 20px rgba(22,163,74,.25); }
 
-.btn-toggle.no-asignado:hover {
-  background: #15803d;
-}
+.btn-toggle.no-asignado:hover { background: #15803d; transform: translateY(-1px); }
 
 .btn-toggle:disabled {
   opacity: 0.6;

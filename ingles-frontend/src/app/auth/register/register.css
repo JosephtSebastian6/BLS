@@ -96,7 +96,8 @@
   margin-bottom: 4px;
 }
 
-.form-field input {
+.form-field input,
+.form-field select {
   padding: 12px;
   border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -106,8 +107,14 @@
   outline: none; /* Elimina el contorno de foco por defecto */
 }
 
-.form-field input:focus {
+.form-field input:focus,
+.form-field select:focus {
   border-color: #1a73e8; /* Borde azul cuando el campo está enfocado */
+}
+
+.form-field select option {
+  background-color: #2d3a4a;
+  color: white;
 }
 
 /* Estilo para el botón de registro */

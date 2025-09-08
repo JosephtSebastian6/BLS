@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { DatePipe, CommonModule, registerLocaleData } from '@angular/common';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import localeEs from '@angular/common/locales/es';
+import { AttendanceService, AsistenciaRegistro } from '../services/attendance.service';
 
 @Component({
   selector: 'app-planeador',
@@ -26,6 +27,11 @@ export class PlaneadorComponent implements OnInit {
   // Propiedades para modal de detalles de clase
   modalTipo: 'agregar' | 'detalles' = 'agregar';
   claseSeleccionada: any = null;
+  // Asistencia
+  asistenciaEditando = false;
+  presentesSet: Set<string> = new Set(); // emails presentes
+  guardandoAsistencia = false;
+  mensajeAsistencia = '';
 
   // Semana actual
   currentDate: Date = new Date();
@@ -37,7 +43,13 @@ export class PlaneadorComponent implements OnInit {
   loading = true;
   error = '';
 
-  constructor(private http: HttpClient) {
+  // ===== Reporte (sin descargas/DB) =====
+  reporteVisible = false;
+  reporteGenerando = false;
+  reporteResumen: { tema: string; fecha: string; hora: string; total: number; presentes: number; ausentes: number } | null = null;
+  reporteFilas: Array<{ nombre: string; id: string; presente: boolean }> = [];
+
+  constructor(private http: HttpClient, private attendanceService: AttendanceService) {
     registerLocaleData(localeEs);
     this.setWeekDates();
   }
@@ -91,7 +103,17 @@ export class PlaneadorComponent implements OnInit {
   getWeekTitle(): string {
     const start = this.weekDates[0];
     const end = this.weekDates[6];
-    return `Semana del ${start.getDate()} al ${end.getDate()} de ${this.getMonthName(start)} ${start.getFullYear()}`;
+    const sameMonth = start.getMonth() === end.getMonth();
+    const sameYear = start.getFullYear() === end.getFullYear();
+
+    if (sameMonth) {
+      // Mismo mes: Semana del 1 al 6 de septiembre 2025
+      return `Semana del ${start.getDate()} al ${end.getDate()} de ${this.getMonthName(start)} ${start.getFullYear()}`;
+    }
+
+    // Mes distinto: Semana del 31 de agosto al 6 de septiembre 2025 (o rango de años si aplica)
+    const yearPart = sameYear ? `${start.getFullYear()}` : `${start.getFullYear()}–${end.getFullYear()}`;
+    return `Semana del ${start.getDate()} de ${this.getMonthName(start)} al ${end.getDate()} de ${this.getMonthName(end)} ${yearPart}`;
   }
 
   getMonthName(date: Date): string {
@@ -116,6 +138,8 @@ export class PlaneadorComponent implements OnInit {
       this.claseSeleccionada = this.clases.find(c => c.id === claseEnCelda.claseId);
       console.log('Clase seleccionada:', this.claseSeleccionada);
       console.log('Todas las clases:', this.clases);
+      // Preparar asistencia
+      this.cargarAsistencia();
     } else {
       // Mostrar modal para agregar evento
       this.modalTipo = 'agregar';
@@ -129,12 +153,147 @@ export class PlaneadorComponent implements OnInit {
   cerrarModal() {
     this.modalVisible = false;
     this.claseSeleccionada = null;
+    this.asistenciaEditando = false;
+    this.presentesSet.clear();
+    this.mensajeAsistencia = '';
   }
 
   abrirMeet() {
     if (this.claseSeleccionada?.meet_link) {
       window.open(this.claseSeleccionada.meet_link, '_blank');
     }
+  }
+
+  // Utilidades comunes
+  private fechaHoraDeClase(clase: any): Date {
+    const hora = (clase?.hora || '00:00').slice(0,5);
+    return new Date(`${clase?.dia}T${hora}:00`);
+  }
+  esClasePasada(clase: any): boolean {
+    if (!clase?.dia) return false;
+    return this.fechaHoraDeClase(clase).getTime() < Date.now();
+  }
+
+  // ===== Reporte =====
+  verReporteClaseSeleccionada() {
+    if (!this.claseSeleccionada) return;
+    const clase = this.claseSeleccionada;
+    this.reporteVisible = true;
+    this.reporteGenerando = true;
+    const presentes = Array.from(this.presentesSet || new Set<string>());
+    const filas = (clase.estudiantes || []).map((e: any) => {
+      const nombre = `${e.nombres || e.nombre || ''} ${e.apellidos || ''}`.trim();
+      const id = e.email || e.username || '';
+      return { nombre, id, presente: presentes.includes(id) };
+    });
+    this.reporteFilas = filas;
+    this.reporteResumen = {
+      tema: clase.tema || '',
+      fecha: clase.dia || '',
+      hora: (clase.hora || '').toString(),
+      total: filas.length,
+      presentes: filas.filter((f: {presente:boolean}) => f.presente).length,
+      ausentes: filas.filter((f: {presente:boolean}) => !f.presente).length,
+    };
+    this.reporteGenerando = false;
+  }
+
+  cerrarReporte() {
+    this.reporteVisible = false;
+    this.reporteGenerando = false;
+    this.reporteResumen = null;
+    this.reporteFilas = [];
+  }
+
+  copiarReporteCSVFormal() {
+    if (!this.reporteResumen) return;
+    const org = 'ACADEMY ENGLISH — Reporte de Asistencia';
+    const fechaGen = new Date();
+    const iso = `${fechaGen.getFullYear()}-${String(fechaGen.getMonth()+1).padStart(2,'0')}-${String(fechaGen.getDate()).padStart(2,'0')} ${String(fechaGen.getHours()).padStart(2,'0')}:${String(fechaGen.getMinutes()).padStart(2,'0')}`;
+    const rs = this.reporteResumen;
+    const encabezado = [org];
+    const meta = [
+      `Generado:,${iso}`,
+      `Tema:,${rs.tema}`,
+      `Fecha:,${rs.fecha}`,
+      `Hora:,${rs.hora}`,
+      `Totales:,Presentes ${rs.presentes},Ausentes ${rs.ausentes},Inscritos ${rs.total}`
+    ];
+    const tablaHeader = ['Estudiante','Identificador','Estado'];
+    const filas = this.reporteFilas.map(r => [r.nombre.replaceAll(',',' '), r.id, r.presente ? 'PRESENTE' : 'AUSENTE']);
+    const csv = [
+      encabezado.join(','),
+      '',
+      ...meta,
+      '',
+      tablaHeader.join(','),
+      ...filas.map((f: string[]) => f.join(','))
+    ].join('\n');
+    navigator.clipboard.writeText(csv);
+    this.mensajeAsistencia = 'Reporte copiado al portapapeles';
+  }
+
+  imprimirReporte() {
+    setTimeout(() => window.print(), 50);
+  }
+
+  // ===== Asistencia =====
+  toggleAsistencia() {
+    if (this.esClasePasada(this.claseSeleccionada)) {
+      this.mensajeAsistencia = 'La clase ya finalizó. No se puede tomar asistencia.';
+      return;
+    }
+    this.asistenciaEditando = !this.asistenciaEditando;
+    if (this.asistenciaEditando && this.presentesSet.size === 0) {
+      this.cargarAsistencia();
+    }
+  }
+
+  private cargarAsistencia() {
+    if (!this.claseSeleccionada?.id) return;
+    const claseId = this.claseSeleccionada.id as number;
+    this.attendanceService.getAsistencia(claseId).subscribe(reg => {
+      this.presentesSet.clear();
+      if (reg?.presentes) {
+        reg.presentes.forEach((email: string) => this.presentesSet.add(email));
+      }
+    });
+  }
+
+  isPresente(email: string): boolean {
+    return this.presentesSet.has(email);
+  }
+
+  togglePresente(email: string) {
+    if (this.presentesSet.has(email)) this.presentesSet.delete(email);
+    else this.presentesSet.add(email);
+  }
+
+  guardarAsistencia() {
+    if (!this.claseSeleccionada?.id) return;
+    if (this.esClasePasada(this.claseSeleccionada)) {
+      this.mensajeAsistencia = 'La clase ya finalizó. No se puede guardar asistencia.';
+      return;
+    }
+    const claseId = this.claseSeleccionada.id as number;
+    const registro: AsistenciaRegistro = {
+      claseId,
+      fechaISO: new Date().toISOString().slice(0,10),
+      presentes: Array.from(this.presentesSet)
+    };
+    this.guardandoAsistencia = true;
+    this.mensajeAsistencia = '';
+    this.attendanceService.saveAsistencia(registro).subscribe({
+      next: () => {
+        this.guardandoAsistencia = false;
+        this.mensajeAsistencia = 'Asistencia guardada correctamente';
+        this.asistenciaEditando = false;
+      },
+      error: () => {
+        this.guardandoAsistencia = false;
+        this.mensajeAsistencia = 'No se pudo guardar la asistencia';
+      }
+    });
   }
 
   formatearFecha(fechaString: string): string {
@@ -253,5 +412,37 @@ export class PlaneadorComponent implements OnInit {
                e.fecha.getTime() === fecha.getTime();
       }
     });
+  }
+
+  // Devuelve true si la clase ocurrió hace más de 3 días (a partir del inicio del día actual)
+  esPasada3Dias(fechaClase: Date): boolean {
+    if (!fechaClase) return false;
+    const hoy = new Date();
+    // Normalizar a inicio del día para evitar horas
+    const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    const inicioClase = new Date(fechaClase.getFullYear(), fechaClase.getMonth(), fechaClase.getDate());
+    const diffMs = inicioHoy.getTime() - inicioClase.getTime();
+    const dias = diffMs / (1000 * 60 * 60 * 24);
+    return dias > 3;
+  }
+
+  // Devuelve true si la clase es hoy
+  esHoy(fechaClase: Date): boolean {
+    if (!fechaClase) return false;
+    const hoy = new Date();
+    return fechaClase.getFullYear() === hoy.getFullYear() &&
+           fechaClase.getMonth() === hoy.getMonth() &&
+           fechaClase.getDate() === hoy.getDate();
+  }
+
+  // Devuelve true si la clase ocurrirá en <= 3 días a partir de hoy (y no es pasada)
+  esProximo3Dias(fechaClase: Date): boolean {
+    if (!fechaClase) return false;
+    const hoy = new Date();
+    const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    const inicioClase = new Date(fechaClase.getFullYear(), fechaClase.getMonth(), fechaClase.getDate());
+    const diffMs = inicioClase.getTime() - inicioHoy.getTime();
+    const dias = diffMs / (1000 * 60 * 60 * 24);
+    return dias > 0 && dias <= 3; // próximos 3 días, excluye hoy
   }
 }

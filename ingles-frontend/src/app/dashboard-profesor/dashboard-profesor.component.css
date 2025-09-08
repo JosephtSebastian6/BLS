@@ -71,16 +71,12 @@ body {
 .perfil-form-fields h2 {
   font-size: 2rem;
   font-weight: 800;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #1f2937; /* igual que estudiante */
   margin-bottom: 2rem;
-  border-bottom: 2px solid var(--glass-border);
+  border-bottom: 3px solid #667eea; /* subrayado corporativo */
   padding-bottom: 1rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  letter-spacing: 1px;
 }
 
 .perfil-form-grid-freepik {
@@ -101,23 +97,24 @@ body {
 
 .form-group input {
   width: 100%;
-  padding: 1rem 1.2rem;
-  border: 2px solid var(--glass-border);
-  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  border: 2px solid transparent; /* técnica del borde degradado como estudiante */
+  border-radius: 15px;
   font-size: 1rem;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  color: var(--text-dark);
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(135deg, #667eea, #764ba2) border-box;
+  color: #1a202c;
   transition: var(--transition);
   font-weight: 500;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .form-group input:focus {
-  border-color: var(--primary-color);
   outline: none;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
-  background: rgba(255, 255, 255, 0.95);
   transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  background: linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95)) padding-box,
+              linear-gradient(135deg, #f093fb, #f5576c) border-box; /* foco similar al estudiante */
 }
 
 .perfil-foto-freepik {
@@ -127,11 +124,13 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 2rem;
-  background: rgba(255, 255, 255, 0.6);
+  background: transparent; /* como estudiante */
   border-radius: 16px;
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(10px);
+  border: none;
+  box-shadow: var(--shadow-soft);
   transition: var(--transition);
+  position: relative;
+  overflow: hidden;
 }
 
 .perfil-foto-freepik:hover {
@@ -200,15 +199,18 @@ body {
 
 .perfil-rol {
   font-size: 0.9rem;
-  color: white;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-  border-radius: 20px;
-  padding: 0.6rem 1.5rem;
-  font-weight: 700;
+  color: #667eea; /* chip como estudiante */
+  background: rgba(102, 126, 234, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 25px;
+  padding: 1rem 1.5rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-  transition: var(--transition);
+  letter-spacing: 2px;
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+  position: relative;
+  overflow: hidden;
 }
 
 .perfil-rol:hover {

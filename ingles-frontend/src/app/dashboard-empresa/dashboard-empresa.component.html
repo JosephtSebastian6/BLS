@@ -3,7 +3,7 @@
     <h3>Menú Empresa</h3>
     <ul>
       <li>
-        <button [routerLink]="['/dashboard-empresa']" routerLinkActive="active">
+        <button [routerLink]="['/dashboard-empresa']" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
           <span class="material-icons" style="vertical-align: middle;">business</span>
           <span class="sidebar-text">Inicio</span>
         </button>

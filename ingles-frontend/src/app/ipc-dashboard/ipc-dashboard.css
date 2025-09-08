@@ -98,7 +98,7 @@
 }
 
 .objective-section p {
-  font-size: 1.7rem;
+  font-size: 2.5rem;
   color: var(--secondary-color);
   line-height: 1.8;
   max-width: 800px;
@@ -275,7 +275,7 @@
 }
 
 .card-content p {
-  font-size: 1.6rem !important;
+  font-size: 2.3rem !important;
   font-weight: 500 !important;
   color: var(--text-primary) !important;
   line-height: 1.5 !important;

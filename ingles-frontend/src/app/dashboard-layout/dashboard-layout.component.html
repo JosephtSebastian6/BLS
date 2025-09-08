@@ -27,6 +27,12 @@
           <span class="sidebar-text">Mis Clases</span>
         </button>
       </li>
+      <li>
+        <button (click)="navigateIfNotCurrent('/analisis-estudiante')" [class.active]="currentUrl === '/analisis-estudiante'">
+          <span class="material-icons">analytics</span>
+          <span class="sidebar-text">Análisis Estudiante</span>
+        </button>
+      </li>
     </ul>
   </aside>
 

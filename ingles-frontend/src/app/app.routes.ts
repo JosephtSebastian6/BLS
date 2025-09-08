@@ -9,6 +9,7 @@ import { DashboardComponent } from './auth/dashboard/dashboard'
 import { DashboardEstudiante } from './dashboard-estudiante/dashboard-estudiante';
 import { DashboardMisCursos } from './dashboard-mis-cursos/dashboard-mis-cursos';
 import { DashboardEmpresaComponent } from './dashboard-empresa/dashboard-empresa';
+import { HomeResumenComponent } from './dashboard-empresa/home-resumen.component';
 import { DashboardProfesorComponent } from './dashboard-profesor/dashboard-profesor.component';
 import { MisClasesComponent } from './mis-clases/mis-clases.component';
 import { PlaneadorComponent } from './planeador/planeador.component';
@@ -60,6 +61,7 @@ export const routes: Routes = [
     canActivate: [RoleGuard],
     data: { expectedRole: 'empresa' },
     children: [
+      { path: '', component: HomeResumenComponent },
       { path: 'unidades', component: UnidadesComponent },
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
@@ -89,6 +91,7 @@ export const routes: Routes = [
   { path: 'home', component: HomeComponent },
   { path: 'nosotros', component: Nosotros },
   { path: 'dashboard-mis-clases-estudiante', component: DashboardMisClasesEstudianteComponent },
+  { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },
   { path: 'programas', component: ProgramasComponent },
   { path: 'ben', component: BenDashboard },
   { path: 'ief', component: IefDashboard },

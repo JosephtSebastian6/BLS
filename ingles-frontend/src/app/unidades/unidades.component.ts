@@ -87,7 +87,7 @@ export class UnidadesComponent {
     if (this.tipoUsuario === 'estudiante') {
       this.router.navigate([`/dashboard-estudiante/unidades/${idx + 1}`]);
     } else if (this.tipoUsuario === 'profesor') {
-      this.router.navigate([`/unidades/${idx + 1}`]);
+      this.router.navigate([`/dashboard-profesor/unidades/${idx + 1}`]);
     } else {
       this.router.navigate([`/dashboard-empresa/unidades/${idx + 1}`]);
     }

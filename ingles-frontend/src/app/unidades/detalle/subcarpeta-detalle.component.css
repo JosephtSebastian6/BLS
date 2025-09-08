@@ -53,6 +53,20 @@
   border: none;
   box-shadow: none;
 }
+
+/* Solo profesor: centrar contenedor y bloques al estilo estudiante */
+.subcarpeta-detalle-container.profesor {
+  margin: 80px auto 0;
+  max-width: 1100px;
+}
+.subcarpeta-detalle-container.profesor .header-container {
+  justify-content: center;
+}
+.subcarpeta-detalle-container.profesor .archivos-lista {
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
 .header-container {
   display: flex;
   align-items: center;

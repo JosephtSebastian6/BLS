@@ -10,6 +10,12 @@
   box-shadow: none;
 }
 
+/* Solo dashboard de profesor: centrar bloque y cards */
+.unidades-container.profesor {
+  margin: 80px auto 0;
+  max-width: 1200px;
+}
+
 .unidades-container h2 {
   color: #1f2937;
   margin-bottom: 2rem;
@@ -29,6 +35,10 @@
   background: transparent;
   border: none;
   box-shadow: none;
+}
+
+.unidades-container.profesor .galeria-unidades {
+  justify-content: center;
 }
 
 .unidad-card {

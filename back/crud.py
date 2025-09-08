@@ -229,6 +229,63 @@ def obtener_clases_estudiante(db, estudiante_username):
     # Relación muchos a muchos: estudiante.clases
     return estudiante.clases
 
+# Eliminar clases con antigüedad mayor a 'dias' (opcionalmente por profesor)
+def eliminar_clases_antiguas(db: Session, dias: int = 15, profesor_username: str | None = None) -> int:
+    from models import Clase, clase_estudiante
+    limite_dt = datetime.utcnow() - timedelta(days=dias)
+
+    # Traer clases candidatas
+    q = db.query(Clase)
+    if profesor_username:
+        q = q.filter(Clase.profesor_username == profesor_username)
+
+    clases = q.all()
+    a_eliminar = []
+    for c in clases:
+        try:
+            # c.dia formato 'YYYY-MM-DD', c.hora 'HH:MM' o 'HH:MM:SS'
+            hora = (c.hora or '00:00')[:5]
+            fecha_hora = datetime.strptime(f"{c.dia} {hora}", "%Y-%m-%d %H:%M")
+        except Exception:
+            # Si hay error parseando, no eliminar por seguridad
+            continue
+        if fecha_hora < limite_dt:
+            a_eliminar.append(c)
+
+    count = 0
+    for c in a_eliminar:
+        try:
+            # Borrar relaciones en tabla pivot
+            db.execute(
+                clase_estudiante.delete().where(clase_estudiante.c.clase_id == c.id)
+            )
+            db.delete(c)
+            count += 1
+        except Exception:
+            db.rollback()
+            continue
+
+    if count:
+        db.commit()
+    return count
+
+# Eliminar una clase por ID (incluye limpieza de relaciones pivot)
+def eliminar_clase(db: Session, clase_id: int) -> bool:
+    from models import Clase, clase_estudiante
+    clase = db.query(Clase).filter(Clase.id == clase_id).first()
+    if not clase:
+        return False
+    try:
+        db.execute(
+            clase_estudiante.delete().where(clase_estudiante.c.clase_id == clase.id)
+        )
+        db.delete(clase)
+        db.commit()
+        return True
+    except Exception:
+        db.rollback()
+        return False
+
 # crud.py
 def obtener_profesores(db):
     return db.query(models.Registro).filter(models.Registro.tipo_usuario == "profesor").all()

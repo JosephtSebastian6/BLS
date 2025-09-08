@@ -33,6 +33,9 @@
           <td *ngFor="let day of days" class="calendar-cell" (click)="abrirModal(day, hour)">
             <div *ngFor="let evento of obtenerEventos(day, hour)" 
                  class="evento-item"
+                 [class.evento-antiguo]="esPasada3Dias(evento.fecha)"
+                 [class.evento-hoy]="esHoy(evento.fecha)"
+                 [class.evento-proximo]="esProximo3Dias(evento.fecha)"
                  [class.evento-clase]="evento.esClaseBackend"
                  [class.evento-local]="!evento.esClaseBackend">
               <div class="evento-titulo">{{ evento.titulo }}</div>
@@ -103,6 +106,28 @@
             </div>
           </div>
         </div>
+
+        <!-- Asistencia -->
+        <div class="asistencia-wrapper" *ngIf="claseSeleccionada?.estudiantes?.length > 0">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:1rem;">
+            <h4 style="margin:0;">Asistencia</h4>
+            <button class="btn-meet" (click)="toggleAsistencia()">
+              {{ asistenciaEditando ? 'Cancelar' : 'Tomar asistencia' }}
+            </button>
+          </div>
+
+          <div *ngIf="asistenciaEditando" class="asistencia-panel" style="margin-top:0.8rem;">
+            <div *ngFor="let estudiante of claseSeleccionada.estudiantes" class="asistencia-item" style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;">
+              <input type="checkbox" [checked]="isPresente(estudiante.email)" (change)="togglePresente(estudiante.email)" />
+              <span class="estudiante-nombre">{{ estudiante.nombre }}</span>
+              <span class="estudiante-email" style="color:#6b7280;">{{ estudiante.email }}</span>
+            </div>
+            <div style="display:flex;gap:.6rem;margin-top:.8rem;">
+              <button class="btn-meet" [disabled]="guardandoAsistencia" (click)="guardarAsistencia()">Guardar asistencia</button>
+              <span *ngIf="mensajeAsistencia" style="align-self:center;color:#16a34a;font-weight:600;">{{ mensajeAsistencia }}</span>
+            </div>
+          </div>
+        </div>
         
         <div class="modal-actions">
           <button *ngIf="claseSeleccionada?.meet_link" 
@@ -110,9 +135,46 @@
                   class="btn-meet">
             📹 Unirse a Meet
           </button>
+          <button class="btn-meet" (click)="verReporteClaseSeleccionada()">Ver reporte</button>
           <button (click)="cerrarModal()" class="btn-cerrar">Cerrar</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Reporte Planeador -->
+<div class="modal-bg reporte-modal" *ngIf="reporteVisible">
+  <div class="modal">
+    <h3>Reporte de asistencia</h3>
+    <div *ngIf="reporteGenerando">Generando...</div>
+    <div *ngIf="!reporteGenerando && reporteResumen">
+      <p><strong>Tema:</strong> {{ reporteResumen.tema }}</p>
+      <p><strong>Fecha:</strong> {{ reporteResumen.fecha }} &nbsp; <strong>Hora:</strong> {{ reporteResumen.hora }}</p>
+      <p><strong>Resumen:</strong> {{ reporteResumen.presentes }}/{{ reporteResumen.total }} presentes ({{ reporteResumen.ausentes }} ausentes)</p>
+      <div style="max-height:50vh;overflow:auto;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="text-align:left;border-bottom:1px solid #e5e7eb;">
+              <th style="padding:.4rem;">Estudiante</th>
+              <th style="padding:.4rem;">Identificador</th>
+              <th style="padding:.4rem;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let f of reporteFilas" style="border-bottom:1px dashed #eee;">
+              <td style="padding:.4rem;">{{ f.nombre }}</td>
+              <td style="padding:.4rem;">{{ f.id }}</td>
+              <td style="padding:.4rem;">{{ f.presente ? 'PRESENTE' : 'AUSENTE' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-meet" (click)="copiarReporteCSVFormal()">Copiar CSV</button>
+      <button class="btn-meet" (click)="imprimirReporte()">Imprimir</button>
+      <button class="btn-cerrar" (click)="cerrarReporte()">Cerrar</button>
     </div>
   </div>
 </div>

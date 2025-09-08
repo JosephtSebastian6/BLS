@@ -1,9 +1,11 @@
-import { Component, OnInit } from '@angular/core';
-import { Router, RouterModule } from '@angular/router';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { DashboardEstudianteService } from './dashboard-estudiante.service';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
 
 @Component({
@@ -13,11 +15,13 @@ import { HttpClient } from '@angular/common/http';
   templateUrl: './dashboard-estudiante.html',
   styleUrls: ['./dashboard-estudiante.css']
 })
-export class DashboardEstudiante implements OnInit {
+export class DashboardEstudiante implements OnInit, OnDestroy {
   perfil: any = null;
   mensajeExito = '';
   editandoNombre = false;
   imagenInvalida = false;
+  currentUrl = '';
+  private routerSubscription: Subscription = new Subscription();
 
   constructor(
     private dashboardEstudianteService: DashboardEstudianteService,
@@ -37,7 +41,17 @@ export class DashboardEstudiante implements OnInit {
     return this.router.url === '/dashboard-mis-clases-estudiante';
   }
 
+
   ngOnInit(): void {
+    // Inicializar la URL actual
+    this.currentUrl = this.router.url;
+    
+    // Suscribirse a cambios de navegación
+    this.routerSubscription = this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe((event: NavigationEnd) => {
+        this.currentUrl = event.url;
+      });
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const username = user.username;
     if (username) {
@@ -85,5 +99,9 @@ export class DashboardEstudiante implements OnInit {
 
   public getRouterUrl(): string {
     return this.router.url;
+  }
+
+  ngOnDestroy(): void {
+    this.routerSubscription.unsubscribe();
   }
 }

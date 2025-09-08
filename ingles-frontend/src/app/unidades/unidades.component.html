@@ -1,5 +1,5 @@
 
-<div class="unidades-container">
+<div class="unidades-container" [ngClass]="{ profesor: tipoUsuario === 'profesor' }">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2em;">
     <h2>Unidades</h2>
     <button *ngIf="tipoUsuario === 'empresa'" class="crear-unidad-btn" (click)="mostrarFormulario = true" style="background:#22c55e;color:#fff;border:none;padding:0.6em 1.2em;border-radius:6px;font-weight:600;cursor:pointer;">

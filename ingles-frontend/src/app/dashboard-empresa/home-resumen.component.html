@@ -1,0 +1,138 @@
+<div class="home-resumen">
+  <!-- Encabezado -->
+  <header class="page-header">
+    <div class="titles">
+      <h2>Resumen General</h2>
+      <p class="subtitle">Visión general del aprendizaje en la organización</p>
+    </div>
+    <div class="range-chips">
+      <button class="chip" [class.active]="selectedRange==='7d'" (click)="setRange('7d')">7 días</button>
+      <button class="chip" [class.active]="selectedRange==='30d'" (click)="setRange('30d')">30 días</button>
+      <button class="chip" [class.active]="selectedRange==='90d'" (click)="setRange('90d')">90 días</button>
+      <div class="custom-range">
+        <input type="date" [(ngModel)]="startDate" (change)="onDateChange('start', $event.target.value)">
+        <span>—</span>
+        <input type="date" [(ngModel)]="endDate" (change)="onDateChange('end', $event.target.value)">
+      </div>
+    </div>
+  </header>
+
+  <!-- KPIs -->
+  <section class="kpi-grid">
+    <div class="kpi-card" *ngFor="let k of kpis">
+      <div class="kpi-icon material-icons">{{ k.icon }}</div>
+      <div class="kpi-content">
+        <div class="kpi-label">{{ k.label }}</div>
+        <div class="kpi-value">{{ k.value }}</div>
+        <div class="kpi-sub" *ngIf="k.sub">{{ k.sub }}</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Distribución de desempeño (donut) -->
+  <section class="section">
+    <div class="card donut-card">
+      <div class="card-title">
+        <span class="material-icons sm">donut_small</span>
+        Distribución de desempeño
+      </div>
+      <div class="donut-wrap">
+        <svg viewBox="0 0 120 120" class="donut">
+          <circle class="donut-ring" cx="60" cy="60" r="45"/>
+          <circle class="donut-segment alto" cx="60" cy="60" r="45" [attr.stroke-dasharray]="altoDash" />
+          <circle class="donut-segment medio" cx="60" cy="60" r="45" [attr.stroke-dasharray]="medioDash" [attr.stroke-dashoffset]="medioOffset"/>
+          <circle class="donut-segment bajo" cx="60" cy="60" r="45" [attr.stroke-dasharray]="bajoDash" [attr.stroke-dashoffset]="bajoOffset"/>
+          <text x="60" y="64" text-anchor="middle" class="donut-center">100%</text>
+        </svg>
+        <ul class="legend">
+          <li><span class="swatch alto"></span> Alto: {{ pctAlto }}%</li>
+          <li><span class="swatch medio"></span> Medio: {{ pctMedio }}%</li>
+          <li><span class="swatch bajo"></span> Bajo: {{ pctBajo }}%</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Progreso por unidades -->
+  <section class="section unidades-section">
+    <div class="section-title">
+      <span class="material-icons">stacked_bar_chart</span>
+      Progreso por Unidades
+    </div>
+    <div class="unidades-grid">
+      <div class="unidad-card" *ngFor="let u of unidades">
+        <div class="unidad-header">
+          <div class="unidad-nombre">{{ u.nombre }}</div>
+          <div class="unidad-porcentaje">{{ u.avance }}%</div>
+        </div>
+        <div class="unidad-bar">
+          <div class="unidad-fill" [style.width.%]="u.avance"></div>
+        </div>
+        <div class="unidad-meta">
+          <span class="material-icons sm">groups</span>
+          {{ u.estudiantes }} estudiantes
+          <span class="tendencia" [class.up]="u.tendencia==='up'" [class.down]="u.tendencia==='down'">
+            <span class="material-icons sm">{{ u.tendencia==='up' ? 'trending_up' : (u.tendencia==='down' ? 'trending_down' : 'trending_flat') }}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Actividad y Alertas -->
+  <section class="cols section">
+    <div class="card">
+      <div class="card-title">
+        <span class="material-icons sm">history</span>
+        Actividad reciente
+      </div>
+      <ul class="actividad">
+        <li *ngFor="let a of actividad">
+          <span class="evento"><strong>{{ a.usuario }}</strong> {{ a.evento }}</span>
+          <span class="fecha">{{ a.fecha }}</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span class="material-icons sm warn">error_outline</span>
+        Alertas y seguimiento
+      </div>
+      <div class="alert-group">
+        <div class="alert-title">
+          <span class="material-icons sm warn">warning</span>
+          Bajo progreso
+        </div>
+        <div class="chips">
+          <span class="chip" *ngFor="let u of alertas.bajoProgreso">{{ u }}</span>
+        </div>
+      </div>
+      <div class="alert-group">
+        <div class="alert-title">
+          <span class="material-icons sm">timer_off</span>
+          Inactivos (+7 días)
+        </div>
+        <div class="chips">
+          <span class="chip" *ngFor="let u of alertas.inactivos">{{ u }}</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Acciones rápidas -->
+  <section class="acciones section">
+    <button class="btn" routerLink="/dashboard-empresa/analisis-estudiante">
+      <span class="material-icons">insights</span>
+      Ver analítica detallada
+    </button>
+    <button class="btn" routerLink="/dashboard-empresa/estudiantes">
+      <span class="material-icons">groups</span>
+      Estudiantes
+    </button>
+    <button class="btn" routerLink="/dashboard-empresa/unidades">
+      <span class="material-icons">view_module</span>
+      Ir a Unidades
+    </button>
+  </section>
+</div>

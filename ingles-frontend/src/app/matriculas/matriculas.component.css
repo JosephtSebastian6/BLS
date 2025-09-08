@@ -1,40 +1,20 @@
 .matriculas-container {
-  padding: 2rem;
-  background: linear-gradient(135deg, var(--gray-50) 0%, var(--primary-bg) 100%);
-  min-height: 100vh;
+  padding: 2.25rem 2.5rem;
+  background: transparent;
 }
 
-.matriculas-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
+.matriculas-header { text-align: center; margin-bottom: 1.25rem; }
 
-.matriculas-header h2 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--gray-900);
-  margin-bottom: 0.5rem;
-}
+.matriculas-header h2 { font-size: 2rem; font-weight: 900; margin-bottom: .25rem; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase; letter-spacing: .3px; }
 
-.matriculas-header p {
-  color: var(--gray-600);
-  font-size: 1.1rem;
-}
+.matriculas-header p { color: #6b7280; font-size: .95rem; }
 
 /* Loading y Error */
-.loading-container, .error-container {
-  text-align: center;
-  padding: 3rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  margin: 2rem auto;
-  max-width: 400px;
-}
+.loading-container, .error-container { text-align: center; padding: 3rem; background: rgba(255,255,255,0.96); border-radius: 20px; border: 1px solid rgba(102,126,234,0.18); box-shadow: 0 10px 40px rgba(0,0,0,0.08); margin: 2rem auto; max-width: 480px; }
 
 .spinner {
   border: 4px solid #f3f4f6;
-  border-top: 4px solid var(--primary-color);
+  border-top: 4px solid #667eea;
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -48,79 +28,37 @@
 }
 
 /* Tabla de matrículas */
-.matriculas-table-container {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
+.matriculas-table-container { background: rgba(255,255,255,0.95); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid rgba(102,126,234,0.18); }
 
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem 2rem;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
-  color: white;
-}
+.table-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.6rem; background: linear-gradient(135deg, #667eea 0%, #5a6ee6 100%); color: #fff; }
 
-.table-header h3 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0;
-}
+.table-header h3 { font-size: 1rem; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: .6px; }
 
-.table-stats {
-  display: flex;
-  gap: 1rem;
-}
+.table-stats { display: flex; gap: .75rem; }
 
-.stat-item {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-}
+.stat-item { background: rgba(255,255,255,.18); padding: .45rem .8rem; border-radius: 10px; font-size: .85rem; }
 
 .table-wrapper {
   overflow-x: auto;
 }
 
-.matriculas-table {
-  width: 100%;
-  border-collapse: collapse;
-}
+.matriculas-table { width: 100%; border-collapse: collapse; }
 
-.matriculas-table th {
-  background: #f8fafc;
-  color: var(--gray-700);
-  font-weight: 600;
-  padding: 1rem;
-  text-align: left;
-  border-bottom: 2px solid #e2e8f0;
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
+.matriculas-table th { background: linear-gradient(135deg, #eef2ff 0%, #e5e7ff 100%); color: #1f2937; font-weight: 800; padding: 1rem; text-align: left; border-bottom: 2px solid #e2e8f0; font-size: .85rem; text-transform: uppercase; letter-spacing: .5px; }
 
 .matricula-row {
   border-bottom: 1px solid #e2e8f0;
   transition: background-color 0.2s;
 }
 
-.matricula-row:hover {
-  background: #f8fafc;
-}
+.matricula-row:hover { background: rgba(102,126,234,0.06); }
 
 .matriculas-table td {
   padding: 1rem;
   vertical-align: middle;
 }
 
-.matricula-id {
-  font-weight: 600;
-  color: var(--primary-color);
-}
+.matricula-id { font-weight: 700; color: #667eea; }
 
 .estudiante-info {
   display: flex;
@@ -137,14 +75,7 @@
   font-size: 0.9rem;
 }
 
-.curso-badge {
-  background: linear-gradient(135deg, #e0f2fe 0%, #b3e5fc 100%);
-  color: #0277bd;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
+.curso-badge { background: rgba(102,126,234,.12); color: #1f2937; padding: .25rem .65rem; border-radius: 10px; font-size: .8rem; font-weight: 700; border: 1px solid rgba(102,126,234,.25); }
 
 .matricula-profesor {
   color: var(--gray-700);
@@ -157,90 +88,39 @@
 }
 
 /* Estados */
-.estado-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
+.estado-badge { padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; box-shadow: 0 6px 20px rgba(0,0,0,.06); }
 
-.estado-activa {
-  background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
-  color: #2e7d32;
-}
+.estado-activa { background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%); color: #2e7d32; }
 
-.estado-pendiente {
-  background: linear-gradient(135deg, #fff3e0 0%, #ffcc02 100%);
-  color: #f57c00;
-}
+.estado-pendiente { background: linear-gradient(135deg, #fff3e0 0%, #ffcc02 100%); color: #f57c00; }
 
-.estado-inactiva {
-  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
-  color: #c62828;
-}
+.estado-inactiva { background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); color: #c62828; }
 
 /* Acciones */
-.matricula-acciones {
-  display: flex;
-  gap: 0.5rem;
-}
+.matricula-acciones { display: flex; gap: .5rem; }
 
-.btn-accion {
-  background: none;
-  border: none;
-  padding: 0.5rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  font-size: 1rem;
-}
+.btn-accion { background: none; border: none; padding: .5rem; border-radius: 10px; cursor: pointer; transition: background-color .2s, transform .2s; font-size: 1rem; }
 
-.btn-ver:hover {
-  background: rgba(37, 99, 235, 0.1);
-}
+.btn-ver:hover { background: rgba(102,126,234,0.12); transform: translateY(-2px); }
 
-.btn-editar:hover {
-  background: rgba(245, 124, 0, 0.1);
-}
+.btn-editar:hover { background: rgba(245, 124, 0, 0.12); transform: translateY(-2px); }
 
-.btn-eliminar:hover {
-  background: rgba(239, 68, 68, 0.1);
-}
+.btn-eliminar:hover { background: rgba(239,68,68,0.12); transform: translateY(-2px); }
 
-.btn-toggle {
-  font-size: 1.2rem;
-}
+.btn-toggle { font-size: 1.2rem; }
 
-.btn-activar:hover {
-  background: rgba(34, 197, 94, 0.1);
-}
+.btn-activar:hover { background: rgba(34,197,94,0.12); }
 
-.btn-desactivar:hover {
-  background: rgba(239, 68, 68, 0.1);
-}
+.btn-desactivar:hover { background: rgba(239,68,68,0.12); }
 
 /* Resumen de estados */
-.estados-resumen {
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
-  padding: 1.5rem;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-}
+.estados-resumen { display: flex; justify-content: center; gap: 2rem; padding: 1.25rem; background: #f8fafc; border-top: 1px solid #e2e8f0; }
 
 .resumen-item {
   text-align: center;
 }
 
-.resumen-numero {
-  display: block;
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--primary-color);
-}
+.resumen-numero { display: block; font-size: 2rem; font-weight: 800; color: #667eea; }
 
 .resumen-label {
   font-size: 0.875rem;

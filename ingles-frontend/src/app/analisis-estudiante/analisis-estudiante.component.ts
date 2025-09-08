@@ -1,8 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { AnalyticsService, ResumenResponse, UnidadAnalytics } from '../services/analytics.service';
+import { DashboardLayoutComponent } from '../dashboard-layout/dashboard-layout.component';
 
 interface Metrica {
   titulo: string;
@@ -13,7 +15,7 @@ interface Metrica {
 @Component({
   selector: 'app-analisis-estudiante',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DashboardLayoutComponent],
   templateUrl: './analisis-estudiante.component.html',
   styleUrls: ['./analisis-estudiante.component.css']
 })
@@ -21,6 +23,8 @@ export class AnalisisEstudianteComponent implements OnInit {
   tipoUsuario: string = '';
   selectedUsername: string = '';
   estudiantes: any[] = [];
+  // Controla si se debe envolver con el layout de estudiante (sidebar)
+  useStudentLayout: boolean = false;
   
   // Datos del dashboard
   progreso: number = 0;
@@ -34,7 +38,9 @@ export class AnalisisEstudianteComponent implements OnInit {
 
   constructor(
     private analytics: AnalyticsService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute,
+    private http: HttpClient
   ) {
     // Detectar tipo de usuario
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -42,22 +48,55 @@ export class AnalisisEstudianteComponent implements OnInit {
   }
 
   ngOnInit() {
+    // Definir si usamos el layout del estudiante (para evitar sidebars duplicadas)
+    const url = this.router.url;
+    const insideDashboardWithSidebar = url.startsWith('/dashboard-empresa') ||
+                                       url.startsWith('/dashboard-profesor') ||
+                                       url.startsWith('/dashboard-estudiante');
+    // Si NO estamos dentro de un dashboard con sidebar, usamos el layout del estudiante
+    this.useStudentLayout = !insideDashboardWithSidebar;
+
+    // Verificar si hay un parámetro de usuario en la URL
+    this.route.params.subscribe(params => {
+      if (params['username']) {
+        this.selectedUsername = params['username'];
+        this.cargarDatosEstudiante(this.selectedUsername);
+      }
+    });
+
     if (this.tipoUsuario === 'estudiante') {
       // Para estudiantes, cargar sus propios datos
       this.cargarDatosEstudiante();
     } else if (this.tipoUsuario === 'empresa' || this.tipoUsuario === 'profesor') {
       // Para empresa/profesor, cargar lista de estudiantes
       this.cargarEstudiantes();
+      // Si no hay parámetro de usuario, mostrar datos generales
+      if (!this.selectedUsername) {
+        this.cargarDatosEstudiante();
+      }
     }
   }
 
   cargarEstudiantes() {
-    // TODO: Implementar endpoint para obtener lista de estudiantes
-    this.estudiantes = [
-      { username: 'sebastian' },
-      { username: 'maria' },
-      { username: 'carlos' }
-    ];
+    // Cargar estudiantes reales desde el backend
+    this.http.get<any[]>('http://localhost:8000/auth/usuarios/estudiantes').subscribe({
+      next: (estudiantes) => {
+        this.estudiantes = estudiantes.map(est => ({
+          username: est.username,
+          nombres: est.nombres,
+          apellidos: est.apellidos
+        }));
+      },
+      error: (error) => {
+        console.error('Error cargando estudiantes:', error);
+        // Datos de fallback
+        this.estudiantes = [
+          { username: 'sebastian', nombres: 'Sebastian', apellidos: 'Test' },
+          { username: 'maria', nombres: 'Maria', apellidos: 'Test' },
+          { username: 'carlos', nombres: 'Carlos', apellidos: 'Test' }
+        ];
+      }
+    });
   }
 
   cargarDatosEstudiante(username?: string) {
@@ -131,8 +170,9 @@ export class AnalisisEstudianteComponent implements OnInit {
       return;
     }
     
-    // TODO: Implementar navegación con parámetro de usuario
-    this.cargarDatosEstudiante(this.selectedUsername);
+    // Navegar con parámetro de usuario para actualizar la URL
+    const currentRoute = this.router.url.split('/')[1]; // dashboard-empresa o dashboard-estudiante
+    this.router.navigate([`/${currentRoute}/analisis-estudiante`, this.selectedUsername]);
   }
 
   inicializarUnidadesProgreso() {

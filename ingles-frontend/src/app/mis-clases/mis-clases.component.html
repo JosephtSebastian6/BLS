@@ -34,86 +34,26 @@
     </form>
   </div>
 
-  <!-- Calendario -->
-  <div class="calendar-container">
-    <div class="calendar-header">
-      <div class="calendar-controls">
-        <div class="navigation-buttons">
-          <button
-            class="btn btn-primary"
-            mwlCalendarPreviousView
-            [view]="view"
-            [(viewDate)]="viewDate"
-          >
-            Anterior
-          </button>
-          <button
-            class="btn btn-outline-secondary"
-            mwlCalendarToday
-            [(viewDate)]="viewDate"
-          >
-            Hoy
-          </button>
-          <button
-            class="btn btn-primary"
-            mwlCalendarNextView
-            [view]="view"
-            [(viewDate)]="viewDate"
-          >
-            Siguiente
-          </button>
-        </div>
-        
-        <h3>{{ viewDate | calendarDate:(view + 'ViewTitle'):'en' }}</h3>
-        
-        <div class="view-buttons">
-          <button
-            class="btn btn-primary"
-            (click)="setView(CalendarView.Month)"
-            [class.active]="view === CalendarView.Month"
-          >
-            Mes
-          </button>
-          <button
-            class="btn btn-primary"
-            (click)="setView(CalendarView.Week)"
-            [class.active]="view === CalendarView.Week"
-          >
-            Semana
-          </button>
-          <button
-            class="btn btn-primary"
-            (click)="setView(CalendarView.Day)"
-            [class.active]="view === CalendarView.Day"
-          >
-            Día
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div [ngSwitch]="view">
-      <mwl-calendar-month-view
-        *ngSwitchCase="'month'"
-        [viewDate]="viewDate"
-        [events]="events">
-      </mwl-calendar-month-view>
-      <mwl-calendar-week-view
-        *ngSwitchCase="'week'"
-        [viewDate]="viewDate"
-        [events]="events">
-      </mwl-calendar-week-view>
-      <mwl-calendar-day-view
-        *ngSwitchCase="'day'"
-        [viewDate]="viewDate"
-        [events]="events">
-      </mwl-calendar-day-view>
-    </div>
-  </div>
+  <!-- Calendario removido: este dashboard queda como Programador (formulario + lista) -->
 
   <!-- Lista de clases existentes -->
   <div class="clases-existentes">
     <h3>Clases Programadas</h3>
+    <div class="info-note">
+      Nota: Las clases con más de 15 días de antigüedad se eliminan automáticamente del sistema.
+    </div>
+    <div class="acciones-limpieza">
+      <button class="btn btn-primary" (click)="limpiarAhora()">Limpiar ahora</button>
+      <div class="eliminar-individual">
+        <select [(ngModel)]="selectedClaseId">
+          <option value="">Seleccionar clase para eliminar...</option>
+          <option *ngFor="let c of clases" [value]="c.id">{{ c.tema }} — {{ c.dia }} {{ c.hora }}</option>
+        </select>
+        <button class="btn btn-danger" [disabled]="!selectedClaseId || eliminando" (click)="abrirConfirmacionEliminar()">
+          {{ eliminando ? 'Eliminando...' : 'Eliminar clase' }}
+        </button>
+      </div>
+    </div>
     
     <div *ngIf="loading" class="loading">Cargando clases...</div>
     <div *ngIf="error" class="error-message">{{ error }}</div>
@@ -123,13 +63,39 @@
     </div>
     
     <div *ngIf="!loading && clases.length > 0" class="clases-lista">
-      <div *ngFor="let clase of clases; let i = index" class="clase-item">
+      <div *ngFor="let clase of clases; let i = index" class="clase-item" [class.clase-proxima]="esProxima48h(clase)" [class.clase-pasada]="esPasada(clase)">
         <div class="clase-info">
           <h4>{{ clase.tema }}</h4>
           <p><strong>Fecha:</strong> {{ clase.dia }}</p>
           <p><strong>Hora:</strong> {{ clase.hora }}</p>
           <p><strong>Link:</strong> <a [href]="clase.meet_link" target="_blank">{{ clase.meet_link }}</a></p>
           <p><strong>Estudiantes inscritos:</strong> {{ clase.estudiantes?.length || 0 }}</p>
+        </div>
+
+        <!-- Asistencia -->
+        <div *ngIf="clase.estudiantes?.length > 0" class="asistencia-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+            <h5 style="margin:0;">Asistencia</h5>
+            <button class="btn-agendar" (click)="toggleAsistencia(clase)" [disabled]="esPasada(clase)">
+              {{ asistenciaEditandoId === clase.id ? 'Cerrar' : 'Tomar asistencia' }}
+            </button>
+          </div>
+
+          <div *ngIf="asistenciaEditandoId === clase.id" class="asistencia-lista">
+            <div *ngFor="let est of clase.estudiantes" style="display:flex;align-items:center;gap:.6rem;padding:.25rem 0;">
+              <input type="checkbox" [checked]="isPresente(clase.id, est)" (change)="togglePresente(clase.id, est)" [disabled]="esPasada(clase)" />
+              <span>{{ est.nombres || est.nombre }} {{ est.apellidos || '' }}</span>
+              <small style="color:#6b7280;">{{ est.email || est.username }}</small>
+            </div>
+            <div style="display:flex;gap:.6rem;margin-top:.6rem;align-items:center;">
+              <button class="btn-agendar" [disabled]="guardandoAsistenciaId === clase.id || esPasada(clase)" (click)="guardarAsistencia(clase)">
+                {{ guardandoAsistenciaId === clase.id ? 'Guardando...' : 'Guardar asistencia' }}
+              </button>
+              <button class="btn-agendar" (click)="verReporte(clase)">Ver reporte</button>
+              <span *ngIf="mensajeAsistencia && asistenciaEditandoId === clase.id" style="color:#16a34a;font-weight:600;">{{ mensajeAsistencia }}</span>
+            </div>
+            <div *ngIf="esPasada(clase)" style="margin-top:.25rem;color:#b91c1c;font-weight:600;">Clase finalizada: asistencia deshabilitada</div>
+          </div>
         </div>
         
         <!-- Formulario para agendar estudiante -->
@@ -163,6 +129,55 @@
           </ul>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Reporte -->
+<div class="modal-bg reporte-modal" *ngIf="reporteVisibleId">
+  <div class="modal">
+    <h3>Reporte de asistencia</h3>
+    <div *ngIf="reporteGenerando">Generando...</div>
+    <div *ngIf="!reporteGenerando && reporteResumen">
+      <p><strong>Tema:</strong> {{ reporteResumen.tema }}</p>
+      <p><strong>Fecha:</strong> {{ reporteResumen.fecha }} &nbsp; <strong>Hora:</strong> {{ reporteResumen.hora }}</p>
+      <p><strong>Resumen:</strong> {{ reporteResumen.presentes }}/{{ reporteResumen.total }} presentes ({{ reporteResumen.ausentes }} ausentes)</p>
+      <div style="max-height:50vh;overflow:auto;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="text-align:left;border-bottom:1px solid #e5e7eb;">
+              <th style="padding:.4rem;">Estudiante</th>
+              <th style="padding:.4rem;">Identificador</th>
+              <th style="padding:.4rem;">Presente</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let f of reporteFilas" style="border-bottom:1px dashed #eee;">
+              <td style="padding:.4rem;">{{ f.nombre }}</td>
+              <td style="padding:.4rem;">{{ f.id }}</td>
+              <td style="padding:.4rem;">{{ f.presente ? 'SI' : 'NO' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" (click)="copiarReporteCSV()">Copiar CSV</button>
+      <button class="btn" (click)="imprimirReporte()">Imprimir</button>
+      <button class="btn" (click)="cerrarReporte()">Cerrar</button>
+    </div>
+  </div>
+  
+</div>
+
+<!-- Modal Confirmación Eliminar -->
+<div class="modal-bg" *ngIf="confirmDeleteOpen">
+  <div class="modal">
+    <h3>Confirmar eliminación</h3>
+    <p>¿Seguro que deseas eliminar esta clase? Esta acción no se puede deshacer.</p>
+    <div class="modal-actions">
+      <button class="btn btn-danger" (click)="confirmarEliminar()">Eliminar</button>
+      <button class="btn" (click)="cancelarEliminar()">Cancelar</button>
     </div>
   </div>
 </div>

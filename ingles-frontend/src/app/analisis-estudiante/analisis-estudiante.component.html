@@ -1,60 +1,91 @@
-<div class="analisis-container">
-  <h2 class="page-title">Análisis del Estudiante</h2>
+<ng-container *ngIf="useStudentLayout; else plainContent">
+  <app-dashboard-layout>
+    <ng-container [ngTemplateOutlet]="coreContent"></ng-container>
+  </app-dashboard-layout>
+</ng-container>
 
-  <!-- Barra de progreso general -->
-  <div class="progreso-card">
-    <div class="progreso-header">
-      <span>Progreso general</span>
-      <span>{{ progreso }}%</span>
-    </div>
-    <div class="progreso-bar">
-      <div class="progreso-fill" [style.width.%]="progreso"></div>
-    </div>
-  </div>
+<ng-template #plainContent>
+  <ng-container [ngTemplateOutlet]="coreContent"></ng-container>
+</ng-template>
 
-  <!-- Métricas rápidas -->
-  <div class="metricas-grid">
-    <div class="metrica-card" *ngFor="let m of metricas">
-      <div class="metrica-titulo">{{ m.titulo }}</div>
-      <div class="metrica-valor">{{ m.valor }}</div>
-      <div class="metrica-descripcion">{{ m.descripcion }}</div>
-    </div>
-  </div>
+<ng-template #coreContent>
+  <div class="analisis-container">
+    <h2 class="page-title">Análisis del Estudiante</h2>
 
-  <!-- Progreso por unidades específicas -->
-  <div class="unidades-progreso-grid">
-    <div class="unidad-progreso-card" *ngFor="let unidad of unidadesProgreso">
-      <div class="unidad-progreso-header">
-        <h4>{{ unidad.nombre }}</h4>
-        <span class="unidad-porcentaje">{{ unidad.progreso }}%</span>
+    <!-- Selector de estudiante (solo para empresa/profesor) -->
+    <div class="estudiante-selector" *ngIf="tipoUsuario === 'empresa' || tipoUsuario === 'profesor'">
+      <div class="selector-header">
+        <h3>Buscar por estudiante</h3>
       </div>
-      <div class="unidad-progreso-bar">
-        <div class="unidad-progreso-fill" [style.width.%]="unidad.progreso"></div>
+      <div class="selector-content">
+        <select [(ngModel)]="selectedUsername" class="estudiante-select">
+          <option value="">Selecciona un estudiante</option>
+          <option *ngFor="let estudiante of estudiantes" [value]="estudiante.username">
+            {{ estudiante.nombres }} {{ estudiante.apellidos }} ({{ estudiante.username }})
+          </option>
+        </select>
+        <button class="btn-buscar" (click)="irAUsuario()" [disabled]="!selectedUsername">
+          <span class="material-icons">search</span>
+          Buscar
+        </button>
       </div>
-      <div class="unidad-stats">
-        <div class="stat-item">
-          <span class="stat-label">Tiempo</span>
-          <span class="stat-value">{{ unidad.tiempo }}</span>
+    </div>
+
+    <!-- Barra de progreso general -->
+    <div class="progreso-card">
+      <div class="progreso-header">
+        <span>Progreso general</span>
+        <span>{{ progreso }}%</span>
+      </div>
+      <div class="progreso-bar">
+        <div class="progreso-fill" [style.width.%]="progreso"></div>
+      </div>
+    </div>
+
+    <!-- Métricas rápidas -->
+    <div class="metricas-grid">
+      <div class="metrica-card" *ngFor="let m of metricas">
+        <div class="metrica-titulo">{{ m.titulo }}</div>
+        <div class="metrica-valor">{{ m.valor }}</div>
+        <div class="metrica-descripcion">{{ m.descripcion }}</div>
+      </div>
+    </div>
+
+    <!-- Progreso por unidades específicas -->
+    <div class="unidades-progreso-grid">
+      <div class="unidad-progreso-card" *ngFor="let unidad of unidadesProgreso">
+        <div class="unidad-progreso-header">
+          <h4>{{ unidad.nombre }}</h4>
+          <span class="unidad-porcentaje">{{ unidad.progreso }}%</span>
         </div>
-        <div class="stat-item">
-          <span class="stat-label">Score</span>
-          <span class="stat-value">{{ unidad.score }}/100</span>
+        <div class="unidad-progreso-bar">
+          <div class="unidad-progreso-fill" [style.width.%]="unidad.progreso"></div>
+        </div>
+        <div class="unidad-stats">
+          <div class="stat-item">
+            <span class="stat-label">Tiempo</span>
+            <span class="stat-value">{{ unidad.tiempo }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Score</span>
+            <span class="stat-value">{{ unidad.score }}/100</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desempeño por unidad (barras simples) -->
+    <div class="desempeno-card">
+      <h3>Desempeño por Unidad</h3>
+      <div class="unidad-item" *ngFor="let item of desempeno">
+        <div class="unidad-header">
+          <span>{{ item.nombre }}</span>
+          <span>{{ item.score }}%</span>
+        </div>
+        <div class="unidad-bar">
+          <div class="unidad-fill" [style.width.%]="item.score"></div>
         </div>
       </div>
     </div>
   </div>
-
-  <!-- Desempeño por unidad (barras simples) -->
-  <div class="desempeno-card">
-    <h3>Desempeño por Unidad</h3>
-    <div class="unidad-item" *ngFor="let item of desempeno">
-      <div class="unidad-header">
-        <span>{{ item.nombre }}</span>
-        <span>{{ item.score }}%</span>
-      </div>
-      <div class="unidad-bar">
-        <div class="unidad-fill" [style.width.%]="item.score"></div>
-      </div>
-    </div>
-  </div>
-</div>
+</ng-template>

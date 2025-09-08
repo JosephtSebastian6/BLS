@@ -3,31 +3,31 @@
     <h3>Menú Estudiante</h3>
     <ul>
       <li>
-        <button [routerLink]="['/dashboard-estudiante']" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+        <button [routerLink]="['/dashboard-estudiante']" [class.active]="currentUrl === '/dashboard-estudiante'">
           <span class="material-icons" style="vertical-align: middle;">person</span>
           <span class="sidebar-text">Inicio</span>
         </button>
       </li>
       <li>
-        <button [routerLink]="['/dashboard-estudiante/unidades']" routerLinkActive="active">
+        <button [routerLink]="['/dashboard-estudiante/unidades']" [class.active]="currentUrl === '/dashboard-estudiante/unidades'">
           <span class="material-icons" style="vertical-align: middle;">view_module</span>
           <span class="sidebar-text">Unidades</span>
         </button>
       </li>
       <li>
-        <button [routerLink]="['/dashboard-mis-cursos']" routerLinkActive="active">
+        <button [routerLink]="['/dashboard-mis-cursos']" [class.active]="currentUrl === '/dashboard-mis-cursos'">
           <span class="material-icons" style="vertical-align: middle;">menu_book</span>
           <span class="sidebar-text">Mis Cursos</span>
         </button>
       </li>
       <li>
-        <button [routerLink]="['/dashboard-mis-clases-estudiante']" routerLinkActive="active">
+        <button [routerLink]="['/dashboard-mis-clases-estudiante']" [class.active]="currentUrl === '/dashboard-mis-clases-estudiante'">
           <span class="material-icons" style="vertical-align: middle;">class</span>
           <span class="sidebar-text">Mis Clases</span>
         </button>
       </li>
       <li>
-        <button [routerLink]="['/dashboard-estudiante/analisis-estudiante']" routerLinkActive="active">
+        <button [routerLink]="['/dashboard-estudiante/analisis-estudiante']" [class.active]="currentUrl === '/dashboard-estudiante/analisis-estudiante'">
           <span class="material-icons" style="vertical-align: middle;">insights</span>
           <span class="sidebar-text">Análisis estudiante</span>
         </button>
