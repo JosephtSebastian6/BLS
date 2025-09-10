@@ -7,12 +7,13 @@ import { EmailVerifiedSuccessComponent } from './auth/email-verified-success/ema
 import { LoginComponent } from './auth/login/login'; // <--- Importa el componente de Login
 import { DashboardComponent } from './auth/dashboard/dashboard'
 import { DashboardEstudiante } from './dashboard-estudiante/dashboard-estudiante';
-import { DashboardMisCursos } from './dashboard-mis-cursos/dashboard-mis-cursos';
 import { DashboardEmpresaComponent } from './dashboard-empresa/dashboard-empresa';
+import { EmpresaAsistenciasComponent } from './empresa-asistencias/empresa-asistencias.component';
 import { HomeResumenComponent } from './dashboard-empresa/home-resumen.component';
 import { DashboardProfesorComponent } from './dashboard-profesor/dashboard-profesor.component';
 import { MisClasesComponent } from './mis-clases/mis-clases.component';
 import { PlaneadorComponent } from './planeador/planeador.component';
+import { TareasProfesorComponent } from './tareas-profesor/tareas-profesor.component';
 import { LayoutProfesorComponent } from './layout-profesor/layout-profesor.component';
 import { HomeComponent } from './home/home';
 import { DashboardMisClasesEstudianteComponent } from './dashboard-mis-clases-estudiante/dashboard-mis-clases-estudiante.component';
@@ -32,6 +33,7 @@ import { ExpDashboard } from './exp-dashboard/exp-dashboard';
 import { IpcDashboard } from './ipc-dashboard/ipc-dashboard';
 import { EteDashboard } from './ete-dashboard/ete-dashboard';
 import { Nosotros } from './nosotros/nosotros';
+
 
 export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
@@ -54,7 +56,6 @@ export const routes: Routes = [
       { path: 'analisis-estudiante/:username', component: AnalisisEstudianteComponent },
     ]
   },
-  { path: 'dashboard-mis-cursos', component: DashboardMisCursos },
   {
     path: 'dashboard-empresa',
     component: DashboardEmpresaComponent,
@@ -69,7 +70,11 @@ export const routes: Routes = [
       { path: 'estudiantes', component: EstudiantesComponent },
       { path: 'matriculas', component: MatriculasComponent },
       { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },
-      { path: 'analisis-estudiante/:username', component: AnalisisEstudianteComponent }
+      { path: 'analisis-estudiante/:username', component: AnalisisEstudianteComponent },
+      { path: 'asistencias', component: EmpresaAsistenciasComponent },
+      { path: 'unidades/:id', component: UnidadDetalleComponent },
+      { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
+      
     ]
   },
   {
@@ -81,6 +86,7 @@ export const routes: Routes = [
       { path: '', component: DashboardProfesorComponent },
       { path: 'mis-clases', component: MisClasesComponent },
       { path: 'planeador', component: PlaneadorComponent },
+      { path: 'tareas', component: TareasProfesorComponent },
       { path: 'unidades', component: UnidadesComponent },
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },

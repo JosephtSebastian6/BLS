@@ -105,3 +105,24 @@ class EstudianteProgresoUnidad(Base):
     score = Column(Integer, default=0)
     tiempo_dedicado_min = Column(Integer, default=0)
     ultima_actividad_at = Column(DateTime, nullable=True)
+
+# Nueva tabla: calificaciones de tareas por archivo (por unidad y estudiante)
+class TareaCalificacion(Base):
+    __tablename__ = "tarea_calificacion"
+    id = Column(Integer, primary_key=True, index=True)
+    estudiante_username = Column(String(50), ForeignKey('estudiante.username'), nullable=False)
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=False)
+    filename = Column(String(255), nullable=False)
+    score = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+# ===== Quizzes por unidad
+class Quiz(Base):
+    __tablename__ = "quiz"
+    id = Column(Integer, primary_key=True, index=True)
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=False)
+    titulo = Column(String(200), nullable=False)
+    descripcion = Column(String(500), nullable=True)
+    preguntas = Column(JSON, nullable=True)  # estructura libre para prototipo
+    created_at = Column(DateTime, default=datetime.utcnow)

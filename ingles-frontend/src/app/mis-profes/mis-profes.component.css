@@ -157,6 +157,72 @@
   overflow-y: auto;
 }
 
+/* Grid del formulario (2 columnas en desktop, 1 en móvil) */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 700;
+  color: #1f2937;
+  font-size: .9rem;
+}
+
+.form-grid select,
+.form-grid input[type="text"],
+.form-grid input[type="date"],
+.form-grid input[type="time"] {
+  margin-top: 6px;
+  padding: .55rem .7rem;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #1f2937;
+  width: 100%;
+}
+
+/* Lista de selección de estudiantes */
+.estudiantes-select h4 {
+  margin: 6px 0 10px 0;
+  color: #1f2937;
+  font-weight: 800;
+}
+
+.estudiantes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 36vh;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.estudiantes-list .est-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.modal-footer {
+  padding: 14px 20px 18px 20px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(0,0,0,.05);
+}
+
+@media (max-width: 640px) {
+  .form-grid { grid-template-columns: 1fr; }
+}
+
 /* Lista de estudiantes */
 .estudiantes-lista {
   display: flex;
@@ -219,4 +285,51 @@
   padding: 40px;
   color: #6b7280;
   font-style: italic;
+}
+
+/* ===== Cards Resumen ===== */
+.cards-resumen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid rgba(102,126,234,0.18);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-header { display: flex; align-items: center; gap: 12px; }
+.avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #5a6ee6);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 900;
+}
+.title .name { font-weight: 800; color: #1f2937; letter-spacing: .2px; }
+.title .sub { font-size: .85rem; color: #6b7280; }
+
+.card-stats { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.stat { flex: 1; text-align: center; }
+.stat-value { font-size: 1.4rem; font-weight: 900; color: #1f2937; }
+.stat-label { font-size: .8rem; color: #6b7280; text-transform: uppercase; letter-spacing: .4px; }
+.divider { width: 1px; height: 36px; background: #e5e7eb; }
+
+.card-actions { display: flex; justify-content: flex-end; }
+.card .btn-gestionar { padding: .45rem .8rem; font-size: .85rem; }
+
+/* ===== Header row con botón a la derecha ===== */
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
 }

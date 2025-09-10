@@ -79,9 +79,9 @@ export class AnalisisEstudianteComponent implements OnInit {
 
   cargarEstudiantes() {
     // Cargar estudiantes reales desde el backend
-    this.http.get<any[]>('http://localhost:8000/auth/usuarios/estudiantes').subscribe({
+    this.analytics.getEstudiantesUsernames().subscribe({
       next: (estudiantes) => {
-        this.estudiantes = estudiantes.map(est => ({
+        this.estudiantes = (estudiantes || []).map((est: any) => ({
           username: est.username,
           nombres: est.nombres,
           apellidos: est.apellidos
@@ -89,12 +89,7 @@ export class AnalisisEstudianteComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error cargando estudiantes:', error);
-        // Datos de fallback
-        this.estudiantes = [
-          { username: 'sebastian', nombres: 'Sebastian', apellidos: 'Test' },
-          { username: 'maria', nombres: 'Maria', apellidos: 'Test' },
-          { username: 'carlos', nombres: 'Carlos', apellidos: 'Test' }
-        ];
+        this.estudiantes = [];
       }
     });
   }
@@ -105,8 +100,10 @@ export class AnalisisEstudianteComponent implements OnInit {
     this.cargandoResumen = true;
     this.cargandoUnidades = true;
 
-    // Cargar resumen
-    this.analytics.getResumenEstudiante().subscribe({
+    const usernameResumen = username || (this.tipoUsuario === 'estudiante' ? (JSON.parse(localStorage.getItem('user') || '{}').username || localStorage.getItem('username')) : undefined);
+    // Cargar resumen (si se especifica username usar endpoint por usuario, de lo contrario usar "current")
+    const resumen$ = usernameResumen ? this.analytics.getResumen(usernameResumen) : this.analytics.getResumenEstudiante();
+    resumen$.subscribe({
       next: (resumen: ResumenResponse) => {
         this.progreso = resumen.progreso_general;
         this.metricas = [
@@ -146,12 +143,14 @@ export class AnalisisEstudianteComponent implements OnInit {
       }
     });
 
-    // Cargar analytics por unidad
-    this.analytics.getAnalyticsUnidades().subscribe({
-      next: (unidades: UnidadAnalytics[]) => {
-        this.desempeno = unidades.map(u => ({
-          nombre: `Unidad ${u.unidad_id}`,
-          score: u.progreso_porcentaje
+    // Cargar analytics por unidad (usar por-usuario si aplica)
+    const unidades$ = usernameResumen ? this.analytics.getUnidades(usernameResumen) : this.analytics.getAnalyticsUnidades();
+    unidades$.subscribe({
+      next: (unidades: any[]) => {
+        // Backend devuelve {unidad_id, nombre, porcentaje_completado, score, tiempo_min}
+        this.desempeno = (unidades || []).map(u => ({
+          nombre: u.nombre || `Unidad ${u.unidad_id}`,
+          score: Number(u.porcentaje_completado || u.progreso_porcentaje || 0)
         }));
         this.cargandoUnidades = false;
       },

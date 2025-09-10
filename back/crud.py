@@ -7,6 +7,8 @@ from fastapi import BackgroundTasks, Request, HTTPException
 from pydantic import EmailStr
 import uuid
 from datetime import datetime, timedelta
+from pathlib import Path
+import os
 from urllib.parse import urljoin
 
 # Importaciones para el envío directo con aiosmtplib
@@ -582,27 +584,35 @@ def upsert_progreso_score(db: Session, username: str, unidad_id: int, porcentaje
     return row
 
 def get_analytics_resumen(db: Session, username: str, desde: datetime | None = None, hasta: datetime | None = None):
-    # Tiempo total desde tabla agregada
-    q = db.query(models.EstudianteProgresoUnidad).filter(models.EstudianteProgresoUnidad.username == username)
-    tiempo_total = sum([(r.tiempo_dedicado_min or 0) for r in q.all()])
+    # Tiempo total: si hay rango, sumar desde eventos; si no, usar tabla agregada
+    q_prog = db.query(models.EstudianteProgresoUnidad).filter(models.EstudianteProgresoUnidad.username == username)
+    if desde or hasta:
+        q_ev = db.query(models.ActividadEstudiante).filter(models.ActividadEstudiante.username == username)
+        if desde:
+            q_ev = q_ev.filter(models.ActividadEstudiante.creado_at >= desde)
+        if hasta:
+            q_ev = q_ev.filter(models.ActividadEstudiante.creado_at <= hasta)
+        tiempo_total = sum([(e.duracion_min or 0) for e in q_ev.all()])
+    else:
+        tiempo_total = sum([(r.tiempo_dedicado_min or 0) for r in q_prog.all()])
 
     # Progreso general: promedio de porcentaje_completado de las unidades con fila; si no hay filas, 0
-    rows = q.all()
-    if rows:
-        progreso_general = sum([r.porcentaje_completado or 0 for r in rows]) / len(rows)
-    else:
-        progreso_general = 0
+    rows = q_prog.all()
+    progreso_general = (sum([r.porcentaje_completado or 0 for r in rows]) / len(rows)) if rows else 0
 
-    # Unidades completadas
+    # Unidades completadas (no depende de rango)
     unidades_completadas = db.query(models.EstudianteProgresoUnidad).filter(
         models.EstudianteProgresoUnidad.username == username,
         models.EstudianteProgresoUnidad.porcentaje_completado == 100
     ).count()
 
-    # Racha de días: contar días consecutivos con eventos
-    eventos = db.query(models.ActividadEstudiante).filter(
-        models.ActividadEstudiante.username == username
-    ).order_by(models.ActividadEstudiante.creado_at.desc()).all()
+    # Racha de días: contar días consecutivos con eventos (aplicar rango si se pasa)
+    q_ev_racha = db.query(models.ActividadEstudiante).filter(models.ActividadEstudiante.username == username)
+    if desde:
+        q_ev_racha = q_ev_racha.filter(models.ActividadEstudiante.creado_at >= desde)
+    if hasta:
+        q_ev_racha = q_ev_racha.filter(models.ActividadEstudiante.creado_at <= hasta)
+    eventos = q_ev_racha.order_by(models.ActividadEstudiante.creado_at.desc()).all()
     dias = sorted({e.creado_at.date() for e in eventos}, reverse=True)
     racha = 0
     if dias:
@@ -624,22 +634,69 @@ def get_analytics_resumen(db: Session, username: str, desde: datetime | None = N
     }
 
 def get_analytics_unidades(db: Session, username: str, desde: datetime | None = None, hasta: datetime | None = None):
-    # Traer todas las unidades para siempre renderizar lista completa
+    # Traer todas las unidades
     unidades = db.query(models.Unidad).order_by(models.Unidad.orden).all()
     prog_rows = db.query(models.EstudianteProgresoUnidad).filter(
         models.EstudianteProgresoUnidad.username == username
     ).all()
     prog_map = {(r.unidad_id): r for r in prog_rows}
 
+    # Si hay rango, computar tiempo desde eventos por unidad
+    tiempos_por_unidad = {}
+    if desde or hasta:
+        q_ev = db.query(models.ActividadEstudiante).filter(models.ActividadEstudiante.username == username)
+        if desde:
+            q_ev = q_ev.filter(models.ActividadEstudiante.creado_at >= desde)
+        if hasta:
+            q_ev = q_ev.filter(models.ActividadEstudiante.creado_at <= hasta)
+        for e in q_ev.all():
+            uid = e.unidad_id
+            if uid is None:
+                continue
+            tiempos_por_unidad[uid] = tiempos_por_unidad.get(uid, 0) + (e.duracion_min or 0)
+
+    # Conteo de tareas por unidad (en filesystem) y promedio de calificaciones (en BD)
+    TASKS_BASE = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes")
     resultado = []
     for u in unidades:
         r = prog_map.get(u.id)
+        tiempo_min = tiempos_por_unidad.get(u.id) if (desde or hasta) else (int(r.tiempo_dedicado_min) if r else 0)
+        # Contar archivos y leer calificaciones
+        tareas_count = 0
+        tareas_score_avg = None
+        try:
+            carpeta = TASKS_BASE / "estudiantes" / username / f"unidad_{u.id}" / "SOLO_TAREAS"
+            if carpeta.exists() and carpeta.is_dir():
+                tareas = [f for f in os.listdir(carpeta) if (carpeta / f).is_file() and f != 'grades.json']
+                tareas_count = len(tareas)
+        except Exception:
+            pass
+        # Promedio de calificaciones desde BD
+        try:
+            from sqlalchemy import func as sa_func
+            avg_score = db.query(sa_func.avg(models.TareaCalificacion.score)).filter(
+                models.TareaCalificacion.estudiante_username == username,
+                models.TareaCalificacion.unidad_id == u.id
+            ).scalar()
+            if avg_score is not None:
+                tareas_score_avg = float(avg_score)
+        except Exception:
+            tareas_score_avg = tareas_score_avg
+
+        # Score base: si hay promedio de tareas, úsalo; si no, toma el guardado en progreso
+        base_score = tareas_score_avg if tareas_score_avg is not None else (int(r.score) if r else 0)
+        # Tiempo -> score de tiempo contra objetivo 120 min
+        objetivo_min = 120
+        tiempo_score = min(100, int((tiempo_min or 0) * 100 / objetivo_min)) if objetivo_min > 0 else 0
+        porcentaje = int(round(0.6 * base_score + 0.4 * tiempo_score))
+
         resultado.append({
             "unidad_id": u.id,
             "nombre": u.nombre,
-            "porcentaje_completado": int(r.porcentaje_completado) if r else 0,
-            "score": int(r.score) if r else 0,
-            "tiempo_min": int(r.tiempo_dedicado_min) if r else 0
+            "porcentaje_completado": porcentaje,
+            "score": int(base_score),
+            "tiempo_min": int(tiempo_min or 0),
+            "tareas_count": int(tareas_count)
         })
     return resultado
 

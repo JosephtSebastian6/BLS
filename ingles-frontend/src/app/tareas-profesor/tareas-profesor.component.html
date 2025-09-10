@@ -1,0 +1,64 @@
+<div class="tareas-profesor">
+  <h2>Tareas de mis estudiantes</h2>
+  <div class="filtros">
+    <label>Unidad ID
+      <input type="number" [(ngModel)]="unidadId" placeholder="Opcional" />
+    </label>
+    <label>Desde
+      <input type="date" [(ngModel)]="desde" />
+    </label>
+    <label>Hasta
+      <input type="date" [(ngModel)]="hasta" />
+    </label>
+    <button class="btn" (click)="buscar()">Buscar</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">Cargando...</div>
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <div class="cards" *ngIf="!loading">
+    <div class="card" *ngFor="let e of data">
+      <div class="card-header">
+        <div class="avatar">{{ (e.nombres || '?')[0] | uppercase }}</div>
+        <div class="title">
+          <div class="name">{{ e.nombres }} {{ e.apellidos }}</div>
+          <div class="sub">@{{ e.estudiante_username }}</div>
+        </div>
+        <div class="chip">{{ e.tareas?.length || 0 }} tareas</div>
+      </div>
+      <div class="scroll">
+        <table class="tabla" *ngIf="e.tareas?.length; else empty">
+          <thead>
+          <tr>
+            <th>Unidad</th>
+            <th>Archivo</th>
+            <th>Tamaño</th>
+            <th>Fecha</th>
+            <th>Nota</th>
+            <th></th>
+          </tr>
+          </thead>
+          <tbody>
+          <ng-container *ngFor="let t of e.tareas">
+          <tr *ngIf="t.filename !== 'grades.json'">
+            <td>{{ t.unidad_id }}</td>
+            <td>{{ t.filename }}</td>
+            <td>{{ t.size | number }} bytes</td>
+            <td>{{ t.upload_date | date: 'yyyy-MM-dd HH:mm' }}</td>
+            <td>{{ t._grade ?? '—' }}</td>
+            <td>
+              <button class="btn-sm" (click)="descargar(e.estudiante_username, t.unidad_id, t.filename)">Descargar</button>
+              <button class="btn-sm secondary" (click)="calificar(e.estudiante_username, t.unidad_id, t.filename)">Calificar</button>
+              <button class="btn-sm ghost" (click)="bonus(e.estudiante_username, t.unidad_id)">Bonus</button>
+            </td>
+          </tr>
+          </ng-container>
+          </tbody>
+        </table>
+        <ng-template #empty>
+          <div class="empty">Sin tareas en el rango seleccionado.</div>
+        </ng-template>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,8 +1,69 @@
 <div class="mis-profes-container">
-  <h2>Mis Profes</h2>
-  <p>Gestiona profesores y asigna estudiantes a cada uno.</p>
+  <div class="header-row">
+    <div>
+      <h2>Mis Profes</h2>
+      <p>Gestiona profesores, asigna estudiantes y crea grupos.</p>
+    </div>
+    <button class="btn-gestionar" (click)="abrirModalGrupo()">Crear grupo</button>
+  </div>
 
-  <table class="tabla-profes">
+  <!-- Cards resumen por profesor -->
+  <div class="cards-resumen" *ngIf="profesores?.length">
+    <div class="card" *ngFor="let profe of profesores">
+      <div class="card-header">
+        <div class="avatar">{{ (profe.nombres || '?')[0] | uppercase }}</div>
+        <div class="title">
+          <div class="name">{{ profe.nombres }} {{ profe.apellidos }}</div>
+          <div class="sub">@{{ profe.username }}</div>
+        </div>
+
+  <div style="display:flex;justify-content:flex-end;margin:.25rem 0 8px 0;">
+    <button class="btn-gestionar" (click)="toggleTabla()">
+      {{ showTabla ? 'Ocultar tabla' : 'Ver tabla' }}
+    </button>
+  </div>
+      </div>
+      <div class="card-stats">
+        <div class="stat">
+          <div class="stat-value">{{ (resumenMap[profe.username]?.grupos_creados || 0) }}</div>
+          <div class="stat-label">Grupos</div>
+        </div>
+        <div class="divider"></div>
+        <div class="stat">
+          <div class="stat-value">{{ (resumenMap[profe.username]?.estudiantes_asignados || 0) }}</div>
+          <div class="stat-label">Est. asignados</div>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="btn-gestionar" style="margin-right:8px" (click)="toggleVerGrupos(profe)">
+          {{ verGruposOpen[profe.username] ? 'Ocultar grupos' : 'Ver grupos' }}
+        </button>
+        <button class="btn-gestionar" (click)="abrirModalEstudiantes(profe)">Gestionar estudiantes</button>
+      </div>
+
+      <!-- Listado de grupos -->
+      <div class="grupos-list" *ngIf="verGruposOpen[profe.username]">
+        <div class="grupo-card" *ngFor="let g of (gruposMap[profe.username] || [])">
+          <div class="grupo-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="grupo-unidad">{{ g.unidad || g.tema }}</div>
+              <div class="grupo-id">#{{ g.id }}</div>
+            </div>
+            <button class="btn-gestionar" (click)="deleteGrupo(profe, g.id)">Eliminar</button>
+          </div>
+          <ul class="grupo-estudiantes">
+            <li *ngFor="let est of g.estudiantes">
+              <strong>{{ est.nombres }} {{ est.apellidos }}</strong>
+              <span class="muted">@{{ est.username }}</span>
+            </li>
+          </ul>
+        </div>
+        <div class="empty" *ngIf="(gruposMap[profe.username] || []).length === 0">Sin grupos creados.</div>
+      </div>
+    </div>
+  </div>
+
+  <table class="tabla-profes" *ngIf="showTabla">
     <thead>
       <tr>
         <th>Nombre</th>
@@ -56,6 +117,44 @@
         <ng-template #loadingTemplate>
           <div class="loading">Cargando estudiantes...</div>
         </ng-template>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Crear Grupo -->
+  <div class="modal-overlay" *ngIf="mostrarModalGrupo" (click)="cerrarModalGrupo()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Crear grupo</h3>
+        <button class="btn-cerrar" (click)="cerrarModalGrupo()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <label>
+            Profesor
+            <select [(ngModel)]="formGrupo.profesor_username">
+              <option *ngFor="let p of profesores" [value]="p.username">{{ p.nombres }} {{ p.apellidos }} (@{{p.username}})</option>
+            </select>
+          </label>
+          <label>
+            Unidad
+            <select [(ngModel)]="formGrupo.unidad_id">
+              <option *ngFor="let u of unidades" [value]="u.id">{{ u.nombre }}</option>
+            </select>
+          </label>
+        </div>
+        <div class="estudiantes-select">
+          <h4>Selecciona estudiantes</h4>
+          <div class="estudiantes-list">
+            <label class="est-item" *ngFor="let est of todosEstudiantes">
+              <input type="checkbox" [checked]="formGrupo.estudiantes.includes(est.username)" (change)="toggleSeleccionEstudiante(est.username)" />
+              <span>{{ est.nombres }} {{ est.apellidos }} (@{{ est.username }})</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-gestionar" [disabled]="creandoGrupo" (click)="crearGrupo()">{{ creandoGrupo ? 'Creando...' : 'Crear grupo' }}</button>
       </div>
     </div>
   </div>

@@ -76,8 +76,8 @@
 
 /* Modal de detalles de clase */
 .modal-detalles {
-  min-width: 500px;
-  max-width: 600px;
+  min-width: 640px;
+  max-width: 760px;
   text-align: left;
 }
 
@@ -132,7 +132,7 @@
 
 .estudiante-nombre {
   font-weight: 600;
-  color: var(--gray-100);
+  color: var(#667eea);
 }
 
 .estudiante-email {
@@ -171,8 +171,9 @@
   box-shadow: 0 20px 60px rgba(0,0,0,0.18);
   padding: 1.5rem;
   border: 1px solid rgba(102,126,234,0.18);
-  min-width: 320px;
-  max-width: 90vw;
+  min-width: 420px;
+  max-width: 860px;
+  width: clamp(420px, 70vw, 860px);
   text-align: center;
 }
 .modal input[type="text"] {
@@ -186,8 +187,23 @@
 }
 .modal-actions {
   display: flex;
-  justify-content: center;
-  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .75rem 1rem;
+  margin-top: 1rem;
+}
+.modal-actions .btn-meet,
+.modal-actions .btn-cerrar {
+  margin-right: 0;
+}
+
+/* Responsivo: apilar botones en pantallas estrechas */
+@media (max-width: 640px) {
+  .modal-detalles { min-width: 90vw; max-width: 90vw; }
+  .modal { width: 92vw; min-width: auto; }
+  .modal-actions { justify-content: center; }
+  .modal-actions button { flex: 1 1 100%; }
 }
 .modal-actions button {
   background: #667eea;

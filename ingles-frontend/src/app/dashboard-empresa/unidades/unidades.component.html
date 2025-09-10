@@ -1,0 +1,13 @@
+<div class="unidades-wrap">
+  <h2>Unidades</h2>
+  <div class="unidades-grid">
+    <div class="unidad-card" *ngFor="let u of unidades">
+      <div class="unidad-header">
+        <div class="unidad-title">{{ u.nombre }}</div>
+      </div>
+      <div class="unidad-description" *ngIf="u.descripcion">
+        {{ u.descripcion }}
+      </div>
+    </div>
+  </div>
+</div>

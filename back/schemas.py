@@ -86,4 +86,22 @@ class ClaseResponse(ClaseBase):
         from_attributes = True
 
 
+# ===== Quizzes =====
+class QuizCreate(BaseModel):
+    unidad_id: int
+    titulo: str
+    descripcion: Optional[str] = None
+    preguntas: Optional[dict] = None  # estructura libre por ahora
+
+class QuizResponse(BaseModel):
+    id: int
+    unidad_id: int
+    titulo: str
+    descripcion: Optional[str] = None
+    preguntas: Optional[dict] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 

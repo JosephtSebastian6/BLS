@@ -1,0 +1,90 @@
+<div class="empresa-asistencias">
+  <h2>Asistencias por clase</h2>
+
+  <div class="filtros">
+    <label>
+      Desde
+      <input type="date" [(ngModel)]="desde">
+    </label>
+    <label>
+      Hasta
+      <input type="date" [(ngModel)]="hasta">
+    </label>
+    <button class="btn" (click)="buscar()">Buscar</button>
+  </div>
+
+  <div *ngIf="loading" class="loading">Cargando...</div>
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <div *ngIf="!loading && clases.length === 0" class="empty">No hay clases en el rango seleccionado.</div>
+
+  <table *ngIf="!loading && clases.length > 0" class="tabla">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Hora</th>
+        <th>Tema</th>
+        <th>Profesor</th>
+        <th>Inscritos</th>
+        <th>Presentes</th>
+        <th>Ausentes</th>
+        <th>Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let c of clases">
+        <td>{{ c.dia }}</td>
+        <td>{{ c.hora }}</td>
+        <td>{{ c.tema }}</td>
+        <td>{{ c.profesor_username }}</td>
+        <td>{{ c.total_inscritos }}</td>
+        <td>{{ c.presentes }}</td>
+        <td>{{ c.ausentes }}</td>
+        <td>
+          <span class="badge" [class.ok]="c.tiene_asistencia" [class.warn]="!c.tiene_asistencia">
+            {{ c.tiene_asistencia ? 'Publicada' : 'Pendiente' }}
+          </span>
+        </td>
+        <td>
+          <button class="btn-sm" (click)="verAsistencia(c)" [disabled]="!c.tiene_asistencia">Ver</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Modal Detalle Asistencia -->
+  <div class="modal-bg" *ngIf="modalVisible">
+    <div class="modal">
+      <h3>Detalle de asistencia</h3>
+      <div *ngIf="detalleLoading">Cargando...</div>
+      <div *ngIf="detalleError" class="error">{{ detalleError }}</div>
+      <ng-container *ngIf="!detalleLoading && asistencia">
+        <p><strong>Tema:</strong> {{ asistencia.tema }}</p>
+        <p><strong>Fecha:</strong> {{ asistencia.fecha }} &nbsp; <strong>Hora:</strong> {{ asistencia.hora }}</p>
+        <p><strong>Resumen:</strong> {{ asistencia.presentes?.length || 0 }}</p>
+        <div class="scroll">
+          <table class="tabla">
+            <thead>
+            <tr>
+              <th>Estudiante</th>
+              <th>Identificador</th>
+              <th>Estado</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr *ngFor="let d of (asistencia.detalle || [])">
+              <td>{{ d.nombre }}</td>
+              <td>{{ d.id }}</td>
+              <td>{{ d.presente ? 'PRESENTE' : 'AUSENTE' }}</td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </ng-container>
+      <div class="modal-actions">
+        <button class="btn" (click)="cerrarModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>

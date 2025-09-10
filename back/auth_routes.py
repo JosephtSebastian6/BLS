@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text, func, and_
 from datetime import timedelta, datetime
 import uuid
-from pydantic import EmailStr
+from pydantic import EmailStr, BaseModel
 from fastapi import Body
 import os
 import shutil
@@ -18,6 +18,7 @@ import crud
 import models
 import schemas
 from schemas import ClaseCreate, ClaseResponse
+from schemas import QuizCreate, QuizResponse
 from Clever_MySQL_conn import get_db
 
 # Optional: Import your email service if needed
@@ -231,6 +232,39 @@ def eliminar_clase(clase_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Clase no encontrada o no se pudo eliminar")
     return {"eliminada": True, "id": clase_id}
 
+# ====== Grupos por Unidad (simplificado) ======
+class GrupoUnidadCreate(BaseModel):
+    profesor_username: str
+    unidad_id: int
+    estudiantes: list[str] = []
+
+@authRouter.post("/grupos")
+def crear_grupo_por_unidad(body: GrupoUnidadCreate, db: Session = Depends(get_db)):
+    """Crea un grupo para una unidad específica, asignando estudiantes a un profesor.
+    Mantiene la lógica existente de clases rellenando campos neutrales.
+    """
+    # Valores por defecto para compatibilidad con Clase
+    hoy = datetime.utcnow().strftime("%Y-%m-%d")
+    clase_payload = ClaseCreate(
+        dia=hoy,
+        hora="00:00",
+        tema=f"Grupo Unidad {body.unidad_id}",
+        meet_link=None,
+        profesor_username=body.profesor_username,
+        estudiantes=body.estudiantes or []
+    )
+    nueva = crud.crear_clase(db, clase_payload)
+    estudiantes_resp = [schemas.EstudianteEnClase.from_orm(est) for est in nueva.clases if hasattr(nueva, 'clases')] if hasattr(nueva, 'clases') else []
+    return schemas.ClaseResponse(
+        id=nueva.id,
+        dia=nueva.dia,
+        hora=nueva.hora,
+        tema=nueva.tema,
+        meet_link=nueva.meet_link,
+        profesor_username=nueva.profesor_username,
+        estudiantes=estudiantes_resp
+    )
+
 # POST: Agendar estudiante a clase
 from pydantic import BaseModel
 from fastapi import Body
@@ -382,6 +416,26 @@ def obtener_estado_unidades_estudiante(username: str, db: Session = Depends(get_
     """Obtiene todas las unidades con su estado (habilitada/deshabilitada) para gestión"""
     return crud.obtener_estado_unidades_estudiante(db, username)
 
+# Diagnóstico: listar relaciones crudas en estudiante_unidad para un usuario
+@authRouter.get("/estudiantes/{username}/unidades/relaciones/raw")
+def diagnostico_relaciones_estudiante_unidad(username: str, db: Session = Depends(get_db)):
+    estudiante = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if not estudiante:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+    filas = db.query(models.estudiante_unidad).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador
+    ).all()
+    # mapear a dict legible
+    res = [
+        {
+            "estudiante_id": getattr(f, "estudiante_id", None),
+            "unidad_id": getattr(f, "unidad_id", None),
+            "habilitada": getattr(f, "habilitada", None)
+        }
+        for f in filas
+    ]
+    return {"username": username, "estudiante_id": estudiante.identificador, "relaciones": res}
+
 @authRouter.put("/estudiantes/{username}/unidades/{unidad_id}/toggle")
 def toggle_unidad_estudiante(username: str, unidad_id: int, db: Session = Depends(get_db)):
     """Habilita o deshabilita una unidad para un estudiante"""
@@ -390,12 +444,108 @@ def toggle_unidad_estudiante(username: str, unidad_id: int, db: Session = Depend
         raise HTTPException(status_code=404, detail="Estudiante no encontrado")
     return {"habilitada": resultado}
 
+# Garantizar que la unidad esté habilitada para el estudiante (crea si no existe)
+@authRouter.put("/estudiantes/{username}/unidades/{unidad_id}/ensure-enabled")
+def ensure_unidad_habilitada_estudiante(username: str, unidad_id: int, db: Session = Depends(get_db)):
+    """Crea el registro estudiante_unidad si no existe y lo deja habilitado=True."""
+    # Buscar estudiante
+    estudiante = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if not estudiante:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+
+    # Buscar fila existente en estudiante_unidad
+    rel = db.query(models.estudiante_unidad).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
+        models.estudiante_unidad.c.unidad_id == unidad_id
+    ).first()
+
+    try:
+        if rel is None:
+            # Insertar nueva relación habilitada
+            db.execute(
+                models.estudiante_unidad.insert().values(
+                    estudiante_id=estudiante.identificador,
+                    unidad_id=unidad_id,
+                    habilitada=True
+                )
+            )
+            db.commit()
+            return {"username": username, "unidad_id": unidad_id, "habilitada": True, "created": True}
+        else:
+            # Actualizar a habilitada=True si estaba False
+            db.execute(
+                models.estudiante_unidad.update()
+                .where(
+                    (models.estudiante_unidad.c.estudiante_id == estudiante.identificador) &
+                    (models.estudiante_unidad.c.unidad_id == unidad_id)
+                )
+                .values(habilitada=True)
+            )
+            db.commit()
+            return {"username": username, "unidad_id": unidad_id, "habilitada": True, "created": False}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al asegurar habilitación: {e}")
+
 # Endpoints para gestión de asignaciones profesor-estudiante
 @authRouter.get("/profesores/{profesor_username}/estudiantes")
 def obtener_estudiantes_asignados(profesor_username: str, db: Session = Depends(get_db)):
     """Obtiene los estudiantes asignados a un profesor"""
     estudiantes = crud.obtener_estudiantes_asignados(db, profesor_username)
     return [schemas.UsuarioResponse.from_orm(est) for est in estudiantes]
+
+# ==========================
+# Quizzes por Unidad
+# ==========================
+
+@authRouter.post("/unidades/{unidad_id}/quizzes", response_model=QuizResponse)
+def crear_quiz_unidad(unidad_id: int, body: QuizCreate, db: Session = Depends(get_db)):
+    try:
+        # Validación simple de unidad
+        unidad = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
+        if not unidad:
+            raise HTTPException(status_code=404, detail="Unidad no encontrada")
+
+        quiz = models.Quiz(
+            unidad_id=unidad_id,
+            titulo=body.titulo,
+            descripcion=body.descripcion,
+            preguntas=body.preguntas,
+        )
+        db.add(quiz)
+        db.commit()
+        db.refresh(quiz)
+        return QuizResponse.from_orm(quiz)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creando quiz: {e}")
+
+@authRouter.get("/unidades/{unidad_id}/quizzes", response_model=list[QuizResponse])
+def listar_quizzes_unidad(unidad_id: int, db: Session = Depends(get_db)):
+    quizzes = db.query(models.Quiz).filter(models.Quiz.unidad_id == unidad_id).order_by(models.Quiz.created_at.desc()).all()
+    return [QuizResponse.from_orm(q) for q in quizzes]
+
+@authRouter.delete("/unidades/quizzes/{quiz_id}")
+def eliminar_quiz(quiz_id: int, db: Session = Depends(get_db)):
+    quiz = db.query(models.Quiz).filter(models.Quiz.id == quiz_id).first()
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz no encontrado")
+    try:
+        db.delete(quiz)
+        db.commit()
+        return {"eliminado": True, "id": quiz_id}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"No se pudo eliminar el quiz: {e}")
+
+@authRouter.get("/unidades/quizzes/{quiz_id}", response_model=QuizResponse)
+def obtener_quiz(quiz_id: int, db: Session = Depends(get_db)):
+    quiz = db.query(models.Quiz).filter(models.Quiz.id == quiz_id).first()
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz no encontrado")
+    return QuizResponse.from_orm(quiz)
 
 @authRouter.post("/profesores/{profesor_username}/estudiantes/{estudiante_username}")
 def asignar_estudiante_profesor(profesor_username: str, estudiante_username: str, db: Session = Depends(get_db)):
@@ -412,6 +562,27 @@ def desasignar_estudiante_profesor(profesor_username: str, estudiante_username: 
     if not resultado:
         raise HTTPException(status_code=404, detail="Profesor o estudiante no encontrado")
     return {"message": "Estudiante desasignado correctamente"}
+
+# Resumen de asignaciones por profesor: cantidad de grupos y estudiantes asignados
+@authRouter.get("/profesores/{profesor_username}/resumen-asignaciones")
+def resumen_asignaciones_profesor(profesor_username: str, db: Session = Depends(get_db)):
+    # Contar estudiantes asignados por la tabla profesor_estudiante
+    # Primero obtener el id del profesor
+    profesor = db.query(models.Registro).filter(models.Registro.username == profesor_username).first()
+    if not profesor:
+        raise HTTPException(status_code=404, detail="Profesor no encontrado")
+    estudiantes_asignados = db.query(models.profesor_estudiante).filter(models.profesor_estudiante.c.profesor_id == profesor.identificador).count()
+    # Conteo real de grupos creados (clases)
+    grupos_creados = db.query(models.Clase).filter(models.Clase.profesor_username == profesor_username).count()
+    # KPI estimado: 1 grupo por cada 10 estudiantes asignados
+    import math
+    grupos_estimados = math.ceil(estudiantes_asignados / 10) if estudiantes_asignados > 0 else 0
+    return {
+        "profesor_username": profesor_username,
+        "grupos_creados": int(grupos_creados),
+        "grupos_estimados": int(grupos_estimados),
+        "estudiantes_asignados": int(estudiantes_asignados)
+    }
 
 @authRouter.get("/estudiantes")
 def obtener_todos_estudiantes(db: Session = Depends(get_db)):
@@ -486,12 +657,18 @@ def upsert_progreso(
     }
 
 @authRouter.get("/analytics/estudiantes/{username}/resumen")
-def analytics_resumen(username: str, db: Session = Depends(get_db)):
-    return crud.get_analytics_resumen(db, username=username)
+def analytics_resumen(username: str, desde: str | None = None, hasta: str | None = None, db: Session = Depends(get_db)):
+    from datetime import datetime
+    d_from = datetime.fromisoformat(desde) if desde else None
+    d_to = datetime.fromisoformat(hasta) if hasta else None
+    return crud.get_analytics_resumen(db, username=username, desde=d_from, hasta=d_to)
 
 @authRouter.get("/analytics/estudiantes/{username}/unidades")
-def analytics_unidades(username: str, db: Session = Depends(get_db)):
-    return crud.get_analytics_unidades(db, username=username)
+def get_analytics_unidades(username: str, desde: str | None = None, hasta: str | None = None, db: Session = Depends(get_db)):
+    from datetime import datetime
+    d_from = datetime.fromisoformat(desde) if desde else None
+    d_to = datetime.fromisoformat(hasta) if hasta else None
+    return crud.get_analytics_unidades(db, username=username, desde=d_from, hasta=d_to)
 
 # Sistema de archivos para estudiantes - FUERA del backend
 UPLOAD_DIR = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes")
@@ -506,7 +683,14 @@ def get_current_user_from_token(credentials: HTTPAuthorizationCredentials = Depe
         if username is None:
             raise HTTPException(status_code=401, detail="Token inválido")
         return username
-    except jwt.JWTError:
+    except Exception as e:
+        # Compatibilidad con PyJWT: manejar expiración y otros errores
+        try:
+            from jwt import exceptions as jwt_exceptions  # type: ignore
+            if isinstance(e, jwt_exceptions.ExpiredSignatureError):
+                raise HTTPException(status_code=401, detail="Token expirado")
+        except Exception:
+            pass
         raise HTTPException(status_code=401, detail="Token inválido")
 
 @authRouter.post("/estudiantes/subcarpetas/{unidad_id}/{subcarpeta_nombre}/upload")
@@ -549,7 +733,50 @@ async def upload_student_file(
     
     if not acceso:
         print(f"❌ DEBUG: Sin acceso - estudiante_id={estudiante.identificador}, unidad_id={unidad_id}")
-        raise HTTPException(status_code=403, detail="No tienes acceso a esta unidad")
+        # Intento de auto-reparación: crear/activar la relación y reintentar
+        try:
+            db.execute(
+                models.estudiante_unidad.insert().values(
+                    estudiante_id=estudiante.identificador,
+                    unidad_id=unidad_id,
+                    habilitada=True
+                )
+            )
+            db.commit()
+            print("🛠️ DEBUG: Relación creada por auto-reparación")
+        except Exception:
+            db.rollback()
+            # Si ya existía, forzar update habilitada=True
+            try:
+                db.execute(
+                    models.estudiante_unidad.update()
+                    .where(
+                        (models.estudiante_unidad.c.estudiante_id == estudiante.identificador) &
+                        (models.estudiante_unidad.c.unidad_id == unidad_id)
+                    )
+                    .values(habilitada=True)
+                )
+                db.commit()
+                print("🛠️ DEBUG: Relación actualizada a habilitada=True por auto-reparación")
+            except Exception as e2:
+                db.rollback()
+                print(f"⚠️ DEBUG: Falló auto-reparación: {e2}")
+        # Revalidar acceso
+        acceso = db.query(models.estudiante_unidad).filter(
+            models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
+            models.estudiante_unidad.c.unidad_id == unidad_id,
+            models.estudiante_unidad.c.habilitada == True
+        ).first()
+        if not acceso:
+            # LOG extra: listar relaciones existentes para el estudiante
+            try:
+                relaciones = db.query(models.estudiante_unidad).filter(
+                    models.estudiante_unidad.c.estudiante_id == estudiante.identificador
+                ).all()
+                print(f"🔎 DEBUG: Relaciones estudiante_unidad del estudiante {estudiante.identificador}: {relaciones}")
+            except Exception as e:
+                print(f"⚠️ DEBUG: No se pudo listar relaciones estudiante_unidad: {e}")
+            raise HTTPException(status_code=403, detail="No tienes acceso a esta unidad")
     
     # Directorio específico para estudiantes
     student_dir = UPLOAD_DIR / "estudiantes" / current_user / f"unidad_{unidad_id}" / "SOLO_TAREAS"
@@ -626,7 +853,37 @@ def get_student_files(
     ).first()
     
     if not acceso:
-        raise HTTPException(status_code=403, detail="Sin acceso a esta unidad")
+        # Auto-reparación
+        try:
+            db.execute(
+                models.estudiante_unidad.insert().values(
+                    estudiante_id=estudiante.identificador,
+                    unidad_id=unidad_id,
+                    habilitada=True
+                )
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            try:
+                db.execute(
+                    models.estudiante_unidad.update()
+                    .where(
+                        (models.estudiante_unidad.c.estudiante_id == estudiante.identificador) &
+                        (models.estudiante_unidad.c.unidad_id == unidad_id)
+                    )
+                    .values(habilitada=True)
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
+        acceso = db.query(models.estudiante_unidad).filter(
+            models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
+            models.estudiante_unidad.c.unidad_id == unidad_id,
+            models.estudiante_unidad.c.habilitada == True
+        ).first()
+        if not acceso:
+            raise HTTPException(status_code=403, detail="Sin acceso a esta unidad")
     
     student_dir = UPLOAD_DIR / "estudiantes" / current_user / f"unidad_{unidad_id}" / "SOLO_TAREAS"
     
@@ -693,57 +950,310 @@ def get_student_file(
         filename=filename
     )
 
+# ==========================
+# Calificaciones y bonus por unidad (Profesor)
+# ==========================
+
+from pydantic import BaseModel
+
+class GradeBody(BaseModel):
+    filename: str
+    score: int
+
+@authRouter.post("/profesores/{profesor_username}/estudiantes/{estudiante_username}/unidades/{unidad_id}/grade")
+def profesor_calificar_tarea(
+    profesor_username: str,
+    estudiante_username: str,
+    unidad_id: int,
+    body: GradeBody,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    _ensure_profesor_credentials(profesor_username, credentials)
+    if not _estudiante_asignado_a_profesor(db, profesor_username, estudiante_username):
+        raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+    # Guardar/actualizar calificación en BD (tarea_calificacion)
+    try:
+        score = int(max(0, min(100, body.score)))
+        row = db.query(models.TareaCalificacion).filter(
+            models.TareaCalificacion.estudiante_username == estudiante_username,
+            models.TareaCalificacion.unidad_id == unidad_id,
+            models.TareaCalificacion.filename == body.filename,
+        ).first()
+        now = datetime.utcnow()
+        if row:
+            row.score = score
+            row.updated_at = now
+            db.add(row)
+        else:
+            row = models.TareaCalificacion(
+                estudiante_username=estudiante_username,
+                unidad_id=unidad_id,
+                filename=body.filename,
+                score=score,
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(row)
+        db.commit()
+        db.refresh(row)
+        return {"ok": True, "unidad_id": unidad_id, "filename": body.filename, "score": row.score}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"No se pudo guardar la calificación: {e}")
+
+class BonusBody(BaseModel):
+    add_min: int | None = 0
+    add_score: int | None = 0
+
+@authRouter.post("/profesores/{profesor_username}/estudiantes/{estudiante_username}/unidades/{unidad_id}/attendance-bonus")
+def profesor_bonus_asistencia(
+    profesor_username: str,
+    estudiante_username: str,
+    unidad_id: int,
+    body: BonusBody,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    _ensure_profesor_credentials(profesor_username, credentials)
+    if not _estudiante_asignado_a_profesor(db, profesor_username, estudiante_username):
+        raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+    # Aplicar bonus vía upsert_progreso_score
+    try:
+        # Recuperar fila actual
+        row = crud._ensure_progreso_row(db, username=estudiante_username, unidad_id=unidad_id)
+        nuevo_tiempo = (row.tiempo_dedicado_min or 0) + int(max(0, body.add_min or 0))
+        nuevo_score = min(100, (row.score or 0) + int(max(0, body.add_score or 0)))
+        row.tiempo_dedicado_min = nuevo_tiempo
+        row.score = nuevo_score
+        row.ultima_actividad_at = datetime.utcnow()
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return {"ok": True, "unidad_id": unidad_id, "tiempo_dedicado_min": row.tiempo_dedicado_min, "score": row.score}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"No se pudo aplicar bonus: {e}")
+
+@authRouter.get("/profesores/{profesor_username}/estudiantes/{estudiante_username}/unidades/{unidad_id}/grade")
+def profesor_obtener_calificacion(
+    profesor_username: str,
+    estudiante_username: str,
+    unidad_id: int,
+    filename: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Obtiene la calificación (si existe) para un archivo específico."""
+    _ensure_profesor_credentials(profesor_username, credentials)
+    if not _estudiante_asignado_a_profesor(db, profesor_username, estudiante_username):
+        raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+    row = db.query(models.TareaCalificacion).filter(
+        models.TareaCalificacion.estudiante_username == estudiante_username,
+        models.TareaCalificacion.unidad_id == unidad_id,
+        models.TareaCalificacion.filename == filename,
+    ).first()
+    if not row:
+        return {"score": None}
+    return {"score": int(row.score)}
+
+# ==========================
+# Tareas de estudiantes para PROFESOR (solo asignados)
+# ==========================
+from typing import Optional
+
+def _ensure_profesor_credentials(profesor_username: str, credentials: HTTPAuthorizationCredentials):
+    """Valida que el token pertenece a un profesor y coincide con el username del path."""
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        sub = payload.get("sub")
+        tipo = payload.get("tipo_usuario")
+        if tipo != "profesor" or sub != profesor_username:
+            raise HTTPException(status_code=403, detail="No autorizado")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+def _estudiante_asignado_a_profesor(db: Session, profesor_username: str, estudiante_username: str) -> bool:
+    profesor = db.query(models.Registro).filter(models.Registro.username == profesor_username).first()
+    estudiante = db.query(models.Registro).filter(models.Registro.username == estudiante_username).first()
+    if not profesor or not estudiante:
+        return False
+    rel = db.query(models.profesor_estudiante).filter(
+        models.profesor_estudiante.c.profesor_id == profesor.identificador,
+        models.profesor_estudiante.c.estudiante_id == estudiante.identificador
+    ).first()
+    return rel is not None
+
+def _listar_tareas_estudiante(username: str, unidad_id: Optional[int] = None):
+    tareas = []
+    base = UPLOAD_DIR / "estudiantes" / username
+    if not base.exists():
+        return tareas
+    unidades = []
+    if unidad_id is not None:
+        unidades = [base / f"unidad_{unidad_id}" / "SOLO_TAREAS"]
+    else:
+        # buscar todas las carpetas unidad_* / SOLO_TAREAS
+        for p in base.glob("unidad_*/SOLO_TAREAS"):
+            unidades.append(p)
+    for carpeta in unidades:
+        if not carpeta.exists():
+            continue
+        try:
+            for f in carpeta.iterdir():
+                if not f.is_file():
+                    continue
+                import mimetypes
+                stat = f.stat()
+                tareas.append({
+                    "filename": f.name,
+                    "size": stat.st_size,
+                    "upload_date": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    "unidad_id": int(carpeta.parent.name.replace("unidad_", "")) if carpeta.parent.name.startswith("unidad_") else None,
+                })
+        except Exception:
+            continue
+    # ordenar por fecha desc
+    tareas.sort(key=lambda x: x.get("upload_date", ""), reverse=True)
+    return tareas
+
+@authRouter.get("/profesores/{profesor_username}/tareas")
+def profesor_listar_tareas(
+    profesor_username: str,
+    unidad_id: Optional[int] = None,
+    desde: Optional[str] = None,
+    hasta: Optional[str] = None,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    _ensure_profesor_credentials(profesor_username, credentials)
+    # estudiantes asignados
+    profesor = db.query(models.Registro).filter(models.Registro.username == profesor_username).first()
+    if not profesor:
+        raise HTTPException(status_code=404, detail="Profesor no encontrado")
+    asignaciones = db.query(models.profesor_estudiante.c.estudiante_id).filter(models.profesor_estudiante.c.profesor_id == profesor.identificador).all()
+    est_ids = [row[0] for row in asignaciones]
+    if not est_ids:
+        return []
+    estudiantes = db.query(models.Registro).filter(models.Registro.identificador.in_(est_ids)).all()
+    # filtrar por fecha
+    def _en_rango(fecha_iso: str) -> bool:
+        if not fecha_iso:
+            return True
+        try:
+            from datetime import datetime as _dt
+            dt = _dt.fromisoformat(fecha_iso)
+            if desde:
+                if dt.date() < _dt.fromisoformat(desde).date():
+                    return False
+            if hasta:
+                if dt.date() > _dt.fromisoformat(hasta).date():
+                    return False
+            return True
+        except Exception:
+            return True
+    resultado = []
+    for est in estudiantes:
+        tareas = _listar_tareas_estudiante(est.username, unidad_id)
+        tareas = [t for t in tareas if _en_rango(t.get("upload_date"))]
+        resultado.append({
+            "estudiante_username": est.username,
+            "nombres": est.nombres,
+            "apellidos": est.apellidos,
+            "tareas": tareas
+        })
+    return resultado
+
+@authRouter.get("/profesores/{profesor_username}/estudiantes/{estudiante_username}/tareas")
+def profesor_listar_tareas_de_estudiante(
+    profesor_username: str,
+    estudiante_username: str,
+    unidad_id: Optional[int] = None,
+    desde: Optional[str] = None,
+    hasta: Optional[str] = None,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    _ensure_profesor_credentials(profesor_username, credentials)
+    if not _estudiante_asignado_a_profesor(db, profesor_username, estudiante_username):
+        raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+    tareas = _listar_tareas_estudiante(estudiante_username, unidad_id)
+    # filtrar por fecha
+    def _en_rango(fecha_iso: str) -> bool:
+        if not fecha_iso:
+            return True
+        try:
+            from datetime import datetime as _dt
+            dt = _dt.fromisoformat(fecha_iso)
+            if desde:
+                if dt.date() < _dt.fromisoformat(desde).date():
+                    return False
+            if hasta:
+                if dt.date() > _dt.fromisoformat(hasta).date():
+                    return False
+            return True
+        except Exception:
+            return True
+    tareas = [t for t in tareas if _en_rango(t.get("upload_date"))]
+    return {
+        "estudiante_username": estudiante_username,
+        "tareas": tareas
+    }
+
+@authRouter.get("/profesores/{profesor_username}/tareas/download")
+def profesor_descargar_tarea(
+    profesor_username: str,
+    estudiante_username: str,
+    unidad_id: int,
+    filename: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    _ensure_profesor_credentials(profesor_username, credentials)
+    if not _estudiante_asignado_a_profesor(db, profesor_username, estudiante_username):
+        raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+    file_path = UPLOAD_DIR / "estudiantes" / estudiante_username / f"unidad_{unidad_id}" / "SOLO_TAREAS" / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    import mimetypes
+    content_type, _ = mimetypes.guess_type(str(file_path))
+    if content_type is None:
+        content_type = "application/octet-stream"
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=str(file_path),
+        media_type=content_type,
+        filename=filename
+    )
+
 @authRouter.get("/estudiantes/resumen")
 def get_resumen_estudiante(
     current_user: str = Depends(get_current_user_from_token),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    desde: str | None = None,
+    hasta: str | None = None,
 ):
     """Obtener resumen de progreso del estudiante"""
-    
+    from datetime import datetime
+    d_from = datetime.fromisoformat(desde) if desde else None
+    d_to = datetime.fromisoformat(hasta) if hasta else None
     # Obtener datos del estudiante
     estudiante = db.query(models.Registro).filter(models.Registro.username == current_user).first()
     if not estudiante:
         raise HTTPException(status_code=404, detail="Estudiante no encontrado")
-    
-    # Calcular métricas
-    total_tiempo = db.query(func.sum(models.ActividadEstudiante.duracion_min)).filter(
-        models.ActividadEstudiante.username == current_user
-    ).scalar() or 0
-    
-    # Contar unidades habilitadas
-    unidades_habilitadas = db.query(func.count(models.estudiante_unidad.c.unidad_id)).filter(
-        models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
-        models.estudiante_unidad.c.habilitada == True
-    ).scalar() or 0
-    
-    # Calcular progreso general (basado en tiempo dedicado)
-    progreso_general = min(100, (total_tiempo / 60) * 2) if total_tiempo > 0 else 0
-    
-    # Calcular racha de días (simplificado)
-    dias_recientes = db.query(func.count(func.distinct(func.date(models.ActividadEstudiante.creado_at)))).filter(
-        models.ActividadEstudiante.username == current_user,
-        models.ActividadEstudiante.creado_at >= datetime.now() - timedelta(days=7)
-    ).scalar() or 0
-    
-    return {
-        "progreso_general": int(progreso_general),
-        "unidades_completadas": unidades_habilitadas,
-        "tiempo_dedicado_min": int(total_tiempo),
-        "racha_dias": dias_recientes
-    }
+    return crud.get_analytics_resumen(db, username=current_user, desde=d_from, hasta=d_to)
 
 @authRouter.get("/estudiantes/analytics/unidades")
-def get_analytics_unidades(
+def get_analytics_unidades_current(
     current_user: str = Depends(get_current_user_from_token),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    desde: str | None = None,
+    hasta: str | None = None,
 ):
-    """Obtener analytics por unidad del estudiante"""
-    
-    estudiante = db.query(models.Registro).filter(models.Registro.username == current_user).first()
-    if not estudiante:
-        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
-    
-    # Obtener unidades habilitadas con tiempo dedicado
+    from datetime import datetime
+    d_from = datetime.fromisoformat(desde) if desde else None
+    d_to = datetime.fromisoformat(hasta) if hasta else None
+    return crud.get_analytics_unidades(db, username=current_user, desde=d_from, hasta=d_to)
     unidades_query = db.query(
         models.estudiante_unidad.c.unidad_id,
         func.coalesce(func.sum(models.ActividadEstudiante.duracion_min), 0).label('tiempo_total')
@@ -772,3 +1282,125 @@ def get_analytics_unidades(
         })
     
     return analytics
+
+# ==========================
+# Asistencia por clase (persistencia en JSON) + consulta empresa
+# ==========================
+from pydantic import BaseModel
+from typing import Optional
+import json
+
+ASISTENCIAS_DIR = Path(__file__).resolve().parent / "asistencias"
+ASISTENCIAS_DIR.mkdir(exist_ok=True)
+
+class AsistenciaRegistroIn(BaseModel):
+    claseId: int
+    fechaISO: Optional[str] = None
+    presentes: list[str]
+
+def _asistencia_file(clase_id: int) -> Path:
+    return ASISTENCIAS_DIR / f"clase_{clase_id}.json"
+
+def _read_asistencia(clase_id: int) -> dict | None:
+    fp = _asistencia_file(clase_id)
+    if not fp.exists():
+        return None
+    try:
+        with fp.open('r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+def _write_asistencia(clase_id: int, data: dict) -> None:
+    fp = _asistencia_file(clase_id)
+    with fp.open('w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+@authRouter.get("/clases/{clase_id}/asistencia")
+def obtener_asistencia(clase_id: int):
+    data = _read_asistencia(clase_id)
+    return data or {"claseId": clase_id, "presentes": [], "historial": []}
+
+@authRouter.post("/clases/{clase_id}/asistencia")
+def guardar_asistencia(clase_id: int, body: AsistenciaRegistroIn):
+    # Normalizar
+    from datetime import datetime
+    fechaISO = body.fechaISO or datetime.utcnow().strftime('%Y-%m-%d')
+    current = _read_asistencia(clase_id) or {"claseId": clase_id, "presentes": [], "historial": []}
+    current["claseId"] = clase_id
+    current["presentes"] = body.presentes
+    # Agregar al historial con sello de tiempo
+    current.setdefault("historial", []).append({
+        "fechaISO": fechaISO,
+        "presentes": body.presentes,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+    _write_asistencia(clase_id, current)
+    return {"ok": True, "claseId": clase_id, "presentes": body.presentes}
+
+# Consulta para rol empresa: ver asistencia de una clase
+@authRouter.get("/empresa/clases/{clase_id}/asistencia")
+def empresa_ver_asistencia_clase(clase_id: int, db: Session = Depends(get_db)):
+    # Opcionalmente podríamos validar tipo_usuario == 'empresa' si hay auth.
+    data = _read_asistencia(clase_id)
+    if not data:
+        # enriquecer con metadatos de clase aunque no haya asistencia
+        clase = db.query(models.Clase).filter(models.Clase.id == clase_id).first()
+        if not clase:
+            raise HTTPException(status_code=404, detail="Clase no encontrada")
+        return {
+            "claseId": clase_id,
+            "tema": clase.tema,
+            "fecha": clase.dia,
+            "hora": clase.hora,
+            "presentes": [],
+            "historial": []
+        }
+    # Adjuntar metadatos y construir detalle
+    clase = db.query(models.Clase).filter(models.Clase.id == clase_id).first()
+    if not clase:
+        return data
+    data.update({"tema": clase.tema, "fecha": clase.dia, "hora": clase.hora})
+    presentes_set = set(data.get("presentes") or [])
+    detalle = []
+    for est in (clase.estudiantes or []):
+        nombre = f"{est.nombres or ''} {est.apellidos or ''}".strip()
+        ident = est.email or est.username or str(est.identificador)
+        detalle.append({
+            "nombre": nombre,
+            "id": ident,
+            "presente": ident in presentes_set
+        })
+    data["detalle"] = detalle
+    # Totales derivados
+    data["total"] = len(detalle)
+    data["presentes_count"] = sum(1 for d in detalle if d["presente"])
+    data["ausentes_count"] = data["total"] - data["presentes_count"]
+    return data
+
+# Listado de clases para empresa con estado de asistencia
+@authRouter.get("/empresa/clases")
+def empresa_listar_clases(desde: str | None = None, hasta: str | None = None, db: Session = Depends(get_db)):
+    q = db.query(models.Clase)
+    if desde:
+        q = q.filter(models.Clase.dia >= desde)
+    if hasta:
+        q = q.filter(models.Clase.dia <= hasta)
+    clases = q.order_by(models.Clase.dia.asc(), models.Clase.hora.asc()).all()
+    res = []
+    for c in clases:
+        asistencia = _read_asistencia(c.id) or {}
+        presentes = asistencia.get('presentes') or []
+        total_inscritos = len(c.estudiantes or [])
+        res.append({
+            "id": c.id,
+            "dia": c.dia,
+            "hora": c.hora,
+            "tema": c.tema,
+            "profesor_username": c.profesor_username,
+            "total_inscritos": total_inscritos,
+            "tiene_asistencia": bool(presentes),
+            "presentes": len(presentes),
+            "ausentes": max(0, total_inscritos - len(presentes)),
+        })
+    return res

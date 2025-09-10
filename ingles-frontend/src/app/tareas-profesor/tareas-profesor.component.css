@@ -1,0 +1,18 @@
+.tareas-profesor{padding:2rem}
+.filtros{display:flex;gap:12px;align-items:end;margin-bottom:12px}
+.filtros input{padding:.5rem .7rem;border:1px solid #e5e7eb;border-radius:8px}
+.btn{background:#667eea;color:#fff;border:2px solid #667eea;border-radius:10px;padding:.5rem 1rem;font-weight:700;cursor:pointer}
+.btn-sm{background:#667eea;color:#fff;border:2px solid #667eea;border-radius:10px;padding:.35rem .8rem;font-weight:700;cursor:pointer}
+.loading{padding:1rem;color:#6b7280}
+.error{padding:.6rem 1rem;border:1px solid #fecaca;background:#fee2e2;color:#b91c1c;border-radius:10px;margin:.5rem 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:#fff;border:1px solid rgba(102,126,234,.18);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:14px;display:flex;flex-direction:column;gap:10px}
+.card-header{display:flex;align-items:center;gap:10px}
+.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#667eea,#5a6ee6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900}
+.title .name{font-weight:800;color:#1f2937}
+.title .sub{font-size:.85rem;color:#6b7280}
+.chip{margin-left:auto;background:#eef2ff;color:#4f46e5;border:1px solid rgba(102,126,234,.35);border-radius:999px;padding:.2rem .5rem;font-weight:700;font-size:.8rem}
+.scroll{max-height:50vh;overflow:auto;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem}
+.tabla{width:100%;border-collapse:collapse}
+.tabla th,.tabla td{border-bottom:1px solid #e5e7eb;padding:.45rem .5rem;text-align:left}
+.empty{padding:.5rem;color:#6b7280}

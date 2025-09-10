@@ -30,7 +30,7 @@ export class UnidadDetalleComponent implements OnInit, OnDestroy {
         if (!Array.isArray(unidades[idx].subcarpetas)) {
           unidades[idx].subcarpetas = [];
         }
-        unidades[idx].subcarpetas.push({ nombre: this.nuevaSubcarpetaNombre, descripcion: this.nuevaSubcarpetaDescripcion });
+        unidades[idx].subcarpetas.push({ nombre: this.nuevaSubcarpetaNombre, descripcion: this.nuevaSubcarpetaDescripcion, habilitada: true });
         localStorage.setItem('unidades', JSON.stringify(unidades));
         this.subcarpetas = unidades[idx].subcarpetas;
         this.nuevaSubcarpetaNombre = '';
@@ -40,7 +40,7 @@ export class UnidadDetalleComponent implements OnInit, OnDestroy {
     }
   }
   unidadId: string | null = null;
-  subcarpetas: Array<{ nombre: string; descripcion?: string; archivos?: { name: string }[] }> = [];
+  subcarpetas: Array<{ nombre: string; descripcion?: string; archivos?: { name: string }[]; habilitada?: boolean }> = [];
 
   private heartbeatId: any;
   constructor(private route: ActivatedRoute, private router: Router, private analytics: AnalyticsService) {
@@ -53,6 +53,10 @@ export class UnidadDetalleComponent implements OnInit, OnDestroy {
   irADetalleSubcarpeta(idx: number) {
     if (!this.unidadId) return;
     const sub = idx;
+    // Si es estudiante y la subcarpeta está oculta, no permitir navegar
+    if (this.tipoUsuario === 'estudiante' && this.subcarpetas[idx] && this.subcarpetas[idx].habilitada === false) {
+      return;
+    }
     if (this.tipoUsuario === 'estudiante') {
       this.router.navigate([
         '/dashboard-estudiante/unidades',
@@ -133,7 +137,14 @@ export class UnidadDetalleComponent implements OnInit, OnDestroy {
       const unidades = JSON.parse(unidadesGuardadas);
       const idx = Number(this.unidadId) - 1;
       if (unidades[idx] && Array.isArray(unidades[idx].subcarpetas)) {
-        this.subcarpetas = unidades[idx].subcarpetas;
+        // Normaliza: si no existe 'habilitada', se asume true
+        this.subcarpetas = (unidades[idx].subcarpetas as any[]).map((s: any) => ({
+          ...s,
+          habilitada: s.habilitada === undefined ? true : s.habilitada
+        }));
+        // guarda normalización
+        unidades[idx].subcarpetas = this.subcarpetas;
+        localStorage.setItem('unidades', JSON.stringify(unidades));
       } else {
         this.subcarpetas = [];
       }
@@ -155,6 +166,23 @@ export class UnidadDetalleComponent implements OnInit, OnDestroy {
         this.subcarpetas = unidades[unidadIdx].subcarpetas;
       }
     }
+  }
+
+  // Alterna la visibilidad (habilitada) de una subcarpeta y la persiste
+  toggleSubcarpeta(idx: number) {
+    if (!this.unidadId) return;
+    const unidadesGuardadas = localStorage.getItem('unidades');
+    if (!unidadesGuardadas) return;
+    const unidades = JSON.parse(unidadesGuardadas);
+    const unidadIdx = Number(this.unidadId) - 1;
+    if (!unidades[unidadIdx] || !Array.isArray(unidades[unidadIdx].subcarpetas)) return;
+    const sub = unidades[unidadIdx].subcarpetas[idx];
+    if (!sub) return;
+    const current = sub.habilitada === undefined ? true : !!sub.habilitada;
+    sub.habilitada = !current;
+    localStorage.setItem('unidades', JSON.stringify(unidades));
+    // Refleja en memoria
+    this.subcarpetas[idx].habilitada = sub.habilitada;
   }
 
   iniciarEdicion(idx: number) {

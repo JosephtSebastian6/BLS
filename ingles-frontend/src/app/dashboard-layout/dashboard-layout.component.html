@@ -16,12 +16,6 @@
         </button>
       </li>
       <li>
-        <button [routerLink]="['/mis-cursos']" routerLinkActive="active">
-          <span class="material-icons">book</span>
-          <span class="sidebar-text">Mis Cursos</span>
-        </button>
-      </li>
-      <li>
         <button (click)="navigateIfNotCurrent('/dashboard-mis-clases-estudiante')" [class.active]="currentUrl === '/dashboard-mis-clases-estudiante'">
           <span class="material-icons">school</span>
           <span class="sidebar-text">Mis Clases</span>

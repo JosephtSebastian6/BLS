@@ -101,8 +101,8 @@
           <div class="estudiantes-lista" *ngIf="claseSeleccionada.estudiantes?.length > 0">
             <h4>Lista de Estudiantes:</h4>
             <div class="estudiante-item" *ngFor="let estudiante of claseSeleccionada.estudiantes">
-              <span class="estudiante-nombre">{{ estudiante.nombre }}</span>
-              <span class="estudiante-email">{{ estudiante.email }}</span>
+              <span class="estudiante-nombre">{{ (estudiante?.nombres || estudiante?.nombre) ? ((estudiante?.nombres || '') + ' ' + (estudiante?.apellidos || '')) : estudiante }}</span>
+              <span class="estudiante-email">{{ estudiante?.email || estudiante?.username || (estudiante?.toString ? estudiante.toString() : '') }}</span>
             </div>
           </div>
         </div>
@@ -111,16 +111,13 @@
         <div class="asistencia-wrapper" *ngIf="claseSeleccionada?.estudiantes?.length > 0">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-top:1rem;">
             <h4 style="margin:0;">Asistencia</h4>
-            <button class="btn-meet" (click)="toggleAsistencia()">
-              {{ asistenciaEditando ? 'Cancelar' : 'Tomar asistencia' }}
-            </button>
           </div>
 
           <div *ngIf="asistenciaEditando" class="asistencia-panel" style="margin-top:0.8rem;">
             <div *ngFor="let estudiante of claseSeleccionada.estudiantes" class="asistencia-item" style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;">
-              <input type="checkbox" [checked]="isPresente(estudiante.email)" (change)="togglePresente(estudiante.email)" />
-              <span class="estudiante-nombre">{{ estudiante.nombre }}</span>
-              <span class="estudiante-email" style="color:#6b7280;">{{ estudiante.email }}</span>
+              <input type="checkbox" [checked]="isPresente(estudiante?.email || estudiante?.username || (estudiante?.toString ? estudiante.toString() : estudiante))" (change)="togglePresente(estudiante?.email || estudiante?.username || (estudiante?.toString ? estudiante.toString() : estudiante))" />
+              <span class="estudiante-nombre">{{ (estudiante?.nombres || estudiante?.nombre) ? ((estudiante?.nombres || '') + ' ' + (estudiante?.apellidos || '')) : estudiante }}</span>
+              <span class="estudiante-email" style="color:#6b7280;">{{ estudiante?.email || estudiante?.username || '' }}</span>
             </div>
             <div style="display:flex;gap:.6rem;margin-top:.8rem;">
               <button class="btn-meet" [disabled]="guardandoAsistencia" (click)="guardarAsistencia()">Guardar asistencia</button>
@@ -136,6 +133,9 @@
             📹 Unirse a Meet
           </button>
           <button class="btn-meet" (click)="verReporteClaseSeleccionada()">Ver reporte</button>
+          <button class="btn-meet" (click)="toggleAsistencia()" [disabled]="esClasePasada(claseSeleccionada)">
+            {{ asistenciaEditando ? 'Cancelar' : 'Tomar asistencia' }}
+          </button>
           <button (click)="cerrarModal()" class="btn-cerrar">Cerrar</button>
         </div>
       </div>

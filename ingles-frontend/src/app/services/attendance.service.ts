@@ -22,6 +22,23 @@ export class AttendanceService {
     return headers;
   }
 
+  // ===== Empresa =====
+  getEmpresaClases(desde?: string, hasta?: string): Observable<any[]> {
+    const params: any = {};
+    if (desde) params.desde = desde;
+    if (hasta) params.hasta = hasta;
+    return this.http.get<any[]>(`${this.baseUrl}/auth/empresa/clases`, {
+      headers: this.getHeaders(),
+      params
+    });
+  }
+
+  getAsistenciaEmpresa(claseId: number): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/auth/empresa/clases/${claseId}/asistencia`, {
+      headers: this.getHeaders()
+    });
+  }
+
   // Intenta obtener del backend, si falla usa localStorage
   getAsistencia(claseId: number): Observable<AsistenciaRegistro | null> {
     return this.http

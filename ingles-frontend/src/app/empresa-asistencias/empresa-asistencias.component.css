@@ -1,0 +1,17 @@
+.empresa-asistencias{padding:2rem;}
+.filtros{display:flex;gap:1rem;align-items:end;margin-bottom:1rem}
+.filtros input{padding:.5rem .75rem;border:1px solid #e5e7eb;border-radius:8px}
+.btn{background:#667eea;color:#fff;border:2px solid #667eea;border-radius:10px;padding:.55rem 1.1rem;font-weight:700;cursor:pointer}
+.btn-sm{background:#667eea;color:#fff;border:2px solid #667eea;border-radius:10px;padding:.35rem .8rem;font-weight:700;cursor:pointer}
+.loading{padding:1rem;color:#6b7280}
+.error{padding:.6rem 1rem;border:1px solid #fecaca;background:#fee2e2;color:#b91c1c;border-radius:10px;margin:.5rem 0}
+.empty{padding:1rem;color:#6b7280}
+.tabla{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+.tabla th,.tabla td{padding:.6rem .75rem;border-bottom:1px solid #e5e7eb;text-align:left}
+.badge{display:inline-block;padding:.2rem .5rem;border-radius:999px;font-weight:700;font-size:.8rem}
+.badge.ok{background:#dcfce7;color:#065f46}
+.badge.warn{background:#fee2e2;color:#991b1b}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:3000}
+.modal{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.18);padding:1.25rem 1.5rem;min-width:320px;max-width:90vw}
+.modal-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1rem}
+.scroll{max-height:60vh;overflow:auto;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem}
