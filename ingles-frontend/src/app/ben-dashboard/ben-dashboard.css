@@ -85,7 +85,7 @@
 }
 
 .description-section h2 {
-  font-size: 3.5rem;
+  font-size: 4rem;
   font-weight: 700;
   color: #2c3e50;
   margin-bottom: 3rem;
@@ -126,7 +126,7 @@
   left: 0;
   color: #667eea;
   font-weight: bold;
-  font-size: 1.2rem;
+  font-size: 1.8rem;
 }
 
 .description-image {
@@ -135,7 +135,7 @@
 
 .description-image img {
   width: 100%;
-  max-width: 500px;
+  max-width: 600px;
   height: auto;
   border-radius: 15px;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
@@ -143,7 +143,7 @@
 
 .parallax-section {
   position: relative;
-  height: 700px;
+  height: 750px;
   overflow: hidden;
   background-image: url('https://static.wixstatic.com/media/2dcb45_178685ad4544492f98b83a104d52f466~mv2.jpg/v1/fill/w_3000,h_1570,al_t,q_90,enc_avif,quality_auto/2dcb45_178685ad4544492f98b83a104d52f466~mv2.jpg');
   background-size: cover;
@@ -173,8 +173,8 @@
 .logistics-cards {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 3rem;
-  max-width: 1400px;
+  gap: 3.5rem; /* más separación */
+  max-width: 1500px; /* contenedor un poco más ancho */
   margin: 0 auto;
   grid-template-areas: 
     "card1 card2"
@@ -201,24 +201,24 @@
 .logistics-card:nth-child(4) { grid-area: card4; }
 .logistics-card:nth-child(5) { 
   grid-area: card5; 
-  max-width: 400px;
+  max-width: 460px; /* tarjeta inferior más ancha */
   margin: 0 auto;
 }
 
 .card-content {
   display: flex;
   align-items: center;
-  padding: 2.5rem;
-  gap: 2.5rem;
+  padding: 3rem; /* más altura general */
+  gap: 3rem;     /* mayor separación entre texto e imagen */
 }
 
 .card-text {
   flex: 1;
   text-align: left;
-}
+} 
 
 .card-text p {
-  font-size: 1.2rem;
+  font-size: 1.5rem; /* texto más grande */
   color: #2c3e50;
   line-height: 1.5;
   margin: 0;
@@ -227,8 +227,8 @@
 
 .card-image {
   flex-shrink: 0;
-  width: 180px;
-  height: 120px;
+  width: 220px;  /* imagen más grande */
+  height: 140px; /* proporcional */
   border-radius: 10px;
   overflow: hidden;
 }
@@ -242,11 +242,12 @@
 .contact-section {
   padding: 4rem 2rem;
   background-image: url('https://static.wixstatic.com/media/432fd4b16bfe4d7895714903116c0ef3.jpg/v1/fill/w_4480,h_1264,al_t,q_90,usm_0.66_1.00_0.01,enc_avif,quality_auto/432fd4b16bfe4d7895714903116c0ef3.jpg');
-  background-size: cover;
-  background-position: center;
+  background-size: cover; /* sin zoom, cubre el contenedor */
+  background-position: center; /* centrada */
   background-repeat: no-repeat;
   text-align: center;
   position: relative;
+  min-height: 800px; /* más largo */
 }
 
 .contact-section::before {
@@ -642,6 +643,12 @@
   
   .contact-content {
     max-width: 90%;
+  }
+  /* En móviles, volvemos a cover para evitar recortes excesivos */
+  .contact-section {
+    background-size: cover;
+    background-position: center;
+    min-height: 480px; /* ligeramente más bajo en móvil */
   }
   
   .footer-content {

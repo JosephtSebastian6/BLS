@@ -53,7 +53,7 @@ export class RegisterComponent implements OnInit {
       password: this.password,
       nombres: this.nombres,
       apellidos: this.apellidos,
-      tipo_usuario: this.tipo_usuario
+      tipo_usuario: 'estudiante' // Forzar registro público como estudiante
     };
 
     console.log('¡¡DEBUG: Datos de usuario a enviar:', userData);

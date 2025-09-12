@@ -19,7 +19,7 @@
   height: 700px;
   background-image: url('https://static.wixstatic.com/media/2dcb45_69f6a30e454e46f59875257293dc778f~mv2.jpg/v1/fill/w_3000,h_762,al_c,q_90,enc_avif,quality_auto/2dcb45_69f6a30e454e46f59875257293dc778f~mv2.jpg');
   background-size: cover;
-  background-position: center;
+  background-position: center 75%; /* baja aún más el encuadre */
   background-repeat: no-repeat;
   display: flex;
   align-items: center;
@@ -112,13 +112,18 @@
   text-align: center !important;
 }
 
+/* Ensancha el contenedor solo en esta sección para permitir más recorrido a la derecha */
+.description-section .section-container {
+  max-width: 1600px !important;
+}
+
 .description-content {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4rem;
+  grid-template-columns: 0.55fr 1.45fr; /* mucha más prioridad a la columna de la imagen */
+  gap: 10rem !important; /* separación mayor y con prioridad */
   align-items: flex-start;
   text-align: left;
-  max-width: 1400px;
+  max-width: 1600px; /* contenedor más ancho */
   margin: 0 auto;
 }
 
@@ -172,24 +177,51 @@
   font-size: 1.2rem;
 }
 
+.description-text {
+  justify-self: start !important; /* texto pegado a la izquierda de su columna */
+}
+
 .description-image {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end; /* mueve la imagen hacia la derecha */
   align-items: flex-start;
-  width: 100% !important;
-  flex: 1 !important;
-  padding-right: 0;
+  width: auto !important;      /* NO ocupar todo el ancho de la columna */
+  flex: initial !important;    /* evita que se expanda */
+  justify-self: end !important;           /* alinea el item al borde derecho del grid */
+  padding-right: 0; /* el gap y el grid hacen la separación */
+  margin-left: 4rem !important; /* separación visible desde la lista */
   margin-right: 0;
   margin-top: 2rem;
 }
 
 .description-image img {
-  width: 600px !important;
-  height: 450px !important;
+  width: 720px !important;   /* más grande */
+  height: 520px !important;  /* proporcional */
   object-fit: cover !important;
   border-radius: 15px !important;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
   transition: var(--transition) !important;
+  display: block !important;
+  margin-left: auto !important; /* empuja la imagen al borde derecho dentro de su contenedor */
+  transform: translateX(60px) !important; /* desplazamiento visible sin media query */
+}
+
+/* En pantallas grandes, empuja visualmente la imagen un poco a la derecha */
+/* (el desplazamiento ya es global; no es necesario media query) */
+
+/* En pantallas medianas, volvemos a centrado para evitar desbordes */
+@media (max-width: 1199px) {
+  .description-content {
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+  }
+  .description-image {
+    justify-self: center !important;
+    padding-right: 0;
+  }
+  .description-image img {
+    transform: none !important;
+  }
 }
 
 .description-image img:hover {
@@ -275,9 +307,9 @@
 }
 
 .card-content p {
-  font-size: 2.3rem !important;
-  font-weight: 500 !important;
-  color: var(--text-primary) !important;
+  font-size: 1.7rem !important;
+  font-weight: 400 !important; /* quitar negrilla */
+  color: #4b5563 !important; /* tono más suave (gris slate-600) */
   line-height: 1.5 !important;
   margin: 0 !important;
 }
@@ -407,6 +439,7 @@
     height: 400px;
     margin-left: calc(-50vw + 50%);
     width: 100vw;
+    background-position: center 80%; /* aún más abajo en móvil */
   }
   
   .hero-title-box {

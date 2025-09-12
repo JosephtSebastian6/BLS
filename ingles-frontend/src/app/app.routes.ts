@@ -33,6 +33,7 @@ import { ExpDashboard } from './exp-dashboard/exp-dashboard';
 import { IpcDashboard } from './ipc-dashboard/ipc-dashboard';
 import { EteDashboard } from './ete-dashboard/ete-dashboard';
 import { Nosotros } from './nosotros/nosotros';
+import { AdminDashboardComponent } from './admin/admin-dashboard.component';
 
 
 export const routes: Routes = [
@@ -104,5 +105,6 @@ export const routes: Routes = [
   { path: 'exp', component: ExpDashboard },
   { path: 'ipc', component: IpcDashboard },
   { path: 'ete', component: EteDashboard },
+  { path: 'admin', component: AdminDashboardComponent, canActivate: [RoleGuard], data: { expectedRole: 'admin' } },
   { path: 'matricula-inactiva', component: MatriculaInactivaComponent },
 ];

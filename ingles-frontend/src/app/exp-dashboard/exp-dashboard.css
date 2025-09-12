@@ -1,3 +1,13 @@
+/* Título centrado encima de ambas columnas */
+.description-title-center {
+  font-size: 3.2rem;
+  font-weight: 700;
+  color: var(--secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+  margin: 0 0 2rem 0;
+}
 :root {
   --primary-color: #667eea;
   --secondary-color: #1f2937;
@@ -117,18 +127,20 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4rem;
-  align-items: center;
+  align-items: flex-start; /* alinea el contenido arriba */
   text-align: left;
+  margin-top: 12rem !important; /* baja lista e imagen respecto al título */
 }
 
 .description-section .description-text h2 {
   font-size: 3.5rem !important;
   font-weight: 700 !important;
   color: var(--secondary-color) !important;
-  margin-bottom: 2rem !important;
+  margin-bottom: 2rem !important; /* más espacio bajo el título */
+  margin-top: 0 !important; /* sin desplazamiento negativo */
   text-transform: uppercase !important;
   letter-spacing: 1px !important;
-  text-align: center !important;
+  text-align: center !important; /* centrado como en el diseño */
   width: 100% !important;
 }
 
@@ -137,6 +149,16 @@
   color: var(--secondary-color);
   margin-bottom: 2rem;
   line-height: 1.6;
+}
+
+/* Espacio entre el título y la lista (moderado) */
+.description-text ul {
+  margin-top: 1rem !important;
+}
+
+/* Baja un poco solo la columna de la lista */
+.description-text {
+  margin-top: 4rem !important;
 }
 
 .skill-category {
@@ -159,7 +181,7 @@
   padding: 0.5rem 0;
   color: var(--secondary-color);
   position: relative;
-  font-size: 1.4rem;
+  font-size: 1.8rem;
   line-height: 1.5;
 }
 
@@ -180,7 +202,7 @@
 
 .description-image img {
   width: 100% !important;
-  max-width: 750px !important;
+  max-width: 650px !important; /* ligeramente más pequeña */
   height: auto !important;
   border-radius: 15px !important;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;

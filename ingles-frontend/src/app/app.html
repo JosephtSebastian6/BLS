@@ -1,5 +1,11 @@
 <header>
-  <h1>BLS</h1>
+  <h1 class="site-logo">
+    <img
+      class="logo-img"
+      src="https://static.wixstatic.com/media/2dcb45_dd8ebe3073434368999692fcf9adf52e~mv2.png/v1/fill/w_258,h_134,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/Logo%20Negativo.png"
+      alt="BLS Corporate English"
+    />
+  </h1>
   <nav>
     <div class="nav-links">
       <ng-container *ngIf="!isLoggedIn">
@@ -22,12 +28,13 @@
           </ul>
         </li>
         <li><a routerLink="/nosotros">Nosotros</a></li>
-        <li><a href="https://wa.me/573153164146" target="_blank">Contacto</a></li>
+        <li><a href="https://wa.me/573014893304" target="_blank">Contacto</a></li>
         <a routerLink="/login">Inicio de Sesión</a> |
         <a routerLink="/register">Registrarse</a>
        
         </ng-container>
       <ng-container *ngIf="isLoggedIn">
+        <a *ngIf="isAdmin" routerLink="/admin">Admin</a>
         <button (click)="cerrarSesion()" class="logout-btn" title="Cerrar sesión">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#2563eb" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" />

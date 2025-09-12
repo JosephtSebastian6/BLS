@@ -36,6 +36,84 @@ authRouter = APIRouter()
 security = HTTPBearer()
 
 
+# ===== Helpers/Endpoints de Administración =====
+def require_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        tipo_usuario: str | None = payload.get("tipo_usuario")
+        username: str | None = payload.get("sub")
+        if tipo_usuario != "admin":
+            raise HTTPException(status_code=403, detail="Acceso solo para administradores")
+        return {"username": username, "tipo_usuario": tipo_usuario}
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+@authRouter.get("/admin/ping")
+def admin_ping(admin=Depends(require_admin)):
+    return {"ok": True, "message": "pong", "admin": admin}
+
+def require_roles(roles: list[str]):
+    def _dep(credentials: HTTPAuthorizationCredentials = Depends(security)):
+        try:
+            payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+            tipo_usuario: str | None = payload.get("tipo_usuario")
+            username: str | None = payload.get("sub")
+            if not tipo_usuario or tipo_usuario not in roles:
+                raise HTTPException(status_code=403, detail="Acceso no autorizado para este rol")
+            return {"username": username, "tipo_usuario": tipo_usuario}
+        except Exception:
+            raise HTTPException(status_code=401, detail="Token inválido")
+    return _dep
+
+
+# ===== Gestión de usuarios (solo admin)
+@authRouter.get("/admin/usuarios")
+def listar_usuarios(q: str | None = None, db: Session = Depends(get_db), admin=Depends(require_admin)):
+    """Lista todos los usuarios. Permite filtro básico por username o email con ?q= """
+    query = db.query(models.Registro)
+    if q:
+        like = f"%{q}%"
+        query = query.filter((models.Registro.username.like(like)) | (models.Registro.email.like(like)))
+    rows = query.order_by(models.Registro.username.asc()).all()
+    return [
+        {
+            "username": r.username,
+            "email": r.email,
+            "nombres": r.nombres,
+            "apellidos": r.apellidos,
+            "tipo_usuario": r.tipo_usuario,
+            "matricula_activa": r.matricula_activa,
+        }
+        for r in rows
+    ]
+
+
+class CambiarRolBody(BaseModel):
+    tipo_usuario: str
+
+
+@authRouter.put("/admin/usuarios/{username}/rol")
+def cambiar_rol_usuario(username: str, body: CambiarRolBody, db: Session = Depends(get_db), admin=Depends(require_admin)):
+    """Cambia el tipo_usuario de un usuario existente. Valores válidos: estudiante, profesor, empresa, admin."""
+    valido = {"estudiante", "profesor", "empresa", "admin"}
+    if body.tipo_usuario not in valido:
+        raise HTTPException(status_code=400, detail=f"tipo_usuario inválido. Válidos: {', '.join(sorted(valido))}")
+    user = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    user.tipo_usuario = body.tipo_usuario
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {
+        "username": user.username,
+        "tipo_usuario": user.tipo_usuario,
+        "email": user.email,
+        "nombres": user.nombres,
+        "apellidos": user.apellidos,
+    }
+
+
 # Endpoint para actualizar el perfil del estudiante
 
 @authRouter.put("/update-perfil")
@@ -357,12 +435,12 @@ def obtener_profesores(db: Session = Depends(get_db)):
 
 # Endpoints para gestión de matrículas
 @authRouter.get("/matriculas/", response_model=List[schemas.UsuarioResponse])
-def obtener_matriculas(db: Session = Depends(get_db)):
+def obtener_matriculas(db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa"]))):
     """Obtiene todos los estudiantes registrados en la plataforma"""
     return crud.obtener_estudiantes(db)
 
 @authRouter.put("/matriculas/{username}/toggle")
-def toggle_matricula(username: str, db: Session = Depends(get_db)):
+def toggle_matricula(username: str, db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa"]))):
     """Activa o desactiva la matrícula de un estudiante"""
     estudiante = crud.toggle_matricula_estudiante(db, username)
     if not estudiante:
@@ -375,12 +453,12 @@ def toggle_matricula(username: str, db: Session = Depends(get_db)):
 
 # Endpoints para gestión de unidades
 @authRouter.post("/unidades/sync")
-def sincronizar_unidades(unidades: List[dict], db: Session = Depends(get_db)):
+def sincronizar_unidades(unidades: List[dict], db: Session = Depends(get_db), admin=Depends(require_admin)):
     """Sincroniza las unidades del frontend con la base de datos"""
     return crud.sincronizar_unidades(db, unidades)
 
 @authRouter.get("/unidades/", response_model=List[dict])
-def obtener_unidades(db: Session = Depends(get_db)):
+def obtener_unidades(db: Session = Depends(get_db), admin=Depends(require_admin)):
     """Obtiene todas las unidades disponibles"""
     return crud.obtener_unidades(db)
 

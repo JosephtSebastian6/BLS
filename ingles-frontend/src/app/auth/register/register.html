@@ -38,15 +38,11 @@
           <input id="password" type="password" [(ngModel)]="password" name="password" required>
         </div>
 
-        <!-- Campo de Tipo de Usuario -->
+        <!-- Nota: El registro público crea cuentas de Estudiante. Otros roles se asignan por un Administrador. -->
         <div class="form-field">
-          <label for="tipo_usuario">Tipo de usuario*</label>
-          <select id="tipo_usuario" [(ngModel)]="tipo_usuario" name="tipo_usuario" required>
-            <option value="" disabled selected>Selecciona un tipo de usuario</option>
-            <option value="estudiante">Estudiante</option>
-            <option value="profesor">Profesor</option>
-            <option value="empresa">Empresa</option>
-          </select>
+          <label>Rol</label>
+          <input type="text" value="Estudiante" disabled>
+          <small>Los roles de Profesor y Empresa los asigna un Administrador.</small>
         </div>
 
         <!-- Botón de Registro -->

@@ -23,7 +23,7 @@
 header {
   background: linear-gradient(135deg, var(--gray-900) 0%, var(--gray-800) 100%);
   color: white;
-  padding: var(--spacing-4) var(--spacing-6);
+  padding: 1.6rem 2.25rem; /* barra más alta */
   position: fixed;
   width: 100%;
   top: 0;
@@ -48,9 +48,14 @@ header h1 {
   gap: var(--spacing-3);
 }
 
-header h1::before {
-  content: '🎓';
-  font-size: var(--font-size-3xl);
+/* logo dentro del h1 */
+.site-logo {
+  margin: 0;
+}
+.site-logo .logo-img {
+  height: 60px; /* tamaño del logo en la barra */
+  width: auto;
+  display: block;
 }
 
 nav {
@@ -61,7 +66,7 @@ nav {
 
 .nav-links {
   display: flex;
-  gap: 2.5rem;
+  gap: 3.25rem; /* más separación entre botones */
   align-items: center;
 }
 
@@ -70,7 +75,7 @@ nav a {
   text-decoration: none;
   font-weight: 500;
   font-size: var(--font-size-sm);
-  padding: var(--spacing-2) var(--spacing-4);
+  padding: var(--spacing-2) 1.25rem; /* un poco más de aire lateral */
   border-radius: var(--border-radius);
   transition: all var(--transition-fast);
   position: relative;

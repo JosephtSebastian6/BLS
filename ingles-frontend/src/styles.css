@@ -84,7 +84,8 @@ html, body {
   padding: 0;
   height: 100%;
   width: 100%;
-  overflow: auto;
+  overflow-x: hidden; /* bloquea scroll horizontal */
+  overflow-y: auto;   /* mantiene scroll vertical */
   scroll-behavior: smooth;
   font-family: var(--font-family);
   background-color: var(--gray-50);

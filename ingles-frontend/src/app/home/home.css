@@ -16,7 +16,7 @@
 /* Imagen separadora tipo parallax entre Capacitaciones y Propuesta de Valor */
 .parallax-divider {
   width: 100%;
-  height: 700px;
+  height: 730px;
   background-image: url('https://static.wixstatic.com/media/2dcb45_962daa90b3614d63a4129eeea8c7e4d5~mv2.jpg/v1/fill/w_2710,h_1418,al_c,q_90,enc_avif,quality_auto/2dcb45_962daa90b3614d63a4129eeea8c7e4d5~mv2.jpg');
   background-size: cover;
   background-position: center;
@@ -65,13 +65,13 @@
   margin: 0 auto;
 }
 .advantage-text h3 {
-  font-size: 1.6em;
+  font-size: 2.3em;
   font-weight: 700;
   color: #14213d;
-  margin-bottom: 10px;
+  margin-bottom: 10px; 
 }
 .advantage-text p {
-  font-size: 1.2rem;
+  font-size: 1.6rem;
   color: #263159;
   line-height: 1.5;
   margin: 0;
@@ -79,13 +79,102 @@
 .hero-section {
   background: linear-gradient(120deg, #2563eb 60%, #4f8cff 100%);
   color: #fff;
-  min-height: 500px;
+  /* Altura responsiva: nunca menor a 360px, ideal ~26vw, máximo 620px */
+  min-height: clamp(360px, 26vw, 620px);
   padding-top: 0;
   padding-bottom: 0;
-  margin-top: 0;
-  background-image: url('https://static.wixstatic.com/media/2dcb45_ad3c716c114f4e9080096d5a7bc7379e~mv2.jpg/v1/fill/w_1920,h_432,al_c,q_85,enc_avif,quality_auto/2dcb45_ad3c716c114f4e9080096d5a7bc7379e~mv2.jpg');
-  background-size: cover;
-  background-position: center;
+  margin-top: 75px; /* Bajar un poco el contenedor del header */
+}
+
+/* Carrusel header */
+.hero-carousel {
+  position: relative;
+  width: 100%;
+  /* Igual a la altura del hero para mantener proporción en todas las resoluciones */
+  height: clamp(360px, 26vw, 620px);
+  overflow: hidden;
+}
+
+.hero-slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover; /* equivale a object-fit: cover */
+  background-position: 50% 50%; /* equivale a object-position: 50% 50% */
+  opacity: 0;
+  /* Eliminar escalado para evitar efecto de zoom */
+  transition: opacity .8s ease;
+}
+.hero-slide.active {
+  opacity: 1;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  /* Oscurecer un poco más para mejorar legibilidad del texto de las imágenes */
+  background: linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.55));
+}
+
+.hero-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,.35);
+  color: #fff;
+  border: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .2s ease, transform .15s ease;
+}
+.hero-nav:hover { background: rgba(0,0,0,.5); transform: translateY(-50%) scale(1.05); }
+.hero-nav.prev { left: 16px; }
+.hero-nav.next { right: 16px; }
+
+.hero-dots {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 14px;
+  display: flex;
+  gap: 8px;
+}
+.hero-dots .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.55);
+  border: 1px solid rgba(255,255,255,.7);
+  cursor: pointer;
+}
+.hero-dots .dot.active { background: var(--primary-color, #667eea); border-color: var(--primary-color, #667eea); }
+
+/* Focal points por slide (ajustables) */
+.hero-slide.pos-0 { background-position: 50% 40%; }
+.hero-slide.pos-1 { background-position: 50% 60% !important; }
+.hero-slide.pos-2 { background-position: 50% 70% !important; }
+.hero-slide.pos-3 { background-position: 50% 38%; }
+.hero-slide.pos-4 { background-position: 50% 42%; }
+
+/* Alturas responsive */
+@media (max-width: 1024px) {
+  .hero-section { min-height: 560px; }
+  .hero-carousel { height: 560px; }
+  .hero-section { margin-top: 20px; }
+}
+@media (max-width: 768px) {
+  .hero-section { min-height: 440px; }
+  .hero-carousel { height: 440px; }
+  .hero-section { margin-top: 16px; }
+}
+@media (max-width: 480px) {
+  .hero-section { min-height: 360px; }
+  .hero-carousel { height: 360px; }
+  .hero-section { margin-top: 12px; }
 }
 .navbar {
   display: flex;
@@ -171,7 +260,7 @@
   position: relative;
   display: flex;
   justify-content: center;
-  min-height: 600px;
+  min-height: 750px;
   width: 100%;
   margin: 0;
   padding: 0;
@@ -476,7 +565,7 @@
 .capacitaciones-title {
   font-size: 4.5rem;
   font-weight: 600;
-  color: #333;
+  color: #14213d;
   margin-bottom: 30px;
   line-height: 1.3;
   max-width: 800px;
@@ -486,7 +575,7 @@
 
 .capacitaciones-subtitle {
   font-size: 1.9rem;
-  color: #666;
+  color: #263159;
   line-height: 1.6;
   max-width: 700px;
   margin: 0 auto 50px;
@@ -517,12 +606,12 @@
   align-items: flex-start;
   margin-bottom: 20px;
   font-size: 1.6rem;
-  color: #333;
+  color: #263159;
   line-height: 1.7;
 }
 
 .feature-icon {
-  color: #333;
+  color: #263159;
   margin-right: 15px;
   font-size: 1rem;
   margin-top: 2px;
@@ -759,21 +848,24 @@
   overflow-x: hidden;
 }
 .value-prop-section h2 {
-  font-size: 2.6em;
+  font-size: 3.5em;
   font-weight: bold;
   color: #14213d;
   margin-bottom: 12px;
 }
 .value-prop-subtitle {
-  font-size: 1.25em;
+  font-size: 1.7em;
   color: #263159;
-  margin-bottom: 40px;
+  /* Más espacio debajo del subtítulo */
+  margin-bottom: 80px;
 }
 .value-prop-list {
   display: flex;
   justify-content: center;
   gap: 60px;
   flex-wrap: wrap;
+  /* Empuja hacia abajo los círculos y sus textos */
+  margin-top: 100px !important;
 }
 .value-prop-item {
   flex: 1 1 320px;
@@ -793,17 +885,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 30px auto;
+  /* Separa un poco más el número del título */
+  margin: 0 auto 36px auto;
 }
 .value-prop-item h3 {
-  font-size: 1.9em;
+  font-size: 2.1em;
   font-weight: bold;
   color: #14213d;
   margin-bottom: 22px;
   margin-top: 0;
 }
 .value-prop-item p {
-  font-size: 1.3em;
+  font-size: 1.6em;
   color: #263159;
   line-height: 1.6;
   margin: 0;
@@ -829,7 +922,7 @@
 }
 
 .features-program-section h2 {
-  font-size: 2.5em;
+  font-size: 3em;
   font-weight: bold;
   color: #14213d;
   margin-bottom: 32px;
@@ -838,11 +931,11 @@
 .features-program-list {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 48px 40px;
+  gap: 64px 56px;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 4px 18px rgba(37,99,235,0.08);
-  padding: 36px 24px;
+  padding: 44px 32px;
   max-width: 1000px;
   margin: 0 auto;
 }
@@ -857,13 +950,13 @@
 }
 
 .feature-program-item .material-icons {
-  font-size: 5.5em;
+  font-size: 7em;
   color: #263159;
-  margin-bottom: 20px;
+  margin-bottom: 26px;
 }
 
 .feature-program-item p {
-  font-size: 1.15em;
+  font-size: 1.5em;
   color: #263159;
   margin: 0;
 }
@@ -872,21 +965,35 @@
 @media (max-width: 900px) {
   .features-program-list {
     grid-template-columns: repeat(2, 1fr);
-    gap: 32px 20px;
-    padding: 24px 4px;
+    gap: 36px 24px;
+    padding: 28px 8px;
+  }
+  /* Mantiene íconos grandes pero un poco más contenidos en pantallas medianas */
+  .feature-program-item .material-icons {
+    font-size: 6em;
+  }
+  .feature-program-item p {
+    font-size: 1.2em;
   }
 }
 
 @media (max-width: 600px) {
   .features-program-list {
     grid-template-columns: 1fr;
-    gap: 32px;
-    padding: 24px 4px;
+    gap: 36px;
+    padding: 28px 8px;
   }
   
   .feature-program-item {
     width: 140px;
     min-width: 120px;
+  }
+  /* Tamaño adecuado en móviles */
+  .feature-program-item .material-icons {
+    font-size: 5.5em;
+  }
+  .feature-program-item p {
+    font-size: 1.1em;
   }
 }
 
@@ -898,7 +1005,7 @@
   padding: 0 16px 60px 16px;
 }
 .advantages-section h2 {
-  font-size: 2.5em;
+  font-size: 3.5em;
   font-weight: 700;
   color: #14213d;
   margin-bottom: 48px;
@@ -907,7 +1014,7 @@
 .advantages-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 56px 80px;
+  gap: 74px 110px;
   justify-items: center;
 }
 .advantage-item {
@@ -920,15 +1027,14 @@
   gap: 22px;
   margin: 0 auto;
 }
-.advantage-item img {
-  width: 120px;
-  height: 120px;
+.advantages-section .advantage-img img {
+  width: 300px !important;
+  height: 300px !important;
   object-fit: cover;
   border-radius: 16px;
   margin-bottom: 0;
-  box-shadow: 0 2px 16px rgba(37,99,235,0.10);
+  box-shadow: 0 8px 24px rgba(20,33,61,0.18);
   background: #fff;
-  flex-shrink: 0;
 }
 .advantage-item-text {
   display: flex;
@@ -938,7 +1044,7 @@
   text-align: left;
 }
 .advantage-item h3 {
-  font-size: 1.15em;
+  font-size: 1.6em;
   font-weight: 700;
   color: #14213d;
   margin-bottom: 6px;
@@ -947,7 +1053,7 @@
   text-align: left;
 }
 .advantage-item p {
-  font-size: 1em;
+  font-size: 1.3em;
   color: #263159;
   line-height: 1.5;
   margin: 0;
@@ -961,9 +1067,9 @@
     gap: 10px;
     max-width: 320px;
   }
-  .advantage-item img {
-    width: 100px;
-    height: 100px;
+  .advantages-section .advantage-img img {
+    width: 240px !important;
+    height: 240px !important;
   }
   .advantage-item-text {
     align-items: center;
