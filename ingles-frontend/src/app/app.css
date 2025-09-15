@@ -66,8 +66,20 @@ nav {
 
 .nav-links {
   display: flex;
-  gap: 3.25rem; /* más separación entre botones */
+  gap: 4.5rem; /* más separación entre botones */
   align-items: center;
+}
+
+/* Asegurar que cada item tenga su propio espacio (li y anchors sueltos) */
+.nav-links > li { list-style: none; }
+.nav-links > li, .nav-links > a {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Ampliar área clickeable ligeramente para evitar solapes sutiles */
+nav a {
+  padding: var(--spacing-2) 1.4rem; /* antes 1.25rem */
 }
 
 nav a {
@@ -180,6 +192,7 @@ nav a:hover::before {
 
 /* Responsive */
 @media (max-width: 768px) {
+  .nav-links { gap: 2rem; }
   .dropdown-menu {
     min-width: 250px;
     left: -50px;

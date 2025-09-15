@@ -727,20 +727,20 @@
 }
 
 .footer-info h4 {
-  font-size: 1.1rem;
+  font-size: 1.6rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
   color: white;
 }
 
 .footer-info > p {
-  font-size: 0.9rem;
+  font-size: 1.2rem;
   color: #bdc3c7;
   margin-bottom: 1rem;
 }
 
 .footer-contact p {
-  font-size: 0.85rem;
+  font-size: 1.1rem;
   color: #bdc3c7;
   margin-bottom: 0.3rem;
   line-height: 1.4;
@@ -751,7 +751,7 @@
 }
 
 .footer-social h4 {
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   font-weight: 600;
   margin-bottom: 1rem;
   color: white;
@@ -791,7 +791,7 @@
 .footer-links a {
   color: #bdc3c7;
   text-decoration: none;
-  font-size: 0.85rem;
+  font-size: 1.1rem;
   transition: color 0.3s ease;
 }
 

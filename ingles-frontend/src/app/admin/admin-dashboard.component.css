@@ -9,12 +9,11 @@
   border: 1px solid rgba(0,0,0,0.06);
 }
 
-.admin-wrapper h2 {
-  margin: 0 0 1rem 0;
-  color: var(--secondary-color, #1f2937);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
+.admin-header { display:flex; align-items:center; justify-content: space-between; gap:1rem; }
+.admin-title { display:flex; align-items:center; gap:.8rem; }
+.admin-title .material-icons { color: var(--primary-color,#667eea); font-size: 2rem; }
+.admin-wrapper h2 { margin: 0; color: var(--secondary-color, #1f2937); text-transform: uppercase; letter-spacing: 1px; }
+.subtitle { margin: .2rem 0 0; color: #64748b; font-size: .95rem; }
 
 /* Botón primario */
 .btn {
@@ -27,6 +26,7 @@
   transition: transform .15s ease, box-shadow .2s ease;
 }
 .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(102,126,234,.35); }
+.btn:active { transform: translateY(0); }
 
 .actions { margin-bottom: .75rem; }
 .actions .btn { font-weight: 600; }
@@ -81,6 +81,11 @@
   font-size: .85rem;
   font-weight: 600;
 }
+/* Colores por rol */
+.badge.estudiante { background:#ecfeff; color:#0891b2; }
+.badge.profesor { background:#fef3c7; color:#b45309; }
+.badge.empresa { background:#e0f2fe; color:#0369a1; }
+.badge.admin { background:#fee2e2; color:#b91c1c; }
 
 select {
   padding: .5rem .7rem;
@@ -93,3 +98,5 @@ button { cursor: pointer; }
 button:hover { opacity: .95; }
 
 .msg { margin-top: .5rem; color: var(--secondary-color, #1f2937); opacity: .85; }
+
+.pagination { display:flex; align-items:center; gap:.6rem; justify-content:flex-end; margin-top: .8rem; }

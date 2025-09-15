@@ -1,7 +1,15 @@
 <div class="admin-wrapper">
-  <h2>Panel de Administración</h2>
-  <div class="actions">
-    <button (click)="pingAdmin()">Probar conexión (admin/ping)</button>
+  <div class="admin-header">
+    <div class="admin-title">
+      <span class="material-icons">admin_panel_settings</span>
+      <div>
+        <h2>Panel de Administración</h2>
+        <p class="subtitle">Gestiona roles, accesos y navegación rápida</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" (click)="pingAdmin()">Probar conexión</button>
+    </div>
   </div>
   <p class="msg" *ngIf="message">{{ message }}</p>
 
@@ -16,7 +24,7 @@
   <h3>Cambiar rol de usuario</h3>
   <div class="role-form">
     <input type="text" placeholder="Buscar usuario (username o email)" [(ngModel)]="query" (keyup.enter)="buscar()" />
-    <button (click)="buscar()">Buscar</button>
+    <button class="btn" (click)="buscar()">Buscar</button>
   </div>
 
   <div *ngIf="usuarios?.length">
@@ -36,7 +44,7 @@
           <td>{{ u.username }}</td>
           <td>{{ u.email }}</td>
           <td>{{ u.nombres }} {{ u.apellidos }}</td>
-          <td><span class="badge">{{ u.tipo_usuario }}</span></td>
+          <td><span [ngClass]="['badge', u.tipo_usuario]">{{ u.tipo_usuario }}</span></td>
           <td>
             <select [(ngModel)]="u._nuevoRol">
               <option value="estudiante">estudiante</option>
@@ -46,10 +54,15 @@
             </select>
           </td>
           <td>
-            <button (click)="cambiarRol(u)">Aplicar</button>
+            <button class="btn" (click)="cambiarRol(u)">Aplicar</button>
           </td>
         </tr>
       </tbody>
     </table>
+    <div class="pagination">
+      <button class="btn" (click)="setPage(page-1)">«</button>
+      <span>Página {{page}} / {{totalPages}}</span>
+      <button class="btn" (click)="setPage(page+1)">»</button>
+    </div>
   </div>
 </div>

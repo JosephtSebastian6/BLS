@@ -44,6 +44,8 @@ export class LoginComponent {
             this.router.navigate(['/dashboard-profesor']);
           } else if (response.tipo_usuario === 'empresa') {
             this.router.navigate(['/dashboard-empresa']);
+          } else if (response.tipo_usuario === 'admin') {
+            this.router.navigate(['/admin']);
           } else {
             this.router.navigate(['/dashboard']); // Fallback
           }
