@@ -134,3 +134,36 @@ Sugerencias para extender el manual:
 - Agregar capturas de pantalla clave: login, home, cada dashboard y panel admin.
 - Crear guías rápidas por rol separadas (1 página por rol).
 - Publicar este manual con **MkDocs** o **GitHub Pages** para acceso web.
+
+---
+
+## 12. Puesta en marcha en otro PC (Checklist)
+
+1) Preparar backend (FastAPI)
+   - Copiar `back/.env.example` → `back/.env` y completar variables:
+     - DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
+     - JWT_SECRET (cadena larga y única), JWT_ALGORITHM, JWT_EXP_MINUTES
+     - CORS_ALLOWED_ORIGINS (por ejemplo: `http://localhost:4200`)
+     - MAIL_* si se usa envío de correos
+   - Arrancar MySQL y crear la base de datos `bls` (o la que definas en `.env`).
+   - Iniciar el backend (uvicorn/fastapi). Verificar que no hay errores de conexión a DB ni variables faltantes.
+
+2) CORS
+   - Asegurar que el origen del frontend (ej. `http://localhost:4200`) esté incluido en `CORS_ALLOWED_ORIGINS`.
+   - Si ves errores CORS/401 en consola, revisa que el token esté presente y que el backend permita tu origen.
+
+3) Frontend (Angular)
+   - Instalar dependencias: `npm install` dentro de `ingles-frontend/`.
+   - Iniciar: `npm start` o `ng serve` (por defecto `http://localhost:4200`).
+   - Iniciar sesión para obtener token en `localStorage`.
+
+4) Datos iniciales
+   - Si el entorno es limpio, algunas vistas pueden mostrar vacío. Crea usuarios y matrículas según tu flujo.
+
+5) Diagnóstico rápido
+   - Consola del navegador → pestañas Network y Console para ver errores 401/CORS/404.
+   - Probar endpoint `/auth/admin/ping` desde el panel admin para confirmar token/rol.
+
+6) Seguridad
+   - No subas `back/.env` al repo. Versiona solo `back/.env.example`.
+   - Usa secretos reales solo en `.env` local o en tu servidor.

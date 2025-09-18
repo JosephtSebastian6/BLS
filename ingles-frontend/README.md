@@ -2,6 +2,22 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.1.3.
 
+## Environment variables (.env opcional)
+
+Para estandarizar configuraciones locales entre equipos, este proyecto incluye un archivo de ejemplo:
+
+```bash
+cp .env.example .env
+```
+
+Variables incluidas:
+
+- `NG_APP_API_BASE_URL` (ej: `http://localhost:8000`)
+- `NG_APP_APP_NAME`
+- `NG_APP_ENABLE_ANALYTICS`
+
+Nota: Angular no carga `.env` en runtime de forma nativa. Este archivo sirve como guía si decides consumir `NG_APP_*` en build o mediante un servicio de configuración. Aun sin refactor, mantener este archivo ayuda a documentar el entorno esperado.
+
 ## Development server
 
 To start a local development server, run:

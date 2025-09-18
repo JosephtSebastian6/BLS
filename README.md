@@ -72,23 +72,14 @@ pip install -r requirements.txt
 CREATE DATABASE academia_ingles;
 ```
 
-2. Configurar archivo `.env`:
-```env
-# Base de datos
-DB_HOST=localhost
-DB_USER=tu_usuario
-DB_PASSWORD=tu_contraseña
-DB_NAME=academia_ingles
-
-# JWT
-SECRET_KEY=tu_clave_secreta_muy_segura
-
-# Email (Gmail)
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-EMAIL_USER=tu_email@gmail.com
-EMAIL_PASSWORD=tu_app_password
-```
+2. Configurar archivo `.env` (no se versiona):
+   - Copia `back/.env.example` → `back/.env` y completa valores reales (DB, JWT, CORS, Mail).
+   - Campos principales:
+     - `DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME`
+     - `JWT_SECRET, JWT_ALGORITHM, JWT_EXP_MINUTES`
+     - `CORS_ALLOWED_ORIGINS` (ej: `http://localhost:4200`)
+     - `MAIL_*` si enviarás correos
+   - Guarda y reinicia el backend.
 
 #### Ejecutar backend
 ```bash
@@ -110,6 +101,10 @@ npm install
 npm start
 ```
 El frontend estará disponible en `http://localhost:4200`
+
+#### Variables del frontend (opcional)
+- Copia `ingles-frontend/.env.example` → `ingles-frontend/.env` si deseas estandarizar variables `NG_APP_*`.
+- Nota: Angular no lee `.env` en runtime por defecto; este archivo sirve como guía si se adopta un servicio/configuración para `NG_APP_API_BASE_URL`.
 
 ## 👥 Roles y Funcionalidades
 
@@ -233,8 +228,8 @@ npm install @angular/animations
 - Confirmar que la base de datos existe
 
 ### Error de CORS
-- Verificar configuración de CORS en `main.py`
-- Confirmar URLs del frontend en configuración
+- Verificar middleware CORS en `back/main.py` y que `CORS_ALLOWED_ORIGINS` del `.env` incluya el origen del frontend (ej: `http://localhost:4200`).
+- Confirmar que el backend está respondiendo (sin 401 por token faltante) y que el frontend envía el header Authorization cuando corresponde.
 
 ## 📄 Licencia
 
