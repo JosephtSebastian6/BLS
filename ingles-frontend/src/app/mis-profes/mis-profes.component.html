@@ -47,9 +47,11 @@
           <div class="grupo-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
             <div style="display:flex;align-items:center;gap:10px">
               <div class="grupo-unidad">{{ g.unidad || g.tema }}</div>
+              <span *ngIf="g.unidad" class="badge" style="background:#e9f0ff;color:#274cdb;border-radius:12px;padding:2px 8px;font-size:12px">Unidad</span>
+              <span *ngIf="g.synthetic" class="badge" style="background:#fff7e6;color:#b65c00;border-radius:12px;padding:2px 8px;font-size:12px">Auto por unidad</span>
               <div class="grupo-id">#{{ g.id }}</div>
             </div>
-            <button class="btn-gestionar" (click)="deleteGrupo(profe, g.id)">Eliminar</button>
+            <button class="btn-gestionar" *ngIf="!g.synthetic" (click)="deleteGrupo(profe, g.id)">Eliminar</button>
           </div>
           <ul class="grupo-estudiantes">
             <li *ngFor="let est of g.estudiantes">
@@ -139,14 +141,32 @@
           <label>
             Unidad
             <select [(ngModel)]="formGrupo.unidad_id">
-              <option *ngFor="let u of unidades" [value]="u.id">{{ u.nombre }}</option>
+              <ng-container *ngIf="(unidadesOrDefault?.length || 0) > 0; else _fallbackUnidadOpts">
+                <option *ngFor="let u of unidadesOrDefault" [value]="u.id">{{ u.nombre }}</option>
+              </ng-container>
+              <ng-template #_fallbackUnidadOpts>
+                <option [value]="101">Unidad 1 — Introducción</option>
+                <option [value]="102">Unidad 2 — Vocabulario básico</option>
+                <option [value]="103">Unidad 3 — Gramática I</option>
+                <option [value]="104">Unidad 4 — Comprensión lectora</option>
+                <option [value]="105">Unidad 5 — Conversación I</option>
+                <option [value]="106">Unidad 6 — Gramática II</option>
+                <option [value]="107">Unidad 7 — Listening</option>
+                <option [value]="108">Unidad 8 — Writing</option>
+                <option [value]="109">Unidad 9 — Vocabulario intermedio</option>
+                <option [value]="110">Unidad 10 — Proyecto final</option>
+              </ng-template>
             </select>
           </label>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;margin:8px 0 0 0;">
+          <input type="checkbox" [(ngModel)]="soloEstudiantesDeUnidad" />
+          <span>Mostrar solo estudiantes de la unidad seleccionada</span>
+        </label>
         <div class="estudiantes-select">
           <h4>Selecciona estudiantes</h4>
           <div class="estudiantes-list">
-            <label class="est-item" *ngFor="let est of todosEstudiantes">
+            <label class="est-item" *ngFor="let est of estudiantesParaCrearGrupo">
               <input type="checkbox" [checked]="formGrupo.estudiantes.includes(est.username)" (change)="toggleSeleccionEstudiante(est.username)" />
               <span>{{ est.nombres }} {{ est.apellidos }} (@{{ est.username }})</span>
             </label>

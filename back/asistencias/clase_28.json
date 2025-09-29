@@ -1,0 +1,29 @@
+{
+  "claseId": 28,
+  "presentes": [
+    "sebastian"
+  ],
+  "historial": [
+    {
+      "fechaISO": "2025-09-29",
+      "presentes": [
+        "sebastian"
+      ],
+      "timestamp": "2025-09-29T14:41:54.051580"
+    },
+    {
+      "fechaISO": "2025-09-29",
+      "presentes": [
+        "sebastian"
+      ],
+      "timestamp": "2025-09-29T14:43:47.040906"
+    },
+    {
+      "fechaISO": "2025-09-29",
+      "presentes": [
+        "sebastian"
+      ],
+      "timestamp": "2025-09-29T16:40:09.689948"
+    }
+  ]
+}

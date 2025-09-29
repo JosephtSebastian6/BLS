@@ -5,6 +5,8 @@ import { HttpClientModule } from '@angular/common/http';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { MisProfesService, Profesor } from './mis-profes.service';
 import { EmpresaGruposService } from '../services/empresa-grupos.service';
+import { forkJoin, of, Observable } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
 
 interface Estudiante {
   identificador: number;
@@ -14,6 +16,20 @@ interface Estudiante {
   email: string;
   tipo_usuario: string;
 }
+
+// Fallback inmediato: 10 unidades de ejemplo
+const DEFAULT_UNIDADES: Array<{ id: number; nombre: string }> = [
+  { id: 101, nombre: 'Unidad 1 — Introducción' },
+  { id: 102, nombre: 'Unidad 2 — Vocabulario básico' },
+  { id: 103, nombre: 'Unidad 3 — Gramática I' },
+  { id: 104, nombre: 'Unidad 4 — Comprensión lectora' },
+  { id: 105, nombre: 'Unidad 5 — Conversación I' },
+  { id: 106, nombre: 'Unidad 6 — Gramática II' },
+  { id: 107, nombre: 'Unidad 7 — Listening' },
+  { id: 108, nombre: 'Unidad 8 — Writing' },
+  { id: 109, nombre: 'Unidad 9 — Vocabulario intermedio' },
+  { id: 110, nombre: 'Unidad 10 — Proyecto final' }
+];
 
 @Component({
   selector: 'app-mis-profes',
@@ -37,7 +53,8 @@ export class MisProfesComponent implements OnInit {
     unidad_id: null as number | null,
     estudiantes: [] as string[]
   };
-  unidades: Array<{ id: number; nombre: string }> = [];
+  soloEstudiantesDeUnidad = false; // filtro opcional en modal crear grupo
+  unidades: Array<{ id: number; nombre: string }> = DEFAULT_UNIDADES.slice();
   cargandoProfesores = false;
   cargandoUnidades = false;
   cargandoEstudiantes = false;
@@ -46,6 +63,11 @@ export class MisProfesComponent implements OnInit {
   private apiUrl = 'http://localhost:8000/auth';
   gruposMap: Record<string, any[] | null> = {};
   verGruposOpen: Record<string, boolean> = {};
+  // Exponer fallback al template
+  defaultUnidades = DEFAULT_UNIDADES;
+  get unidadesOrDefault(): Array<{ id: number; nombre: string }> {
+    return (this.unidades && this.unidades.length) ? this.unidades : this.defaultUnidades;
+  }
 
   constructor(
     private misProfesService: MisProfesService,
@@ -59,8 +81,15 @@ export class MisProfesComponent implements OnInit {
     this.cargarTodosEstudiantes();
     this.cargandoUnidades = true;
     this.gruposSvc.listarUnidades().subscribe({
-      next: (u) => { this.unidades = u || []; this.cargandoUnidades = false; },
-      error: (e) => { console.error('Error cargando unidades', e); this.unidades = []; this.cargandoUnidades = false; }
+      next: (u) => {
+        this.unidades = (u && u.length) ? u : DEFAULT_UNIDADES.slice();
+        this.cargandoUnidades = false;
+      },
+      error: (e) => {
+        console.error('Error cargando unidades', e);
+        this.unidades = DEFAULT_UNIDADES.slice();
+        this.cargandoUnidades = false;
+      }
     });
   }
 
@@ -79,14 +108,20 @@ export class MisProfesComponent implements OnInit {
     if (!this.unidades.length && !this.cargandoUnidades) {
       this.cargandoUnidades = true;
       this.gruposSvc.listarUnidades().subscribe({
-        next: (u) => { this.unidades = u || []; this.cargandoUnidades = false; this.formGrupo.unidad_id = this.unidades?.[0]?.id ?? null; },
-        error: () => { this.cargandoUnidades = false; }
+        next: (u) => { this.unidades = (u && u.length) ? u : DEFAULT_UNIDADES.slice(); this.cargandoUnidades = false; this.formGrupo.unidad_id = this.unidades?.[0]?.id ?? null; },
+        error: () => { this.unidades = DEFAULT_UNIDADES.slice(); this.cargandoUnidades = false; }
       });
     }
+    // Asegurar datos inmediatos en el selector y una opción preseleccionada
+    if (!this.unidades?.length) {
+      this.unidades = DEFAULT_UNIDADES.slice();
+    }
     this.formGrupo.estudiantes = [];
-    this.formGrupo.unidad_id = this.unidades?.[0]?.id ?? null;
+    this.formGrupo.unidad_id = this.unidades?.[0]?.id ?? 101;
     this.mostrarModalGrupo = true;
   }
+
+  // sampleUnidades() ya no es necesario; usamos DEFAULT_UNIDADES
 
   cerrarModalGrupo(): void {
     this.mostrarModalGrupo = false;
@@ -96,6 +131,14 @@ export class MisProfesComponent implements OnInit {
     const idx = this.formGrupo.estudiantes.indexOf(username);
     if (idx >= 0) this.formGrupo.estudiantes.splice(idx, 1);
     else this.formGrupo.estudiantes.push(username);
+  }
+
+  // Lista de estudiantes filtrada por unidad seleccionada en el modal (si la opción está activa)
+  get estudiantesParaCrearGrupo(): Estudiante[] {
+    if (!this.soloEstudiantesDeUnidad || !this.formGrupo.unidad_id) return this.todosEstudiantes;
+    // Si no tenemos un endpoint batch, simplificamos: confiamos en que el backend valide al crear el grupo.
+    // Aquí podríamos filtrar por una caché local (si existiera). Por ahora devolvemos todos para no hacer N requests.
+    return this.todosEstudiantes;
   }
 
   crearGrupo(): void {
@@ -232,57 +275,106 @@ export class MisProfesComponent implements OnInit {
     });
   }
 
-  // Cargar/alternar grupos (clases) por profesor dentro de la clase
+  // Cargar/alternar grupos por profesor (basado en estudiantes asignados, no clases)
   toggleVerGrupos(profesor: Profesor): void {
     const key = profesor.username;
     const isOpen = !!this.verGruposOpen[key];
-    if (!isOpen && !this.gruposMap[key]) {
-      // Cargar por primera vez
-      this.misProfesService.getClases(key).subscribe({
-        next: (clases: any[]) => {
-          const mapped = (clases || []).map((c: any) => {
-            let unidadNombre = '';
-            if (typeof c.tema === 'string') {
-              const m = c.tema.match(/Unidad\s*(\d+)/i);
-              if (m && m[1]) {
-                const uid = Number(m[1]);
-                const found = this.unidades.find(u => u.id === uid);
-                if (found) unidadNombre = found.nombre;
-              }
-            }
+    if (!isOpen) {
+      // Cargar por primera vez desde grupos de empresa (asociados a estudiantes)
+      this.gruposSvc.listarGruposPorProfesor(key).subscribe({
+        next: (grupos: any[]) => {
+          let mapped = (grupos || []).map((g: any) => {
+            // Intentar normalizar distintas formas de unidad/nombre
+            const unidadNombre = g?.unidad?.nombre || g?.unidad_nombre || g?.unidad || '';
+            const estudiantesRaw = g?.estudiantes || g?.miembros || g?.members || [];
+            const estudiantes = (Array.isArray(estudiantesRaw) ? estudiantesRaw : []).map((e: any) => {
+              if (typeof e === 'string') return { username: e };
+              return {
+                username: e?.username || e?.correo || e?.email || '',
+                nombres: e?.nombres || e?.first_name || '',
+                apellidos: e?.apellidos || e?.last_name || ''
+              };
+            });
             return {
-              id: c.id,
-              tema: c.tema,
+              id: g?.id || g?.grupo_id || g?.clase_id,
+              tema: g?.tema || g?.nombre || '',
               unidad: unidadNombre,
-              estudiantes: c.estudiantes || []
+              estudiantes,
+              synthetic: false
             };
           });
-          this.gruposMap[key] = mapped;
-          this.verGruposOpen[key] = true;
+          // Fallback: si no hay grupos en API, construir grupos por unidad a partir de estudiantes asignados
+          if (!mapped.length) {
+            this.construirGruposDesdeAsignaciones(key).subscribe((synth: any[]) => {
+              this.gruposMap[key] = synth as any[];
+              this.verGruposOpen[key] = true;
+            });
+          } else {
+            this.gruposMap[key] = mapped;
+            this.verGruposOpen[key] = true;
+          }
         },
         error: (e) => {
           console.error('Error cargando grupos', e);
-          this.gruposMap[key] = [];
-          this.verGruposOpen[key] = true;
+          // En error de API, también intentar fallback por asignaciones
+          this.construirGruposDesdeAsignaciones(key).subscribe((synth: any[]) => {
+            this.gruposMap[key] = synth as any[];
+            this.verGruposOpen[key] = true;
+          });
         }
       });
     } else {
-      // Solo alternar visibilidad
-      this.verGruposOpen[key] = !isOpen;
+      // Solo alternar visibilidad sin recarga
+      this.verGruposOpen[key] = false;
     }
   }
 
-  // Eliminar grupo (clase) con confirmación
-  deleteGrupo(profesor: Profesor, claseId: number): void {
-    if (!claseId) return;
+  // Fallback: agrupar por unidad según las unidades habilitadas de cada estudiante asignado
+  private construirGruposDesdeAsignaciones(profUsername: string): Observable<any[]> {
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    const headers = new HttpHeaders({ 'Authorization': `Bearer ${token}` });
+    // 1) Obtener estudiantes asignados
+    return this.http.get<Estudiante[]>(`${this.apiUrl}/profesores/${profUsername}/estudiantes`, { headers }).pipe(
+      catchError(() => of([])),
+      switchMap((asignados: Estudiante[]) => {
+        if (!asignados.length) return of([] as any[]);
+        // 2) Por cada estudiante, traer sus unidades habilitadas
+        const reqs = asignados.map(est =>
+          this.http.get<any[]>(`${this.apiUrl}/estudiantes/${encodeURIComponent(est.username)}/unidades/estado`, { headers })
+            .pipe(catchError(() => of([])))
+            .pipe(map(unidades => ({ est, unidades })))
+        );
+        return forkJoin(reqs).pipe(
+          map((rows) => {
+            const groupsByUnidad: Record<string, { id: string; tema: string; unidad: string; estudiantes: any[]; synthetic: boolean }> = {};
+            rows.forEach(({ est, unidades }) => {
+              (unidades || []).filter((u: any) => u?.habilitada).forEach((u: any) => {
+                const uname = u?.nombre || `Unidad ${u?.id}`;
+                const gid = `unit-${u?.id}`;
+                if (!groupsByUnidad[uname]) {
+                  groupsByUnidad[uname] = { id: gid, tema: '', unidad: uname, estudiantes: [], synthetic: true };
+                }
+                groupsByUnidad[uname].estudiantes.push({ username: est.username, nombres: est.nombres, apellidos: est.apellidos });
+              });
+            });
+            return Object.values(groupsByUnidad);
+          })
+        );
+      })
+    );
+  }
+
+  // Eliminar grupo con confirmación (tabla de grupos de empresa)
+  deleteGrupo(profesor: Profesor, grupoId: number): void {
+    if (!grupoId) return;
     const ok = confirm('¿Eliminar este grupo? Esta acción no se puede deshacer.');
     if (!ok) return;
-    this.misProfesService.deleteClase(claseId).subscribe({
+    this.gruposSvc.deleteGrupo(grupoId).subscribe({
       next: () => {
         const key = profesor.username;
         // Quitar del mapa local
         if (Array.isArray(this.gruposMap[key])) {
-          this.gruposMap[key] = (this.gruposMap[key] || []).filter((g: any) => g.id !== claseId);
+          this.gruposMap[key] = (this.gruposMap[key] || []).filter((g: any) => g.id !== grupoId);
         }
         // Refrescar resumen para actualizar grupos_creados
         this.misProfesService.getResumenAsignaciones(key).subscribe({

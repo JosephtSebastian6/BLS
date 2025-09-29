@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common'; // Necesario para directivas comunes (*ngIf, *ngFor)
 import { RouterOutlet, RouterLink } from '@angular/router'; // Para el enrutamiento
 
@@ -11,6 +12,7 @@ import { RouterOutlet, RouterLink } from '@angular/router'; // Para el enrutamie
 })
 export class AppComponent {
   title = 'DriveFlow App';
+  constructor(private router: Router) {}
   get isLoggedIn(): boolean {
     return !!localStorage.getItem('user');
   }
@@ -44,5 +46,12 @@ export class AppComponent {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     window.location.href = '/login';
+  }
+
+  // Mostrar botón WhatsApp solo en Home
+  get showWhatsApp(): boolean {
+    const url = this.router?.url || '';
+    // Home puede ser '/'
+    return url === '/' || url.startsWith('/home');
   }
 }

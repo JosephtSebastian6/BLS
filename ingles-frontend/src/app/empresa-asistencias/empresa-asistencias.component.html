@@ -62,7 +62,7 @@
       <ng-container *ngIf="!detalleLoading && asistencia">
         <p><strong>Tema:</strong> {{ asistencia.tema }}</p>
         <p><strong>Fecha:</strong> {{ asistencia.fecha }} &nbsp; <strong>Hora:</strong> {{ asistencia.hora }}</p>
-        <p><strong>Resumen:</strong> {{ asistencia.presentes?.length || 0 }}</p>
+        <p><strong>Resumen:</strong> {{ asistencia.presentes_count || (asistencia.presentes?.length || 0) }}</p>
         <div class="scroll">
           <table class="tabla">
             <thead>
@@ -75,7 +75,7 @@
             <tbody>
             <tr *ngFor="let d of (asistencia.detalle || [])">
               <td>{{ d.nombre }}</td>
-              <td>{{ d.id }}</td>
+              <td>{{ d.id || d.email || d.username || d.identificador || d.usuario || d.correo }}</td>
               <td>{{ d.presente ? 'PRESENTE' : 'AUSENTE' }}</td>
             </tr>
             </tbody>
