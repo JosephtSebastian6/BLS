@@ -8,18 +8,23 @@ from sqlalchemy.orm import sessionmaker  # Importa herramientas de SQLAlchemy pa
 
 #Connect to the database
 
-host = 'localhost'  # Define el host del servidor MySQL
-user = 'root'  # Define el usuario de la base de datos
-password = ''  # Define la contraseña del usuario (vacía por ahora)
-database = 'academia'  # Nombre de la base de datos a la que se conectará
-port = 3306  # Puerto de conexión a MySQL
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+host = os.getenv('DB_HOST', 'localhost')  # Define el host del servidor MySQL
+user = os.getenv('DB_USER', 'root')  # Define el usuario de la base de datos
+password = os.getenv('DB_PASSWORD', '')  # Define la contraseña del usuario
+database = os.getenv('DB_NAME', 'academia')  # Nombre de la base de datos a la que se conectará
+port = int(os.getenv('DB_PORT', 3306))  # Puerto de conexión a MySQL
 
 mysqlConn = mysql.connector.Connect(  # Establece la conexión con la base de datos usando mysql.connector
-   host = 'localhost',  # Define el host del servidor MySQL
-   user = 'root' ,  # Define el usuario de la base de datos
-   #password = '',  # Define la contraseña del usuario (vacía por ahora)
-   database = 'academia',  # Nombre de la base de datos a la que se conectará
-   port = 3306  # Puerto de conexión a MySQL
+   host = host,  # Define el host del servidor MySQL
+   user = user,  # Define el usuario de la base de datos
+   password = password,  # Define la contraseña del usuario
+   database = database,  # Nombre de la base de datos a la que se conectará
+   port = port  # Puerto de conexión a MySQL
 )
 
 

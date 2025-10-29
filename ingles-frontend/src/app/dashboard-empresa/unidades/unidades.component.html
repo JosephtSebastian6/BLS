@@ -1,5 +1,12 @@
 <div class="unidades-wrap">
   <h2>Unidades</h2>
+
+  <div class="create-box">
+    <input type="text" placeholder="Nombre de la unidad" [(ngModel)]="nueva.nombre" />
+    <input type="text" placeholder="Descripción (opcional)" [(ngModel)]="nueva.descripcion" />
+    <button (click)="crearUnidad()" [disabled]="creando || !nueva.nombre">Crear</button>
+  </div>
+
   <div class="unidades-grid">
     <div class="unidad-card" *ngFor="let u of unidades">
       <div class="unidad-header">

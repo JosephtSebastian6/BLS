@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import os
 from urllib.parse import urljoin
+import json
 
 # Importaciones para el envío directo con aiosmtplib
 from aiosmtplib import SMTP
@@ -18,6 +19,7 @@ from email.mime.multipart import MIMEMultipart
 
 import models, schemas
 from config import conf
+from settings import settings
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -150,6 +152,65 @@ async def send_verification_email(recipient_email: EmailStr, username: str, veri
 
     background_tasks.add_task(_send_email_task)
     print("DEBUG EMAIL: Tarea de envío de correo añadida a BackgroundTasks.")
+
+
+# Envío de correo para restablecimiento de contraseña (sin plantilla obligatoria)
+async def send_reset_password_email(recipient_email: EmailStr, username: str, reset_url: str, background_tasks: BackgroundTasks, request: Request):
+    print(f"DEBUG RESET EMAIL: Preparando envío a {recipient_email}")
+
+    # Intentar cargar plantilla 'reset_password.html'; si falla, usar HTML simple
+    html_content: str
+    try:
+        template_env = Environment(
+            loader=FileSystemLoader(conf.TEMPLATE_FOLDER),
+            autoescape=select_autoescape(["html", "xml"])
+        )
+        template = template_env.get_template("reset_password.html")
+        html_content = template.render(username=username, reset_url=reset_url, request=request)
+        print("DEBUG RESET EMAIL: Plantilla 'reset_password.html' cargada.")
+    except Exception as e:
+        print(f"WARN RESET EMAIL: No se pudo cargar plantilla reset_password.html ({e}). Usando HTML por defecto.")
+        html_content = f"""
+        <html>
+          <body style='font-family: Inter, Arial, sans-serif;'>
+            <h2>Restablecer contraseña</h2>
+            <p>Hola {username}, has solicitado restablecer tu contraseña.</p>
+            <p>Haz clic en el siguiente enlace para continuar:</p>
+            <p><a href='{reset_url}' target='_blank'>{reset_url}</a></p>
+            <p>Si no fuiste tú, ignora este mensaje.</p>
+          </body>
+        </html>
+        """
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = f"{conf.MAIL_FROM_NAME} <{conf.MAIL_FROM}>"
+    msg["To"] = recipient_email
+    msg["Subject"] = "Restablece tu contraseña"
+
+    html_part = MIMEText(html_content, "html", "utf-8")
+    msg.attach(html_part)
+
+    async def _send_email_task():
+        print(f"DEBUG RESET EMAIL TASK: Enviando a {recipient_email}")
+        try:
+            client = SMTP(
+                hostname=conf.MAIL_SERVER,
+                port=conf.MAIL_PORT,
+                start_tls=conf.MAIL_STARTTLS,
+                use_tls=conf.MAIL_SSL_TLS,
+                validate_certs=conf.VALIDATE_CERTS
+            )
+            await client.connect()
+            await client.login(conf.MAIL_USERNAME, conf.MAIL_PASSWORD)
+            status_code, message_response = await client.send_message(msg)
+            await client.quit()
+            print(f"DEBUG RESET EMAIL TASK: Enviado. Estado: {status_code}, Msg: {message_response}")
+        except Exception as e:
+            print(f"ERROR RESET EMAIL TASK: {e}")
+            raise
+
+    background_tasks.add_task(_send_email_task)
+    print("DEBUG RESET EMAIL: Tarea de envío programada.")
 
 def obtener_estudiantes_disponibles(db):
     return db.query(models.Registro).filter(models.Registro.tipo_usuario == "estudiante").all()
@@ -328,10 +389,167 @@ def sincronizar_unidades(db: Session, unidades_frontend: list):
     db.commit()
     return {"message": f"Se sincronizaron {len(unidades_frontend)} unidades"}
 
+from sqlalchemy import func
+
 def obtener_unidades(db: Session):
-    """Obtiene todas las unidades disponibles"""
+    """Obtiene todas las unidades disponibles con contador de subcarpetas"""
     unidades = db.query(models.Unidad).order_by(models.Unidad.orden).all()
-    return [{"id": u.id, "nombre": u.nombre, "descripcion": u.descripcion, "orden": u.orden} for u in unidades]
+    # construir mapa de conteos
+    try:
+        counts_rows = (
+            db.query(models.Subcarpeta.unidad_id, func.count(models.Subcarpeta.id))
+            .group_by(models.Subcarpeta.unidad_id)
+            .all()
+        )
+        counts = dict(counts_rows)
+    except Exception as e:
+        # Si la tabla subcarpeta aún no existe, devolvemos conteo 0 y continuamos
+        print(f"[WARN] Contador de subcarpetas deshabilitado (posible tabla faltante): {e}")
+        counts = {}
+    return [{
+        "id": u.id,
+        "nombre": u.nombre,
+        "descripcion": u.descripcion,
+        "orden": u.orden,
+        # Compatibilidad: ambas claves
+        "subcarpetas_count": int(counts.get(u.id, 0)),
+        "subcarpetas": int(counts.get(u.id, 0))
+    } for u in unidades]
+
+def _avg_task_score(db: Session, username: str, unidad_id: int) -> float | None:
+    from models import TareaCalificacion
+    from sqlalchemy import func as sa_func
+    avg_score = db.query(sa_func.avg(TareaCalificacion.score)).filter(
+        TareaCalificacion.estudiante_username == username,
+        TareaCalificacion.unidad_id == unidad_id
+    ).scalar()
+    return float(avg_score) if avg_score is not None else None
+
+def _avg_quiz_score(db: Session, username: str, unidad_id: int) -> float | None:
+    from models import EstudianteQuizCalificacion
+    from sqlalchemy import func as sa_func
+    avg_score = db.query(sa_func.avg(EstudianteQuizCalificacion.score)).filter(
+        EstudianteQuizCalificacion.estudiante_username == username,
+        EstudianteQuizCalificacion.unidad_id == unidad_id
+    ).scalar()
+    return float(avg_score) if avg_score is not None else None
+
+def calcular_nota_unidad(db: Session, username: str, unidad_id: int) -> dict:
+    """Calcula la nota final y estado de aprobación para una unidad dado un estudiante."""
+    # Promedios
+    tareas_avg = _avg_task_score(db, username, unidad_id)
+    quiz_avg = _avg_quiz_score(db, username, unidad_id)
+
+    # Tiempo dedicación -> score contra objetivo
+    from models import EstudianteProgresoUnidad
+    prog = db.query(EstudianteProgresoUnidad).filter(
+        EstudianteProgresoUnidad.username == username,
+        EstudianteProgresoUnidad.unidad_id == unidad_id
+    ).first()
+    tiempo_min = int(getattr(prog, 'tiempo_dedicado_min', 0) or 0)
+    objetivo = max(1, int(settings.GRADES_OBJETIVO_MIN or 120))
+    tiempo_score = min(100, int((tiempo_min or 0) * 100 / objetivo))
+
+    # Pesos normalizados
+    wt_tareas = float(settings.GRADES_WT_TAREAS)
+    wt_quiz = float(settings.GRADES_WT_QUIZ)
+    wt_tiempo = float(settings.GRADES_WT_TIEMPO)
+    total = max(0.0001, wt_tareas + wt_quiz + wt_tiempo)
+    wt_tareas /= total
+    wt_quiz /= total
+    wt_tiempo /= total
+
+    base_tareas = tareas_avg if tareas_avg is not None else 0.0
+    base_quiz = quiz_avg if quiz_avg is not None else 0.0
+    nota = int(round(wt_tareas * base_tareas + wt_quiz * base_quiz + wt_tiempo * tiempo_score))
+    aprobado = nota >= int(settings.GRADES_UMBRAL_APROBACION or 60)
+
+    return {
+        "tareas_promedio": tareas_avg if tareas_avg is not None else None,
+        "quiz_promedio": quiz_avg if quiz_avg is not None else None,
+        "tiempo_min": tiempo_min,
+        "tiempo_score": tiempo_score,
+        "nota": nota,
+        "aprobado": aprobado,
+    }
+
+def upsert_tarea_calificacion(db: Session, *, estudiante_username: str, unidad_id: int, filename: str, score: int):
+    from models import TareaCalificacion
+    row = db.query(TareaCalificacion).filter(
+        TareaCalificacion.estudiante_username == estudiante_username,
+        TareaCalificacion.unidad_id == unidad_id,
+        TareaCalificacion.filename == filename,
+    ).first()
+    now = datetime.utcnow()
+    if row:
+        row.score = int(score)
+        row.updated_at = now
+        db.add(row)
+    else:
+        row = TareaCalificacion(
+            estudiante_username=estudiante_username,
+            unidad_id=unidad_id,
+            filename=filename,
+            score=int(score),
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+def upsert_quiz_calificacion(db: Session, *, estudiante_username: str, unidad_id: int, quiz_id: int, score: int):
+    from models import EstudianteQuizCalificacion
+    row = db.query(EstudianteQuizCalificacion).filter(
+        EstudianteQuizCalificacion.estudiante_username == estudiante_username,
+        EstudianteQuizCalificacion.unidad_id == unidad_id,
+        EstudianteQuizCalificacion.quiz_id == quiz_id,
+    ).first()
+    now = datetime.utcnow()
+    if row:
+        row.score = int(score)
+        row.updated_at = now
+        db.add(row)
+    else:
+        row = EstudianteQuizCalificacion(
+            estudiante_username=estudiante_username,
+            unidad_id=unidad_id,
+            quiz_id=quiz_id,
+            score=int(score),
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+def get_unidad_grade_detalle(db: Session, *, username: str, unidad_id: int) -> dict:
+    from models import TareaCalificacion, EstudianteQuizCalificacion, EstudianteProgresoUnidad
+    tareas = db.query(TareaCalificacion).filter(
+        TareaCalificacion.estudiante_username == username,
+        TareaCalificacion.unidad_id == unidad_id
+    ).all()
+    quizzes = db.query(EstudianteQuizCalificacion).filter(
+        EstudianteQuizCalificacion.estudiante_username == username,
+        EstudianteQuizCalificacion.unidad_id == unidad_id
+    ).all()
+    prog = db.query(EstudianteProgresoUnidad).filter(
+        EstudianteProgresoUnidad.username == username,
+        EstudianteProgresoUnidad.unidad_id == unidad_id
+    ).first()
+    resumen = calcular_nota_unidad(db, username, unidad_id)
+    return {
+        "tareas": [{"id": t.id, "filename": t.filename, "score": t.score, "updated_at": getattr(t, "updated_at", None)} for t in tareas],
+        "quizzes": [{"id": q.id, "quiz_id": q.quiz_id, "score": q.score, "updated_at": getattr(q, "updated_at", None)} for q in quizzes],
+        "progreso": {
+            "porcentaje_completado": getattr(prog, "porcentaje_completado", 0) if prog else 0,
+            "score": getattr(prog, "score", 0) if prog else 0,
+            "tiempo_dedicado_min": getattr(prog, "tiempo_dedicado_min", 0) if prog else 0,
+        },
+        "resumen": resumen,
+    }
 
 def toggle_unidad_estudiante(db: Session, username: str, unidad_id: int):
     """Habilita o deshabilita una unidad para un estudiante"""
@@ -368,6 +586,160 @@ def toggle_unidad_estudiante(db: Session, username: str, unidad_id: int):
     
     db.commit()
     return nuevo_estado
+
+def crear_unidad(db: Session, data: dict):
+    """Crea una unidad sin afectar las existentes."""
+    # Log de entrada
+    print(f"[CRUD] crear_unidad() payload={data}")
+    # Si no envían orden, asignar último + 1
+    try:
+        max_orden = db.query(models.Unidad.orden).order_by(models.Unidad.orden.desc()).first()
+        next_orden = (max_orden[0] + 1) if max_orden else 1
+    except Exception:
+        next_orden = 1
+    nueva = models.Unidad(
+        nombre=data.get("nombre", ""),
+        descripcion=data.get("descripcion", ""),
+        orden=int(data.get("orden", next_orden) or next_orden)
+    )
+    try:
+        db.add(nueva)
+        db.commit()
+        db.refresh(nueva)
+        print(f"[CRUD] crear_unidad() creada id={nueva.id} orden={nueva.orden}")
+    except Exception as e:
+        db.rollback()
+        print(f"[CRUD][ERROR] crear_unidad() exception={e}")
+        raise
+    return {"id": nueva.id, "nombre": nueva.nombre, "descripcion": nueva.descripcion, "orden": nueva.orden}
+
+def actualizar_unidad(db: Session, unidad_id: int, data: dict):
+    """Actualiza campos de una unidad existente (nombre, descripcion, orden)."""
+    print(f"[CRUD] actualizar_unidad() id={unidad_id} data={data}")
+    u = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
+    if not u:
+        return None
+    if "nombre" in data:
+        u.nombre = data["nombre"]
+    if "descripcion" in data:
+        u.descripcion = data["descripcion"]
+    if "orden" in data and data["orden"] is not None:
+        try:
+            u.orden = int(data["orden"])
+        except Exception:
+            pass
+    try:
+        db.add(u)
+        db.commit()
+        db.refresh(u)
+        print(f"[CRUD] actualizar_unidad() ok id={u.id}")
+    except Exception as e:
+        db.rollback()
+        print(f"[CRUD][ERROR] actualizar_unidad() id={unidad_id} exception={e}")
+        raise
+    return {"id": u.id, "nombre": u.nombre, "descripcion": u.descripcion, "orden": u.orden}
+
+def eliminar_unidad(db: Session, unidad_id: int) -> bool:
+    """Elimina una unidad y limpia relaciones en estudiante_unidad."""
+    print(f"[CRUD] eliminar_unidad() id={unidad_id}")
+    u = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
+    if not u:
+        return False
+    try:
+        # Borrar relaciones pivot si existen
+        db.execute(
+            models.estudiante_unidad.delete().where(
+                models.estudiante_unidad.c.unidad_id == unidad_id
+            )
+        )
+        db.delete(u)
+        db.commit()
+        print(f"[CRUD] eliminar_unidad() ok id={unidad_id}")
+        return True
+    except Exception:
+        db.rollback()
+        print(f"[CRUD][ERROR] eliminar_unidad() id={unidad_id}")
+        return False
+
+# ===== Subcarpetas =====
+def listar_subcarpetas(db: Session, unidad_id: int):
+    print(f"[CRUD] listar_subcarpetas() unidad_id={unidad_id}")
+    subs = db.query(models.Subcarpeta).filter(models.Subcarpeta.unidad_id == unidad_id).order_by(models.Subcarpeta.orden, models.Subcarpeta.id).all()
+    return [{
+        "id": s.id,
+        "unidad_id": s.unidad_id,
+        "nombre": s.nombre,
+        "descripcion": s.descripcion,
+        "habilitada": s.habilitada,
+        "orden": s.orden
+    } for s in subs]
+
+def actualizar_subcarpeta(db: Session, subcarpeta_id: int, data: dict):
+    """Actualiza campos de una subcarpeta existente (nombre, descripcion, orden)."""
+    print(f"[CRUD] actualizar_subcarpeta() id={subcarpeta_id} data={data}")
+    s = db.query(models.Subcarpeta).filter(models.Subcarpeta.id == subcarpeta_id).first()
+    if not s:
+        return None
+    if "nombre" in data and data["nombre"]:
+        s.nombre = data["nombre"].strip()
+    if "descripcion" in data:
+        s.descripcion = data["descripcion"]
+    if "orden" in data and data["orden"] is not None:
+        try:
+            s.orden = int(data["orden"])
+        except Exception:
+            pass
+    try:
+        db.add(s)
+        db.commit()
+        db.refresh(s)
+        print(f"[CRUD] actualizar_subcarpeta() ok id={s.id}")
+    except Exception as e:
+        db.rollback()
+        print(f"[CRUD][ERROR] actualizar_subcarpeta() id={subcarpeta_id} exception={e}")
+        raise
+    return {
+        "id": s.id,
+        "unidad_id": s.unidad_id,
+        "nombre": s.nombre,
+        "descripcion": s.descripcion,
+        "habilitada": s.habilitada,
+        "orden": s.orden
+    }
+
+def eliminar_subcarpeta(db: Session, subcarpeta_id: int) -> bool:
+    """Elimina una subcarpeta."""
+    print(f"[CRUD] eliminar_subcarpeta() id={subcarpeta_id}")
+    s = db.query(models.Subcarpeta).filter(models.Subcarpeta.id == subcarpeta_id).first()
+    if not s:
+        return False
+    try:
+        db.delete(s)
+        db.commit()
+        print(f"[CRUD] eliminar_subcarpeta() ok id={subcarpeta_id}")
+        return True
+    except Exception:
+        db.rollback()
+        print(f"[CRUD][ERROR] eliminar_subcarpeta() id={subcarpeta_id}")
+        return False
+
+def toggle_subcarpeta(db: Session, subcarpeta_id: int) -> bool | None:
+    """Oculta o muestra una subcarpeta (cambia el estado habilitada)."""
+    print(f"[CRUD] toggle_subcarpeta() id={subcarpeta_id}")
+    s = db.query(models.Subcarpeta).filter(models.Subcarpeta.id == subcarpeta_id).first()
+    if not s:
+        return None
+    try:
+        s.habilitada = not s.habilitada
+        db.add(s)
+        db.commit()
+        db.refresh(s)
+        print(f"[CRUD] toggle_subcarpeta() id={subcarpeta_id} -> habilitada={s.habilitada}")
+        return s.habilitada
+    except Exception as e:
+        db.rollback()
+        print(f"[CRUD][ERROR] toggle_subcarpeta() id={subcarpeta_id} exception={e}")
+        raise
 
 def obtener_unidades_habilitadas_estudiante(db: Session, username: str):
     """Obtiene las unidades habilitadas para un estudiante específico"""
@@ -459,13 +831,16 @@ def obtener_estado_unidades_estudiante(db: Session, username: str):
     for unidad in todas_unidades:
         # Usar el estado específico de la configuración, o True por defecto si no existe
         habilitada = configuraciones.get(unidad.id, True)
-        
+        # Calcular nota y estado
+        grade_info = calcular_nota_unidad(db, username, unidad.id)
         resultado.append({
             "id": unidad.id,
             "nombre": unidad.nombre,
             "descripcion": unidad.descripcion,
             "orden": unidad.orden,
-            "habilitada": habilitada
+            "habilitada": habilitada,
+            "nota": grade_info.get("nota"),
+            "aprobado": grade_info.get("aprobado"),
         })
     
     return resultado
@@ -633,7 +1008,84 @@ def get_analytics_resumen(db: Session, username: str, desde: datetime | None = N
         "racha_dias": int(racha)
     }
 
-def get_analytics_unidades(db: Session, username: str, desde: datetime | None = None, hasta: datetime | None = None):
+def crear_archivo_empresa(db: Session, unidad_id: int, subcarpeta_id: int, data: dict, current_user: str):
+    """Crea registro de archivo subido por empresa/profesor."""
+    print(f"[CRUD] crear_archivo_empresa() unidad_id={unidad_id} subcarpeta_id={subcarpeta_id} user={current_user}")
+    # Por simplicidad, guardamos metadata en JSON (en producción usar tabla específica)
+    # Crear directorio si no existe
+    archivos_dir = Path("/Users/sena/Desktop/Ingles/archivos_empresa")
+    archivos_dir.mkdir(exist_ok=True)
+    user_dir = archivos_dir / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    archivo_data = {
+        "id": str(uuid.uuid4()),
+        "nombre_original": data.get("nombre_original", ""),
+        "nombre_archivo": data.get("nombre_archivo", ""),
+        "tipo": data.get("tipo", ""),
+        "tamano": data.get("tamano", 0),
+        "fecha_subida": datetime.utcnow().isoformat(),
+        "subido_por": current_user,
+        "es_link": data.get("es_link", False),
+        "url": data.get("url", "")
+    }
+
+    # Guardar metadata
+    metadata_file = user_dir / f"{archivo_data['id']}.json"
+    try:
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(archivo_data, f, ensure_ascii=False, indent=2)
+        print(f"[CRUD] crear_archivo_empresa() metadata guardado: {metadata_file}")
+    except Exception as e:
+        print(f"[CRUD][ERROR] crear_archivo_empresa() exception={e}")
+        raise
+
+    return archivo_data
+
+def listar_archivos_empresa(db: Session, unidad_id: int, subcarpeta_id: int, current_user: str):
+    """Lista archivos subidos por empresa/profesor en una subcarpeta."""
+    print(f"[CRUD] listar_archivos_empresa() unidad_id={unidad_id} subcarpeta_id={subcarpeta_id} user={current_user}")
+    archivos_dir = Path("/Users/sena/Desktop/Ingles/archivos_empresa") / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
+
+    if not archivos_dir.exists():
+        return []
+
+    archivos = []
+    try:
+        for item in archivos_dir.iterdir():
+            if item.is_file() and item.suffix == '.json':
+                try:
+                    with open(item, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    archivos.append(data)
+                except Exception as e:
+                    print(f"[CRUD] Error leyendo archivo metadata {item}: {e}")
+                    continue
+    except Exception as e:
+        print(f"[CRUD][ERROR] listar_archivos_empresa() exception={e}")
+
+    # Ordenar por fecha desc
+    archivos.sort(key=lambda x: x.get("fecha_subida", ""), reverse=True)
+    return archivos
+
+def eliminar_archivo_empresa(unidad_id: int, subcarpeta_id: int, archivo_id: str, current_user: str) -> bool:
+    """Elimina archivo de empresa/profesor."""
+    print(f"[CRUD] eliminar_archivo_empresa() archivo_id={archivo_id} user={current_user}")
+    archivos_dir = Path("/Users/sena/Desktop/Ingles/archivos_empresa") / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
+
+    # Eliminar metadata JSON
+    metadata_file = archivos_dir / f"{archivo_id}.json"
+    if metadata_file.exists():
+        try:
+            os.remove(metadata_file)
+        except Exception as e:
+            print(f"[CRUD] Error eliminando metadata {metadata_file}: {e}")
+            return False
+
+    # TODO: Eliminar archivo físico si existe (para uploads de archivos, no links)
+    # Por simplicidad, solo eliminamos metadata por ahora
+
+    return True
     # Traer todas las unidades
     unidades = db.query(models.Unidad).order_by(models.Unidad.orden).all()
     prog_rows = db.query(models.EstudianteProgresoUnidad).filter(
@@ -655,7 +1107,7 @@ def get_analytics_unidades(db: Session, username: str, desde: datetime | None = 
                 continue
             tiempos_por_unidad[uid] = tiempos_por_unidad.get(uid, 0) + (e.duracion_min or 0)
 
-    # Conteo de tareas por unidad (en filesystem) y promedio de calificaciones (en BD)
+    # Conteo de tareas por unidad (en filesystem), última entrega y promedio de calificaciones (en BD)
     TASKS_BASE = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes")
     resultado = []
     for u in unidades:
@@ -664,11 +1116,16 @@ def get_analytics_unidades(db: Session, username: str, desde: datetime | None = 
         # Contar archivos y leer calificaciones
         tareas_count = 0
         tareas_score_avg = None
+        ultima_entrega_iso: str | None = None
         try:
             carpeta = TASKS_BASE / "estudiantes" / username / f"unidad_{u.id}" / "SOLO_TAREAS"
             if carpeta.exists() and carpeta.is_dir():
-                tareas = [f for f in os.listdir(carpeta) if (carpeta / f).is_file() and f != 'grades.json']
-                tareas_count = len(tareas)
+                archivos = [p for p in carpeta.iterdir() if p.is_file() and p.name != 'grades.json']
+                tareas_count = len(archivos)
+                if archivos:
+                    last = max(archivos, key=lambda p: p.stat().st_mtime)
+                    from datetime import datetime as _dt
+                    ultima_entrega_iso = _dt.fromtimestamp(last.stat().st_mtime).isoformat()
         except Exception:
             pass
         # Promedio de calificaciones desde BD
@@ -696,7 +1153,9 @@ def get_analytics_unidades(db: Session, username: str, desde: datetime | None = 
             "porcentaje_completado": porcentaje,
             "score": int(base_score),
             "tiempo_min": int(tiempo_min or 0),
-            "tareas_count": int(tareas_count)
+            "tareas_count": int(tareas_count),
+            "ultima_entrega": ultima_entrega_iso,
+            "score_promedio": float(tareas_score_avg) if tareas_score_avg is not None else None
         })
     return resultado
 

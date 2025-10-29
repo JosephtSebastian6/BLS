@@ -68,6 +68,16 @@ class Unidad(Base):
     descripcion = Column(String(255), nullable=True)
     orden = Column(Integer, default=0)
 
+# Tabla de subcarpetas por unidad
+class Subcarpeta(Base):
+    __tablename__ = "subcarpeta"
+    id = Column(Integer, primary_key=True, index=True)
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=False)
+    nombre = Column(String(150), nullable=False)
+    descripcion = Column(String(255), nullable=True)
+    habilitada = Column(Boolean, default=True)
+    orden = Column(Integer, default=0)
+
 # Tabla intermedia para estudiante-unidad (qué unidades tiene habilitadas cada estudiante)
 estudiante_unidad = Table(
     'estudiante_unidad', Base.metadata,
@@ -117,6 +127,16 @@ class TareaCalificacion(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
+# Calificación global/override de unidad
+class UnidadCalificacionFinal(Base):
+    __tablename__ = "unidad_calificacion_final"
+    id = Column(Integer, primary_key=True, index=True)
+    estudiante_username = Column(String(50), ForeignKey('estudiante.username'), nullable=False)
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=False)
+    score = Column(Integer, nullable=True)
+    aprobado = Column(Boolean, default=None)  # None = sin override
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
 # ===== Quizzes por unidad
 class Quiz(Base):
     __tablename__ = "quiz"
@@ -126,3 +146,14 @@ class Quiz(Base):
     descripcion = Column(String(500), nullable=True)
     preguntas = Column(JSON, nullable=True)  # estructura libre para prototipo
     created_at = Column(DateTime, default=datetime.utcnow)
+
+# Calificación de quizzes por estudiante
+class EstudianteQuizCalificacion(Base):
+    __tablename__ = "estudiante_quiz_calificacion"
+    id = Column(Integer, primary_key=True, index=True)
+    estudiante_username = Column(String(50), ForeignKey('estudiante.username'), nullable=False)
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=False)
+    quiz_id = Column(Integer, ForeignKey('quiz.id'), nullable=False)
+    score = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)

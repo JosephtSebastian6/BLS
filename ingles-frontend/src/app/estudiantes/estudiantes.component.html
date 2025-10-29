@@ -69,6 +69,14 @@
             <div class="unidad-info">
               <h4>{{ unidad.nombre }}</h4>
               <p>{{ unidad.descripcion }}</p>
+              <div class="unidad-metrics">
+                <span class="chip nota" [title]="'Nota calculada de la unidad'">
+                  Nota: {{ unidad.nota ?? '—' }}
+                </span>
+                <span class="chip" [class.aprobado]="unidad.aprobado" [class.pendiente]="!unidad.aprobado" [title]="'Estado según umbral de aprobación'">
+                  {{ unidad.aprobado ? 'Aprobado' : 'Pendiente' }}
+                </span>
+              </div>
             </div>
             <div class="unidad-toggle">
               <button 

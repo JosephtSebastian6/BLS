@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { ProfesorTareasService } from '../services/profesor-tareas.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-tareas-profesor',
@@ -21,7 +22,7 @@ export class TareasProfesorComponent implements OnInit {
   profesorUsername = '';
   data: Array<{ estudiante_username: string; nombres: string; apellidos: string; tareas: any[] }> = [];
 
-  constructor(private svc: ProfesorTareasService, private cdr: ChangeDetectorRef) {}
+  constructor(private svc: ProfesorTareasService, private cdr: ChangeDetectorRef, private router: Router) {}
 
   ngOnInit(): void {
     const username = localStorage.getItem('username');
@@ -67,16 +68,13 @@ export class TareasProfesorComponent implements OnInit {
   }
 
   calificar(estUsername: string, unidadId: number, filename: string) {
-    const input = prompt(`Calificación para ${filename} (0-100):`, '80');
-    if (input === null) return;
-    const score = Number(input);
-    if (Number.isNaN(score) || score < 0 || score > 100) {
-      alert('Ingresa un número entre 0 y 100');
-      return;
-    }
-    this.svc.grade(this.profesorUsername, estUsername, unidadId, filename, score).subscribe({
-      next: () => { alert('Calificación guardada'); this.buscar(); },
-      error: (e) => { console.error(e); alert(e?.error?.detail || 'No se pudo guardar la calificación'); }
+    this.router.navigate(['/dashboard-profesor/calificar'], {
+      queryParams: {
+        estudiante: estUsername,
+        unidad: unidadId,
+        tipo: 'tarea',
+        filename
+      }
     });
   }
 

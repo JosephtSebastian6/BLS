@@ -1,6 +1,7 @@
 // src/app/app.routes.ts
 import { Routes } from '@angular/router';
 import { RoleGuard } from './auth/role.guard';
+import { EmailVerifiedGuard } from './auth/email-verified.guard';
 import { RegisterComponent } from './auth/register/register';
 import { VerifyEmailComponent } from './auth/verify-email/verify-email';
 import { EmailVerifiedSuccessComponent } from './auth/email-verified-success/email-verified-success';
@@ -11,6 +12,7 @@ import { DashboardEmpresaComponent } from './dashboard-empresa/dashboard-empresa
 import { EmpresaAsistenciasComponent } from './empresa-asistencias/empresa-asistencias.component';
 import { HomeResumenComponent } from './dashboard-empresa/home-resumen.component';
 import { DashboardProfesorComponent } from './dashboard-profesor/dashboard-profesor.component';
+import { ProfesorCalificarComponent } from './profesor-calificar/profesor-calificar.component';
 import { MisClasesComponent } from './mis-clases/mis-clases.component';
 import { PlaneadorComponent } from './planeador/planeador.component';
 import { TareasProfesorComponent } from './tareas-profesor/tareas-profesor.component';
@@ -34,24 +36,30 @@ import { IpcDashboard } from './ipc-dashboard/ipc-dashboard';
 import { EteDashboard } from './ete-dashboard/ete-dashboard';
 import { Nosotros } from './nosotros/nosotros';
 import { AdminDashboardComponent } from './admin/admin-dashboard.component';
+import { ForgotPasswordComponent } from './auth/forgot-password/forgot-password';
+import { ResetPasswordComponent } from './auth/reset-password/reset-password';
+import { TareasUnidadComponent } from './tareas-unidad/tareas-unidad.component';
 
 
 export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
   { path: 'login', component: LoginComponent },
+  { path: 'forgot-password', component: ForgotPasswordComponent },
+  { path: 'reset-password', component: ResetPasswordComponent },
   { path: 'auth/verify-email', component: VerifyEmailComponent },
   { path: '', redirectTo: '/home', pathMatch: 'full' },
   { path: 'email-verified-success', component: EmailVerifiedSuccessComponent },
-  { path: 'dashboard', component: DashboardComponent },
+  { path: 'dashboard', component: DashboardComponent, canActivate: [EmailVerifiedGuard] },
   {
     path: 'dashboard-estudiante',
     component: DashboardEstudiante,
-    canActivate: [RoleGuard, MatriculaGuard],
+    canActivate: [EmailVerifiedGuard, RoleGuard, MatriculaGuard],
     data: { expectedRole: 'estudiante' },
     children: [
       { path: 'unidades', component: UnidadesComponent },
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
+      { path: 'tareas-unidad/:unidadId', component: TareasUnidadComponent },
       { path: 'planeador', component: PlaneadorComponent },
       { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },
       { path: 'analisis-estudiante/:username', component: AnalisisEstudianteComponent },
@@ -60,13 +68,14 @@ export const routes: Routes = [
   {
     path: 'dashboard-empresa',
     component: DashboardEmpresaComponent,
-    canActivate: [RoleGuard],
+    canActivate: [EmailVerifiedGuard, RoleGuard],
     data: { expectedRole: 'empresa' },
     children: [
       { path: '', component: HomeResumenComponent },
       { path: 'unidades', component: UnidadesComponent },
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
+      { path: 'tareas-unidad/:unidadId', component: TareasUnidadComponent },
       { path: 'mis-profes', component: MisProfesComponent },
       { path: 'estudiantes', component: EstudiantesComponent },
       { path: 'matriculas', component: MatriculasComponent },
@@ -88,6 +97,8 @@ export const routes: Routes = [
       { path: 'mis-clases', component: MisClasesComponent },
       { path: 'planeador', component: PlaneadorComponent },
       { path: 'tareas', component: TareasProfesorComponent },
+      { path: 'calificar', component: ProfesorCalificarComponent },
+      { path: 'tareas-unidad/:unidadId', component: TareasUnidadComponent },
       { path: 'unidades', component: UnidadesComponent },
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
@@ -105,6 +116,6 @@ export const routes: Routes = [
   { path: 'exp', component: ExpDashboard },
   { path: 'ipc', component: IpcDashboard },
   { path: 'ete', component: EteDashboard },
-  { path: 'admin', component: AdminDashboardComponent, canActivate: [RoleGuard], data: { expectedRole: 'admin' } },
+  { path: 'admin', component: AdminDashboardComponent, canActivate: [EmailVerifiedGuard, RoleGuard], data: { expectedRole: 'admin' } },
   { path: 'matricula-inactiva', component: MatriculaInactivaComponent },
 ];

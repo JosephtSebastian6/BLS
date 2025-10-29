@@ -47,6 +47,25 @@ export class AnalisisEstudianteComponent implements OnInit {
     this.tipoUsuario = user.tipo_usuario || localStorage.getItem('tipo_usuario') || '';
   }
 
+  verTareas(idx: number) {
+    const item = this.unidadesProgreso[idx];
+    if (!item || !item.unidad_id) return;
+    const base = this.router.url.split('/')[1];
+    // Estudiante: abre sus propias tareas
+    if (this.tipoUsuario === 'estudiante') {
+      this.router.navigate([`/${base}/tareas-unidad`, item.unidad_id]);
+      return;
+    }
+    // Empresa/Profesor: requiere un estudiante seleccionado
+    const username = this.selectedUsername;
+    if (!username) {
+      alert('Selecciona un estudiante para ver sus tareas.');
+      return;
+    }
+    // Pasamos el username como query param para que el componente detalle consuma endpoint de empresa
+    this.router.navigate([`/${base}/tareas-unidad`, item.unidad_id], { queryParams: { username } });
+  }
+
   ngOnInit() {
     // Definir si usamos el layout del estudiante (para evitar sidebars duplicadas)
     const url = this.router.url;
@@ -147,11 +166,28 @@ export class AnalisisEstudianteComponent implements OnInit {
     const unidades$ = usernameResumen ? this.analytics.getUnidades(usernameResumen) : this.analytics.getAnalyticsUnidades();
     unidades$.subscribe({
       next: (unidades: any[]) => {
-        // Backend devuelve {unidad_id, nombre, porcentaje_completado, score, tiempo_min}
+        // 1) Desempeño por unidad (barras simples)
         this.desempeno = (unidades || []).map(u => ({
           nombre: u.nombre || `Unidad ${u.unidad_id}`,
-          score: Number(u.porcentaje_completado || u.progreso_porcentaje || 0)
+          score: Number(u.porcentaje_completado ?? u.progreso_porcentaje ?? 0)
         }));
+
+        // 2) Tarjetas de "Unidades" (datos reales)
+        this.unidadesProgreso = (unidades || []).map(u => {
+          const progreso = Number(u.porcentaje_completado ?? u.progreso_porcentaje ?? 0);
+          const tiempoMin = Number(u.tiempo_dedicado_min ?? u.tiempo_min ?? 0);
+          const score = u.score ?? u.promedio_score ?? u.score_promedio ?? null;
+          return {
+            nombre: u.nombre || `Unidad ${u.unidad_id}`,
+            progreso,
+            tiempo: this.formatearMinutos(tiempoMin),
+            score: score != null ? Number(score) : null,
+            tareas_count: Number(u.tareas_count ?? 0),
+            score_promedio: u.score_promedio != null ? Number(u.score_promedio) : (u.promedio_score != null ? Number(u.promedio_score) : null),
+            ultima_entrega: u.ultima_entrega || null,
+            unidad_id: u.unidad_id
+          };
+        });
         this.cargandoUnidades = false;
       },
       error: (error: any) => {
@@ -159,6 +195,7 @@ export class AnalisisEstudianteComponent implements OnInit {
         this.cargandoUnidades = false;
         // Datos de fallback
         this.desempeno = [];
+        this.unidadesProgreso = [];
       }
     });
   }
@@ -172,35 +209,20 @@ export class AnalisisEstudianteComponent implements OnInit {
     // Navegar con parámetro de usuario para actualizar la URL
     const currentRoute = this.router.url.split('/')[1]; // dashboard-empresa o dashboard-estudiante
     this.router.navigate([`/${currentRoute}/analisis-estudiante`, this.selectedUsername]);
+    // Cargar de inmediato para no depender solo de la suscripción a params
+    this.cargarDatosEstudiante(this.selectedUsername);
   }
 
   inicializarUnidadesProgreso() {
-    // Datos de ejemplo basados en las unidades existentes
-    this.unidadesProgreso = [
-      {
-        nombre: 'Unidad 1 - Introducción a la empresa',
-        progreso: 85,
-        tiempo: '2h 30m',
-        score: 85
-      },
-      {
-        nombre: 'Unidad 2 - Procesos internos',
-        progreso: 65,
-        tiempo: '1h 45m',
-        score: 72
-      },
-      {
-        nombre: 'Unidad 3 - Recursos Humanos',
-        progreso: 40,
-        tiempo: '45m',
-        score: 58
-      },
-      {
-        nombre: 'Unidad 4 - Proyectos',
-        progreso: 15,
-        tiempo: '20m',
-        score: 35
-      }
-    ];
+    // Fallback: dejar vacío si no hay datos reales
+    this.unidadesProgreso = [];
+  }
+
+  private formatearMinutos(min: number): string {
+    if (!min || min <= 0) return '0m';
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
   }
 }

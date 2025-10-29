@@ -1,0 +1,5 @@
+.tareas-card { max-width: 960px; margin: 2rem auto; padding: 1.5rem; border-radius: 20px; }
+.actions { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+.tareas-table { width: 100%; }
+.estado { padding: 1rem; color: #475569; }
+.error { margin-top: 1rem; color: #dc2626; }

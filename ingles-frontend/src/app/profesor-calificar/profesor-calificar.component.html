@@ -1,0 +1,129 @@
+<div class="calificar-layout">
+  <div class="card">
+    <div class="card-header">
+      <h2>Calificar Estudiante</h2>
+    </div>
+    <div class="card-body">
+      <div class="grid">
+        <div class="field">
+          <label>Estudiante</label>
+          <select [(ngModel)]="form.estudiante_username" (ngModelChange)="onEstudianteChange($event)">
+            <option *ngFor="let e of estudiantesAsignados" [value]="e.username">{{ e.nombres }} {{ e.apellidos }} ({{ e.username }})</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Unidad</label>
+          <select name="unidadSimple" [ngModelOptions]="{standalone: true}" [(ngModel)]="form.unidad_id" (ngModelChange)="onUnidadChange($event)">
+            <option *ngFor="let u of unidades" [ngValue]="u.id">{{ u.nombre }}</option>
+          </select>
+        </div>
+        <div class="field tipo">
+          <label>Tipo</label>
+          <label><input type="radio" name="tipo" value="tarea" [(ngModel)]="form.tipo"> Tarea</label>
+          <label><input type="radio" name="tipo" value="quiz" [(ngModel)]="form.tipo"> Quiz</label>
+        </div>
+        <div class="field" *ngIf="form.tipo==='tarea'">
+          <label>Archivo (filename)</label>
+          <input type="text" [(ngModel)]="form.filename" placeholder="ensayo.docx" />
+        </div>
+        <div class="field" *ngIf="form.tipo==='quiz'">
+          <label>Quiz</label>
+          <select [(ngModel)]="form.quiz_id">
+            <option *ngFor="let q of quizzes" [ngValue]="q.id">{{ q.titulo }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Score (0-100)</label>
+          <input type="number" [(ngModel)]="form.score" min="0" max="100" />
+        </div>
+      </div>
+      <button class="btn" [disabled]="cargando" (click)="guardar()">{{ cargando ? 'Guardando...' : 'Guardar' }}</button>
+      <div class="msg" *ngIf="msg">{{ msg }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="card-header"><h2>Historial de calificaciones</h2></div>
+  <div class="card-body">
+    <div class="hist-grid">
+      <div class="hist-col">
+        <div class="section-title">Tareas <span class="badge">{{ historial.tareas?.length || 0 }}</span></div>
+        <table class="tabla">
+          <thead><tr><th>Unidad</th><th>Archivo</th><th>Score</th><th>Fecha</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let t of historial.tareas">
+              <td>{{ t.unidad_nombre || t.unidad_id }}</td>
+              <td class="mono ellipsis" title="{{ t.filename }}">{{ t.filename }}</td>
+              <td><span class="chip score">{{ t.score }}</span></td>
+              <td>{{ t.updated_at | date:'short' }}</td>
+            </tr>
+            <tr *ngIf="!historial.tareas?.length"><td colspan="4" class="empty">Sin registros</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hist-col">
+        <div class="section-title">Quizzes <span class="badge">{{ historial.quizzes?.length || 0 }}</span></div>
+        <table class="tabla">
+          <thead><tr><th>Unidad</th><th>Quiz</th><th>Score</th><th>Fecha</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let q of historial.quizzes">
+              <td>{{ q.unidad_nombre || q.unidad_id }}</td>
+              <td class="ellipsis" title="{{ q.quiz_titulo || q.quiz_id }}">{{ q.quiz_titulo || q.quiz_id }}</td>
+              <td><span class="chip score">{{ q.score }}</span></td>
+              <td>{{ q.updated_at | date:'short' }}</td>
+            </tr>
+            <tr *ngIf="!historial.quizzes?.length"><td colspan="4" class="empty">Sin registros</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hist-col">
+        <div class="section-title">Unidades (final) <span class="badge">{{ historial.unidades?.length || 0 }}</span></div>
+        <table class="tabla">
+          <thead><tr><th>Unidad</th><th>Score</th><th>Aprobado</th><th>Fecha</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let f of historial.unidades">
+              <td>{{ f.unidad_nombre || f.unidad_id }}</td>
+              <td><span class="chip score" *ngIf="f.score !== null && f.score !== undefined; else dash">{{ f.score }}</span><ng-template #dash>-</ng-template></td>
+              <td>
+                <span *ngIf="f.aprobado === true" class="chip ok">Sí</span>
+                <span *ngIf="f.aprobado === false" class="chip no">No</span>
+                <span *ngIf="f.aprobado === null || f.aprobado === undefined" class="chip muted">-</span>
+              </td>
+              <td>{{ f.updated_at | date:'short' }}</td>
+            </tr>
+            <tr *ngIf="!historial.unidades?.length"><td colspan="4" class="empty">Sin registros</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="card-header">
+    <h2>Calificación global de la unidad</h2>
+  </div>
+  <div class="card-body">
+    <div class="grid">
+      <div class="field">
+        <label>Unidades a calificar (puede seleccionar varias)</label>
+        <select name="unidadesMultiples" [ngModelOptions]="{standalone: true}" multiple size="5" [(ngModel)]="finalUnidadesSeleccionadas">
+          <option *ngFor="let u of unidades" [ngValue]="u.id">{{ u.nombre }}</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Score final (0-100)</label>
+        <input type="number" [(ngModel)]="formFinal.score" min="0" max="100" placeholder="opcional" />
+      </div>
+      <div class="field">
+        <label>Aprobado</label>
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" [(ngModel)]="formFinal.aprobado" /> Marcar aprobado
+        </label>
+      </div>
+    </div>
+    <button class="btn" [disabled]="cargandoFinal" (click)="guardarFinal()">{{ cargandoFinal ? 'Guardando...' : 'Guardar final' }}</button>
+    <div class="msg" *ngIf="msgFinal">{{ msgFinal }}</div>
+  </div>
+</div>

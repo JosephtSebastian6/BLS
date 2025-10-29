@@ -57,6 +57,11 @@ export class SubcarpetaDetalleComponent implements OnInit, OnDestroy {
     // Tracking start + heartbeat por unidad
     if (this.unidadId) {
       const idNum = Number(this.unidadId);
+      // Asegurar relación estudiante_unidad habilitada antes de trackear
+      const uname = this.getCurrentUsername();
+      if (uname) {
+        this.analytics.ensureUnidadHabilitada(uname, idNum).subscribe({ next: () => {}, error: () => {} });
+      }
       this.analytics.trackingStart(idNum).subscribe({ next: () => {}, error: () => {} });
       this.heartbeatId = setInterval(() => {
         this.analytics.trackingHeartbeat(idNum, 1).subscribe({ next: () => {}, error: () => {} });
@@ -206,7 +211,9 @@ export class SubcarpetaDetalleComponent implements OnInit, OnDestroy {
     
     console.log('🔍 DEBUG: Cargando archivos para unidad:', this.unidadId, 'subcarpeta:', this.subcarpetaNombre);
     
-    this.analytics.getArchivosSubcarpeta(Number(this.unidadId), this.subcarpetaNombre).subscribe({
+    // Backend SOLO permite exactamente "SOLO TAREAS"
+    const sub = 'SOLO TAREAS';
+    this.analytics.getArchivosSubcarpeta(Number(this.unidadId), sub).subscribe({
       next: (archivos) => {
         this.archivosEstudianteSubidos = archivos;
         console.log('✅ Archivos de estudiante cargados:', archivos);
@@ -255,7 +262,11 @@ export class SubcarpetaDetalleComponent implements OnInit, OnDestroy {
     
     this.uploadingEstudiante = true;
     
-    this.analytics.subirArchivosSubcarpeta(Number(this.unidadId), this.subcarpetaNombre, this.archivosEstudianteSeleccionados).subscribe({
+    // Backend SOLO permite exactamente "SOLO TAREAS"
+    const sub = 'SOLO TAREAS';
+    const idNum = Number(this.unidadId);
+    const uname = this.getCurrentUsername();
+    const subir = () => this.analytics.subirArchivosSubcarpeta(idNum, sub, this.archivosEstudianteSeleccionados).subscribe({
       next: (response) => {
         console.log('✅ Archivos subidos exitosamente:', response);
         this.uploadingEstudiante = false;
@@ -269,6 +280,18 @@ export class SubcarpetaDetalleComponent implements OnInit, OnDestroy {
         alert('Error al subir archivos. Por favor intenta de nuevo.');
       }
     });
+    if (uname) {
+      this.analytics.ensureUnidadHabilitada(uname, idNum).subscribe({ next: () => subir(), error: () => subir() });
+    } else {
+      subir();
+    }
+  }
+
+  private getCurrentUsername(): string | null {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      return user?.username || localStorage.getItem('username');
+    } catch { return localStorage.getItem('username'); }
   }
 
   abrirModalEstudiante(archivo: any) {

@@ -10,6 +10,8 @@ interface Unidad {
   descripcion: string;
   orden: number;
   habilitada: boolean;
+  nota?: number;
+  aprobado?: boolean;
 }
 
 @Component({

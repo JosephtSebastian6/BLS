@@ -1,8 +1,9 @@
 from typing import Union
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from auth_routes import authRouter  # <--- CAMBIO AQUÍ: Importación relativa
+from auth_routes import authRouter
 from config import conf
+from settings import settings
 #from fastapi_mail import FastMail
 
 
@@ -21,15 +22,7 @@ AcademyEnApp.include_router(authRouter, prefix="/auth", tags=["Auth"]) # <--- DE
 # load_dotenv() # Carga las variables de entorno de .env
 
 
-origins =[
-    "http://localhost.tiangolo.com",
-    "https://localhost.tiangolo.com",
-    "http://localhost",
-    "http://localhost:8080",
-    "http://localhost:3000",
-    "http://localhost:4200",
-    "http://localhost:60891",
-]
+origins = settings.ALLOWED_ORIGINS
 
 # Configuración del middleware CORS para permitir peticiones desde frontend
 AcademyEnApp.add_middleware(

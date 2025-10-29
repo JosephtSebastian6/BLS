@@ -14,27 +14,38 @@
     </div>
     <div style="margin-bottom:0.8em;">
       <label for="descripcion" style="font-weight:500;">Descripción:</label>
-      <input id="descripcion" [(ngModel)]="nuevaUnidad.descripcion" name="descripcion" required style="width:100%;padding:0.5em;margin-top:0.2em;border-radius:4px;border:1px solid #ccc;" />
+      <input id="descripcion" [(ngModel)]="nuevaUnidad.descripcion" name="descripcion" style="width:100%;padding:0.5em;margin-top:0.2em;border-radius:4px;border:1px solid #ccc;" />
     </div>
     <div style="display:flex;gap:1em;">
-      <button type="submit" style="background:#2563eb;color:#fff;border:none;padding:0.6em 1.2em;border-radius:6px;font-weight:600;cursor:pointer;">Guardar</button>
-      <button type="button" (click)="cancelarUnidad()" style="background:#ef4444;color:#fff;border:none;padding:0.6em 1.2em;border-radius:6px;font-weight:600;cursor:pointer;">Cancelar</button>
+      <button type="submit" [disabled]="creando" [class.creando]="creando" style="background:#2563eb;color:#fff;border:none;padding:0.6em 1.2em;border-radius:6px;font-weight:600;cursor:pointer;">
+        <span *ngIf="creando" class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-radius:50%;border-top-color:transparent;animation:spin 1s linear infinite;margin-right:0.5em;"></span>
+        {{ creando ? 'Creando...' : 'Guardar' }}
+      </button>
+      <button type="button" (click)="cancelarUnidad()" [disabled]="creando" style="background:#ef4444;color:#fff;border:none;padding:0.6em 1.2em;border-radius:6px;font-weight:600;cursor:pointer;">Cancelar</button>
     </div>
   </form>
   <div class="galeria-unidades">
     <div class="unidad-card" *ngFor="let unidad of unidades; let i = index" style="position:relative;">
-      <div (click)="irADetalleUnidad(i)" style="cursor:pointer;">
+      <div (click)="irADetalleUnidad(unidad)" style="cursor:pointer;">
         <div class="unidad-icono">
           <span class="material-icons">folder</span>
         </div>
         <div class="unidad-info">
           <h3>{{ unidad.nombre }}</h3>
           <p>{{ unidad.descripcion }}</p>
-          <span class="subcarpetas">{{ unidad.subcarpetas.length }} subcarpetas</span>
+          <span class="subcarpetas">{{ (unidad.subcarpetasCount ?? unidad.subcarpetas.length) }} subcarpetas</span>
         </div>
       </div>
       <button *ngIf="tipoUsuario === 'empresa'" (click)="eliminarUnidad(i, $event)" style="position:absolute;top:10px;right:10px;background:#ef4444;color:#fff;border:none;padding:0.3em 0.8em;border-radius:6px;font-weight:600;cursor:pointer;z-index:2;">Eliminar</button>
-      <button *ngIf="tipoUsuario === 'estudiante'" (click)="entregarUnidad(i, $event)" class="btn-entregar-unidad" style="position:absolute;top:10px;left:10px;background:#4CAF50;color:#fff;border:none;padding:0.5em 1em;border-radius:6px;font-weight:600;cursor:pointer;z-index:2;">Entregar Unidad</button>
+      <button *ngIf="tipoUsuario === 'estudiante'"
+              (click)="entregarUnidad(i, $event)"
+              [disabled]="privadas_entregadas.has(unidad.id!)"
+              class="btn-entregar-unidad"
+              [style.opacity]="privadas_entregadas.has(unidad.id!) ? 0.85 : 1"
+              [style.cursor]="privadas_entregadas.has(unidad.id!) ? 'default' : 'pointer'"
+              style="position:absolute;top:10px;left:10px;background:#4CAF50;color:#fff;border:none;padding:0.5em 1em;border-radius:6px;font-weight:600;z-index:2;">
+        {{ privadas_entregadas.has(unidad.id!) ? 'Unidad entregada' : 'Entregar Unidad' }}
+      </button>
     </div>
   </div>
 </div>

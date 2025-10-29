@@ -53,7 +53,7 @@
 
     <!-- Progreso por unidades específicas -->
     <div class="unidades-progreso-grid">
-      <div class="unidad-progreso-card" *ngFor="let unidad of unidadesProgreso">
+      <div class="unidad-progreso-card" *ngFor="let unidad of unidadesProgreso; let idx = index">
         <div class="unidad-progreso-header">
           <h4>{{ unidad.nombre }}</h4>
           <span class="unidad-porcentaje">{{ unidad.progreso }}%</span>
@@ -68,8 +68,23 @@
           </div>
           <div class="stat-item">
             <span class="stat-label">Score</span>
-            <span class="stat-value">{{ unidad.score }}/100</span>
+            <span class="stat-value">{{ unidad.score != null ? (unidad.score + '/100') : '—' }}</span>
           </div>
+          <div class="stat-item">
+            <span class="stat-label">Tareas</span>
+            <span class="stat-value">{{ unidad.tareas_count || 0 }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Promedio</span>
+            <span class="stat-value">{{ unidad.score_promedio != null ? (unidad.score_promedio | number:'1.0-0') + '/100' : '—' }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Última entrega</span>
+            <span class="stat-value">{{ unidad.ultima_entrega ? (unidad.ultima_entrega | date:'short') : '—' }}</span>
+          </div>
+        </div>
+        <div class="unidad-actions">
+          <button class="btn-buscar" (click)="verTareas(idx)">Ver tareas</button>
         </div>
       </div>
     </div>

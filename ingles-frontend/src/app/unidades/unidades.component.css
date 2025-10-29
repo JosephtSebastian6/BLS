@@ -97,3 +97,18 @@
   border-radius: 15px;
   border: 1px solid rgba(102, 126, 234, 0.3);
 }
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+.creando {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

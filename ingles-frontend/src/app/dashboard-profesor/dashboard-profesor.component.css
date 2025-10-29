@@ -12,6 +12,48 @@
   --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ===== Panel de Calificación ===== */
+.panel-calificar {
+  margin: 2rem auto 0;
+  width: 100%;
+  max-width: 1200px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+  padding: 1.5rem;
+}
+
+.panel-calificar h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.grid-calificar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  align-items: end;
+}
+
+.field label { display: block; font-size: .85rem; font-weight: 700; color: var(--primary-color); margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .5px; }
+.field input, .field select { width: 100%; padding: .65rem .8rem; border-radius: 10px; border: 1px solid rgba(0,0,0,.08); background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+.field.tipo { display: flex; align-items: center; gap: 12px; }
+.field.tipo label { font-weight: 600; color: var(--text-dark); text-transform: none; letter-spacing: 0; }
+
+.mensaje-calificar { margin-top: .75rem; color: var(--text-dark); font-weight: 700; }
+
+@media (max-width: 900px) {
+  .grid-calificar { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 600px) {
+  .grid-calificar { grid-template-columns: 1fr; }
+}
 /* Fondo corporativo */
 body {
   background: var(--bg-gradient);

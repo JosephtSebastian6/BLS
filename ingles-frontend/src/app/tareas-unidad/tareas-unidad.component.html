@@ -1,0 +1,82 @@
+<mat-card class="tareas-card">
+  <h1>Tareas de la unidad {{ unidadId }}</h1>
+  <div class="actions">
+    <button mat-raised-button color="primary" (click)="back()">Volver</button>
+  </div>
+
+  <div class="table-wrapper" *ngIf="!loading; else loadingTpl">
+    <table mat-table [dataSource]="files" class="mat-elevation-z0 tareas-table" *ngIf="files.length; else emptyTpl">
+      <ng-container matColumnDef="original_name">
+        <th mat-header-cell *matHeaderCellDef> Archivo </th>
+        <td mat-cell *matCellDef="let f"> {{ f.original_name || f.filename }} </td>
+      </ng-container>
+
+      <ng-container matColumnDef="upload_date">
+        <th mat-header-cell *matHeaderCellDef> Fecha </th>
+        <td mat-cell *matCellDef="let f"> {{ f.upload_date | date:'short' }} </td>
+      </ng-container>
+
+      <ng-container matColumnDef="size">
+        <th mat-header-cell *matHeaderCellDef> Tamaño </th>
+        <td mat-cell *matCellDef="let f"> {{ f.size | number }} bytes </td>
+      </ng-container>
+
+      <ng-container matColumnDef="score">
+        <th mat-header-cell *matHeaderCellDef> Calificación </th>
+        <td mat-cell *matCellDef="let f">
+          <ng-container *ngIf="canEdit(); else scoreRead">
+            <input type="number" min="0" max="100" [(ngModel)]="f.score" class="input-score" />
+          </ng-container>
+          <ng-template #scoreRead>
+            <span class="badge" [ngClass]="{
+              'badge-green': (f.score||0) >= 80,
+              'badge-amber': (f.score||0) >= 60 && (f.score||0) < 80,
+              'badge-red': (f.score||0) > 0 && (f.score||0) < 60
+            }">{{ f.score != null ? (f.score + '/100') : '—' }}</span>
+          </ng-template>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="feedback">
+        <th mat-header-cell *matHeaderCellDef> Feedback </th>
+        <td mat-cell *matCellDef="let f">
+          <ng-container *ngIf="canEdit(); else fbRead">
+            <textarea rows="1" [(ngModel)]="f.feedback" class="input-feedback" placeholder="Comentarios opcionales..."></textarea>
+          </ng-container>
+          <ng-template #fbRead>
+            <span class="feedback-text">{{ f.feedback || '—' }}</span>
+          </ng-template>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef> Acciones </th>
+        <td mat-cell *matCellDef="let f">
+          <button mat-button color="primary" (click)="descargar(f)">Descargar</button>
+          <button mat-stroked-button color="accent" *ngIf="canEdit()" (click)="guardar(f)">Guardar</button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="estado">Cargando...</div>
+  </ng-template>
+
+  <ng-template #emptyTpl>
+    <div class="estado">
+      No hay tareas subidas para esta unidad.
+      <div *ngIf="username && alternativas.length" class="alternativas">
+        Unidades con tareas: 
+        <button class="alt-btn" *ngFor="let a of alternativas" (click)="irAUnidad(a.unidad_id)">
+          Unidad {{ a.unidad_id }} ({{ a.count }})
+        </button>
+      </div>
+    </div>
+  </ng-template>
+
+  <div class="error" *ngIf="errorMsg">{{ errorMsg }}</div>
+</mat-card>

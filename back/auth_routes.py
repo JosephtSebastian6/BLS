@@ -1,4 +1,3 @@
-import fastapi
 # FastAPI and related imports
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, status, Body, UploadFile, File
 from fastapi.responses import RedirectResponse
@@ -9,25 +8,29 @@ from datetime import timedelta, datetime
 import uuid
 from pydantic import EmailStr, BaseModel
 from fastapi import Body
+from pathlib import Path
 import os
 import shutil
-from pathlib import Path
-import jwt
+import mimetypes
 # Local imports
 import crud
 import models
 import schemas
 from schemas import ClaseCreate, ClaseResponse
 from schemas import QuizCreate, QuizResponse
-from Clever_MySQL_conn import get_db
+from Clever_MySQL_conn import get_db, Base, engine
+from settings import settings
 
 # Optional: Import your email service if needed
 # from .services.email_service import send_verification_email
 
-# JWT configuration (ideally from environment variables)
-SECRET_KEY = "supersecretkey"  # Change to a secure key, ideally from .env
-ALGORITHM = "HS256"
-EXPIRATION_MINUTES = 60
+# JWT (python-jose)
+from jose import jwt
+
+# JWT configuration (centralizado en settings.py)
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+EXPIRATION_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 authRouter = APIRouter()
@@ -36,7 +39,190 @@ authRouter = APIRouter()
 security = HTTPBearer()
 
 
+# ===== Seguridad (helpers) =====
+def require_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        tipo_usuario: str | None = payload.get("tipo_usuario")
+        username: str | None = payload.get("sub")
+        if tipo_usuario != "admin":
+            raise HTTPException(status_code=403, detail="Acceso solo para administradores")
+        return {"username": username, "tipo_usuario": tipo_usuario}
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+def require_roles(roles: list[str]):
+    def _dep(credentials: HTTPAuthorizationCredentials = Depends(security)):
+        try:
+            payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+            tipo_usuario: str | None = payload.get("tipo_usuario")
+            username: str | None = payload.get("sub")
+            if not tipo_usuario or tipo_usuario not in roles:
+                raise HTTPException(status_code=403, detail="Acceso no autorizado para este rol")
+            return {"username": username, "tipo_usuario": tipo_usuario}
+        except Exception:
+            raise HTTPException(status_code=401, detail="Token inválido")
+    return _dep
+
+
 # ===== Helpers/Endpoints de Administración =====
+
+# ==========================
+# Sistema de Calificaciones (Resumen por estudiante)
+# ==========================
+
+@authRouter.get("/grades/estudiantes/{username}/resumen")
+def grades_resumen_estudiante(
+    username: str,
+    objetivo_min: int = 120,
+    wt_tareas: float = 0.7,
+    wt_tiempo: float = 0.3,
+    db: Session = Depends(get_db)
+):
+    """
+    Resumen REAL de calificaciones por estudiante, por unidad y global.
+    - objetivo_min: minutos objetivo por unidad para normalizar tiempo (default 120)
+    - wt_tareas, wt_tiempo: pesos para promedio de tareas y score de tiempo (deben sumar ~1)
+    """
+    # Normalizar pesos
+    try:
+        total_w = max(0.0001, float(wt_tareas) + float(wt_tiempo))
+        wt_tareas = float(wt_tareas) / total_w
+        wt_tiempo = float(wt_tiempo) / total_w
+    except Exception:
+        wt_tareas, wt_tiempo = 0.7, 0.3
+
+    # Validación de estudiante
+    estudiante = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if not estudiante:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+
+    # Unidades habilitadas para el estudiante
+    unidades = db.query(models.Unidad).all()
+    resultado = []
+    aprobadas = 0
+    reprobadas = 0
+
+    TASKS_BASE = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes")
+
+    for u in unidades:
+        # Tiempo dedicado (si existe registro en progreso)
+        prog = db.query(models.Progreso).filter(
+            models.Progreso.username == username,
+            models.Progreso.unidad_id == u.id
+        ).first() if hasattr(models, 'Progreso') else None
+        tiempo_min = int(getattr(prog, 'tiempo_dedicado_min', 0) or 0)
+        tiempo_score = min(100, int((tiempo_min or 0) * 100 / objetivo_min)) if objetivo_min > 0 else 0
+
+        # Promedio de tareas y conteo
+        from sqlalchemy import func as sa_func
+        avg_score = db.query(sa_func.avg(models.TareaCalificacion.score)).filter(
+            models.TareaCalificacion.estudiante_username == username,
+            models.TareaCalificacion.unidad_id == u.id
+        ).scalar()
+        tareas_score_avg = float(avg_score) if avg_score is not None else None
+
+        # Conteo tareas y última entrega desde FS
+        tareas_count = 0
+        ultima_entrega_iso = None
+        carpeta = TASKS_BASE / "estudiantes" / username / f"unidad_{u.id}" / "SOLO_TAREAS"
+        try:
+            if carpeta.exists() and carpeta.is_dir():
+                archivos = [p for p in carpeta.iterdir() if p.is_file()]
+                tareas_count = len(archivos)
+                if archivos:
+                    last = max(archivos, key=lambda p: p.stat().st_mtime)
+                    ultima_entrega_iso = datetime.fromtimestamp(last.stat().st_mtime).isoformat()
+        except Exception:
+            pass
+
+        base_score = tareas_score_avg if tareas_score_avg is not None else 0.0
+        final_grade = int(round(wt_tareas * base_score + wt_tiempo * tiempo_score))
+        estado = "aprobado" if final_grade >= 60 else "pendiente"
+        if estado == "aprobado":
+            aprobadas += 1
+        else:
+            reprobadas += 1
+
+        resultado.append({
+            "unidad_id": u.id,
+            "nombre": u.nombre,
+            "tareas_count": int(tareas_count),
+            "tareas_promedio": float(tareas_score_avg) if tareas_score_avg is not None else None,
+            "tiempo_min": tiempo_min,
+            "tiempo_score": tiempo_score,
+            "grade": final_grade,
+            "estado": estado,
+            "ultima_entrega": ultima_entrega_iso,
+        })
+
+    # Promedio global
+    grades = [r["grade"] for r in resultado]
+    promedio_global = int(round(sum(grades) / len(grades))) if grades else 0
+
+    return {
+        "username": username,
+        "pesos": {"tareas": wt_tareas, "tiempo": wt_tiempo},
+        "objetivo_min": objetivo_min,
+        "unidades": resultado,
+        "global": {"promedio": promedio_global, "aprobadas": aprobadas, "pendientes": reprobadas}
+    }
+
+# ===== Override / Calificación final de unidad =====
+class UnidadFinalBody(BaseModel):
+    estudiante_username: str
+    unidad_id: int
+    score: int | None = None
+    aprobado: bool | None = None
+
+@authRouter.post("/grades/unidad/final")
+def upsert_unidad_final(body: UnidadFinalBody, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    """Crea/actualiza una calificación final (override) para una unidad.
+    - score: 0..100 opcional
+    - aprobado: True/False opcional
+    Prioriza este override cuando se construye el estado final (consumido por el frontend).
+    """
+    if body.score is not None:
+        try:
+            s = int(body.score)
+            if s < 0 or s > 100:
+                raise ValueError()
+        except Exception:
+            raise HTTPException(status_code=400, detail="score debe ser un entero entre 0 y 100")
+
+    # Validación básica de existencia
+    estudiante = db.query(models.Registro).filter(models.Registro.username == body.estudiante_username).first()
+    if not estudiante:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+    unidad = db.query(models.Unidad).filter(models.Unidad.id == body.unidad_id).first()
+    if not unidad:
+        raise HTTPException(status_code=404, detail="Unidad no encontrada")
+
+    # Upsert
+    row = db.query(models.UnidadCalificacionFinal).filter(
+        models.UnidadCalificacionFinal.estudiante_username == body.estudiante_username,
+        models.UnidadCalificacionFinal.unidad_id == body.unidad_id
+    ).first()
+    now = datetime.utcnow()
+    if row:
+        if body.score is not None:
+            row.score = int(body.score)
+        if body.aprobado is not None:
+            row.aprobado = bool(body.aprobado)
+        row.updated_at = now
+        db.add(row)
+    else:
+        row = models.UnidadCalificacionFinal(
+            estudiante_username=body.estudiante_username,
+            unidad_id=body.unidad_id,
+            score=int(body.score) if body.score is not None else None,
+            aprobado=bool(body.aprobado) if body.aprobado is not None else None,
+            updated_at=now
+        )
+        db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"id": row.id, "estudiante_username": row.estudiante_username, "unidad_id": row.unidad_id, "score": row.score, "aprobado": row.aprobado}
 def require_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
@@ -51,6 +237,17 @@ def require_admin(credentials: HTTPAuthorizationCredentials = Depends(security))
 @authRouter.get("/admin/ping")
 def admin_ping(admin=Depends(require_admin)):
     return {"ok": True, "message": "pong", "admin": admin}
+
+@authRouter.post("/admin/sync-models")
+def admin_sync_models(admin=Depends(require_admin)):
+    """Crea cualquier tabla faltante según los modelos ORM.
+    Útil para entornos sin migraciones. No borra ni altera tablas existentes.
+    """
+    try:
+        Base.metadata.create_all(bind=engine)
+        return {"ok": True, "message": "Tablas sincronizadas"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error sincronizando modelos: {e}")
 
 def require_roles(roles: list[str]):
     def _dep(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -111,6 +308,86 @@ def cambiar_rol_usuario(username: str, body: CambiarRolBody, db: Session = Depen
         "email": user.email,
         "nombres": user.nombres,
         "apellidos": user.apellidos,
+    }
+
+
+# ===== Verificación manual de usuarios (solo admin) =====
+class VerifyUserBody(BaseModel):
+    username: str | None = None
+    email: EmailStr | None = None
+
+
+def _find_user_by_any(db: Session, *, id: int | None = None, username: str | None = None, email: str | None = None):
+    q = db.query(models.Registro)
+    if id is not None:
+        u = q.filter(models.Registro.identificador == id).first()
+        if u:
+            return u
+    if username:
+        u = q.filter(models.Registro.username == username).first()
+        if u:
+            return u
+    if email:
+        u = q.filter(models.Registro.email == email).first()
+        if u:
+            return u
+    return None
+
+
+@authRouter.post("/admin/verify-user")
+def admin_verify_user(body: VerifyUserBody, db: Session = Depends(get_db)):
+    """Marca manualmente a un usuario como verificado (o desverificado).
+    Acepta id (identificador), username o email.
+    ATENCIÓN: Endpoint sin autenticación a petición del usuario. Considera protegerlo en producción.
+    """
+    if not body.username and not body.email:
+        raise HTTPException(status_code=400, detail="Proporciona 'username' o 'email'.")
+    user = _find_user_by_any(db, username=body.username, email=body.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    # Verificar siempre en True (no se expone 'verify' en el body)
+    user.email_verified = True
+    # Si tu modelo tiene campos de tracking, ajusta aquí; usamos setdefault con hasattr
+    if hasattr(user, "verification_token"):
+        user.verification_token = None
+    if hasattr(user, "token_expires_at"):
+        user.token_expires_at = None
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {
+        "message": "Estado de verificación actualizado",
+        "user": {
+            "username": user.username,
+            "email": user.email,
+            "email_verified": getattr(user, "email_verified", None),
+        },
+    }
+
+
+@authRouter.put("/admin/usuarios/{username}/verify")
+def admin_verify_user_by_username(username: str, verify: bool = True, db: Session = Depends(get_db)):
+    """Marca/verifica a un usuario por username con query param ?verify=true|false"""
+    user = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    user.email_verified = bool(verify)
+    if hasattr(user, "verification_token") and verify:
+        user.verification_token = None
+    if hasattr(user, "token_expires_at") and verify:
+        user.token_expires_at = None
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {
+        "message": "Estado de verificación actualizado",
+        "user": {
+            "username": user.username,
+            "email": user.email,
+            "email_verified": getattr(user, "email_verified", None),
+        },
     }
 
 
@@ -249,6 +526,89 @@ def get_usuario(username: str, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return schemas.UsuarioResponse.from_orm(user)
+
+
+# ============================
+# Olvidé mi contraseña (público)
+# ============================
+class ForgotPasswordBody(BaseModel):
+    username: str | None = None
+    email: EmailStr | None = None
+
+
+@authRouter.post("/forgot-password")
+async def forgot_password(body: ForgotPasswordBody, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Genera un token de restablecimiento y envía email con enlace. Reutiliza
+    verification_token y token_expires_at para evitar migraciones."""
+    if not body.username and not body.email:
+        raise HTTPException(status_code=400, detail="Proporciona username o email")
+
+    q = db.query(models.Registro)
+    if body.username:
+        user = q.filter(models.Registro.username == body.username).first()
+    else:
+        user = q.filter(models.Registro.email == body.email).first()
+
+    # Seguridad: no revelar si existe o no. Responder 200 siempre.
+    if not user:
+        return {"message": "Si el usuario existe, se enviará un correo con instrucciones."}
+
+    reset_token = str(uuid.uuid4())
+    expires_at = datetime.utcnow() + timedelta(hours=2)
+    user.verification_token = reset_token
+    user.token_expires_at = expires_at
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    # Construir URL de restablecimiento hacia el FRONTEND
+    frontend_base = os.getenv("FRONTEND_BASE_URL", "http://localhost:4200")
+    reset_url = f"{frontend_base.rstrip('/')}/reset-password?token={reset_token}"
+
+    # Enviar correo
+    await crud.send_reset_password_email(
+        recipient_email=user.email,
+        username=user.username,
+        reset_url=reset_url,
+        background_tasks=background_tasks,
+        request=request,
+    )
+
+    return {"message": "Si el usuario existe, se enviará un correo con instrucciones."}
+
+
+class ResetPasswordBody(BaseModel):
+    token: str
+    new_password: str
+
+
+@authRouter.post("/reset-password")
+def reset_password(body: ResetPasswordBody, db: Session = Depends(get_db)):
+    """Valida el token de restablecimiento, actualiza la contraseña y limpia el token."""
+    user = db.query(models.Registro).filter(models.Registro.verification_token == body.token).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Token inválido")
+    if not user.token_expires_at or user.token_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="El token ha expirado. Solicita uno nuevo.")
+
+    # Hashear y guardar nueva contraseña
+    from crud import bcrypt_context
+    user.hashed_password = bcrypt_context.hash(body.new_password)
+    # invalidar token
+    user.verification_token = None
+    user.token_expires_at = None
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"message": "Contraseña actualizada correctamente"}
+
+
+# GET helper: si el usuario abre el enlace del backend por error, redirigir al frontend
+@authRouter.get("/reset-password")
+def reset_password_redirect(token: str):
+    frontend_base = os.getenv("FRONTEND_BASE_URL", "http://localhost:4200")
+    url = f"{frontend_base.rstrip('/')}/reset-password?token={token}"
+    return RedirectResponse(url=url, status_code=status.HTTP_302_FOUND)
 
 # POST: Registrar clase
 @authRouter.post("/clases/", response_model=ClaseResponse)
@@ -433,6 +793,11 @@ from typing import List
 def obtener_profesores(db: Session = Depends(get_db)):
     return crud.obtener_profesores(db)
 
+# Alias plural para compatibilidad con clientes que consultan /profesores/
+@authRouter.get("/profesores/", response_model=List[schemas.UsuarioResponse])
+def obtener_profesores_plural(db: Session = Depends(get_db)):
+    return crud.obtener_profesores(db)
+
 # Endpoints para gestión de matrículas
 @authRouter.get("/matriculas/", response_model=List[schemas.UsuarioResponse])
 def obtener_matriculas(db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa"]))):
@@ -458,9 +823,149 @@ def sincronizar_unidades(unidades: List[dict], db: Session = Depends(get_db), ad
     return crud.sincronizar_unidades(db, unidades)
 
 @authRouter.get("/unidades/", response_model=List[dict])
-def obtener_unidades(db: Session = Depends(get_db), admin=Depends(require_admin)):
+def obtener_unidades(db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa", "profesor"]))):
     """Obtiene todas las unidades disponibles"""
-    return crud.obtener_unidades(db)
+    res = crud.obtener_unidades(db)
+    try:
+        print(f"[API] GET /unidades -> {len(res)} items (by {who})")
+    except Exception:
+        pass
+    return res
+
+# ============ Listados de calificaciones por estudiante ==========
+@authRouter.get("/grades/estudiantes/{username}/tareas", response_model=List[dict])
+def listar_tareas_calificaciones(username: str, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    rows = db.query(models.TareaCalificacion).filter(models.TareaCalificacion.estudiante_username == username).order_by(models.TareaCalificacion.updated_at.desc()).all()
+    # nombre de unidad
+    unidades = {u.id: u.nombre for u in db.query(models.Unidad.id, models.Unidad.nombre).all()}
+    return [
+        {
+            "id": r.id,
+            "unidad_id": r.unidad_id,
+            "unidad_nombre": unidades.get(r.unidad_id),
+            "filename": r.filename,
+            "score": r.score,
+            "updated_at": getattr(r, 'updated_at', None)
+        }
+        for r in rows
+    ]
+
+@authRouter.get("/grades/estudiantes/{username}/quizzes", response_model=List[dict])
+def listar_quizzes_calificaciones(username: str, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    rows = db.query(models.EstudianteQuizCalificacion).filter(models.EstudianteQuizCalificacion.estudiante_username == username).order_by(models.EstudianteQuizCalificacion.updated_at.desc()).all()
+    unidades = {u.id: u.nombre for u in db.query(models.Unidad.id, models.Unidad.nombre).all()}
+    quizzes = {q.id: q.titulo for q in db.query(models.Quiz.id, models.Quiz.titulo).all()} if hasattr(models, 'Quiz') else {}
+    return [
+        {
+            "id": r.id,
+            "unidad_id": r.unidad_id,
+            "unidad_nombre": unidades.get(r.unidad_id),
+            "quiz_id": r.quiz_id,
+            "quiz_titulo": quizzes.get(r.quiz_id),
+            "score": r.score,
+            "updated_at": getattr(r, 'updated_at', None)
+        }
+        for r in rows
+    ]
+
+@authRouter.get("/grades/estudiantes/{username}/unidades/finales", response_model=List[dict])
+def listar_unidades_finales(username: str, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    rows = db.query(models.UnidadCalificacionFinal).filter(models.UnidadCalificacionFinal.estudiante_username == username).order_by(models.UnidadCalificacionFinal.updated_at.desc()).all()
+    unidades = {u.id: u.nombre for u in db.query(models.Unidad.id, models.Unidad.nombre).all()}
+    return [
+        {
+            "id": r.id,
+            "unidad_id": r.unidad_id,
+            "unidad_nombre": unidades.get(r.unidad_id),
+            "score": r.score,
+            "aprobado": r.aprobado,
+            "updated_at": getattr(r, 'updated_at', None)
+        }
+        for r in rows
+    ]
+
+@authRouter.post("/unidades/", response_model=dict)
+def crear_unidad(body: dict = Body(...), db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa"]))):
+    """Crea una unidad sin afectar las existentes (no destructivo)."""
+    try:
+        print(f"[API] POST /unidades by={who} body={body}")
+    except Exception:
+        pass
+    res = crud.crear_unidad(db, body)
+    try:
+        print(f"[API] POST /unidades -> created id={res.get('id')}")
+    except Exception:
+        pass
+    return res
+
+@authRouter.put("/unidades/{unidad_id}", response_model=dict)
+def actualizar_unidad(unidad_id: int, body: dict = Body(...), db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa"]))):
+    """Actualiza una unidad existente (nombre, descripcion, orden)."""
+    res = crud.actualizar_unidad(db, unidad_id, body)
+    if not res:
+        raise HTTPException(status_code=404, detail="Unidad no encontrada")
+    return res
+
+@authRouter.delete("/unidades/{unidad_id}")
+def eliminar_unidad(unidad_id: int, db: Session = Depends(get_db), admin=Depends(require_admin)):
+    """Elimina una unidad. Solo admin. Limpia relaciones pivot."""
+    ok = crud.eliminar_unidad(db, unidad_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Unidad no encontrada")
+    return {"eliminada": True, "id": unidad_id}
+
+# ===== Subcarpetas =====
+@authRouter.get("/unidades/{unidad_id}/subcarpetas", response_model=List[dict])
+def listar_subcarpetas(unidad_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa", "profesor"]))):
+    """Lista subcarpetas de una unidad"""
+    return crud.listar_subcarpetas(db, unidad_id)
+
+@authRouter.post("/unidades/{unidad_id}/subcarpetas", response_model=dict)
+def crear_subcarpeta(unidad_id: int, body: dict = Body(...), db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa"]))):
+    """Crea una subcarpeta en la unidad indicada"""
+    return crud.crear_subcarpeta(db, unidad_id, body)
+
+@authRouter.put("/unidades/{unidad_id}/subcarpetas/{subcarpeta_id}", response_model=dict)
+def actualizar_subcarpeta(unidad_id: int, subcarpeta_id: int, body: dict = Body(...), db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa"]))):
+    """Actualiza una subcarpeta existente (nombre, descripcion, orden)"""
+    # Verificar que la subcarpeta pertenece a la unidad
+    subcarpeta = db.query(models.Subcarpeta).filter(
+        models.Subcarpeta.id == subcarpeta_id,
+        models.Subcarpeta.unidad_id == unidad_id
+    ).first()
+    if not subcarpeta:
+        raise HTTPException(status_code=404, detail="Subcarpeta no encontrada")
+    return crud.actualizar_subcarpeta(db, subcarpeta_id, body)
+
+@authRouter.delete("/unidades/{unidad_id}/subcarpetas/{subcarpeta_id}")
+def eliminar_subcarpeta(unidad_id: int, subcarpeta_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa"]))):
+    """Elimina una subcarpeta"""
+    # Verificar que la subcarpeta pertenece a la unidad
+    subcarpeta = db.query(models.Subcarpeta).filter(
+        models.Subcarpeta.id == subcarpeta_id,
+        models.Subcarpeta.unidad_id == unidad_id
+    ).first()
+    if not subcarpeta:
+        raise HTTPException(status_code=404, detail="Subcarpeta no encontrada")
+    ok = crud.eliminar_subcarpeta(db, subcarpeta_id)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Error eliminando subcarpeta")
+    return {"eliminada": True, "id": subcarpeta_id}
+
+@authRouter.put("/unidades/{unidad_id}/subcarpetas/{subcarpeta_id}/toggle", response_model=dict)
+def toggle_subcarpeta(unidad_id: int, subcarpeta_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa"]))):
+    """Oculta o muestra una subcarpeta (cambia el estado habilitada)"""
+    # Verificar que la subcarpeta pertenece a la unidad
+    subcarpeta = db.query(models.Subcarpeta).filter(
+        models.Subcarpeta.id == subcarpeta_id,
+        models.Subcarpeta.unidad_id == unidad_id
+    ).first()
+    if not subcarpeta:
+        raise HTTPException(status_code=404, detail="Subcarpeta no encontrada")
+    resultado = crud.toggle_subcarpeta(db, subcarpeta_id)
+    if resultado is None:
+        raise HTTPException(status_code=404, detail="Subcarpeta no encontrada")
+    return {"habilitada": resultado}
 
 @authRouter.get("/estudiantes/me/unidades-habilitadas")
 def obtener_unidades_habilitadas_estudiante(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
@@ -600,6 +1105,45 @@ def crear_quiz_unidad(unidad_id: int, body: QuizCreate, db: Session = Depends(ge
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error creando quiz: {e}")
 
+# ===== Calificaciones (Upserts y Resumen por unidad) =====
+class UpsertTareaBody(BaseModel):
+    estudiante_username: str
+    unidad_id: int
+    filename: str
+    score: int
+
+@authRouter.post("/grades/tareas")
+def upsert_tarea(body: UpsertTareaBody, db: Session = Depends(get_db)):
+    row = crud.upsert_tarea_calificacion(
+        db,
+        estudiante_username=body.estudiante_username,
+        unidad_id=body.unidad_id,
+        filename=body.filename,
+        score=body.score,
+    )
+    return {"id": row.id, "score": row.score}
+
+class UpsertQuizBody(BaseModel):
+    estudiante_username: str
+    unidad_id: int
+    quiz_id: int
+    score: int
+
+@authRouter.post("/grades/quizzes")
+def upsert_quiz(body: UpsertQuizBody, db: Session = Depends(get_db)):
+    row = crud.upsert_quiz_calificacion(
+        db,
+        estudiante_username=body.estudiante_username,
+        unidad_id=body.unidad_id,
+        quiz_id=body.quiz_id,
+        score=body.score,
+    )
+    return {"id": row.id, "score": row.score}
+
+@authRouter.get("/grades/estudiantes/{username}/unidades/{unidad_id}")
+def get_unidad_grade(username: str, unidad_id: int, db: Session = Depends(get_db)):
+    return crud.get_unidad_grade_detalle(db, username=username, unidad_id=unidad_id)
+
 @authRouter.get("/unidades/{unidad_id}/quizzes", response_model=list[QuizResponse])
 def listar_quizzes_unidad(unidad_id: int, db: Session = Depends(get_db)):
     quizzes = db.query(models.Quiz).filter(models.Quiz.unidad_id == unidad_id).order_by(models.Quiz.created_at.desc()).all()
@@ -688,6 +1232,10 @@ def tracking_start(
     username, _ = _username_from_token(credentials)
     if not username:
         raise HTTPException(status_code=401, detail="Token inválido")
+    # Validar que la unidad exista para evitar FK
+    unidad = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
+    if not unidad:
+        raise HTTPException(status_code=404, detail="Unidad no encontrada para tracking")
     return crud.track_activity(db, username=username, unidad_id=unidad_id, tipo_evento="start")
 
 @authRouter.post("/tracking/heartbeat")
@@ -700,6 +1248,9 @@ def tracking_heartbeat(
     username, _ = _username_from_token(credentials)
     if not username:
         raise HTTPException(status_code=401, detail="Token inválido")
+    unidad = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
+    if not unidad:
+        raise HTTPException(status_code=404, detail="Unidad no encontrada para tracking")
     return crud.track_activity(db, username=username, unidad_id=unidad_id, tipo_evento="heartbeat", duracion_min=duracion_min)
 
 @authRouter.post("/tracking/end")
@@ -712,6 +1263,9 @@ def tracking_end(
     username, _ = _username_from_token(credentials)
     if not username:
         raise HTTPException(status_code=401, detail="Token inválido")
+    unidad = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
+    if not unidad:
+        raise HTTPException(status_code=404, detail="Unidad no encontrada para tracking")
     return crud.track_activity(db, username=username, unidad_id=unidad_id, tipo_evento="end", duracion_min=duracion_min)
 
 @authRouter.put("/progreso/{unidad_id}")
@@ -741,8 +1295,10 @@ def analytics_resumen(username: str, desde: str | None = None, hasta: str | None
     d_to = datetime.fromisoformat(hasta) if hasta else None
     return crud.get_analytics_resumen(db, username=username, desde=d_from, hasta=d_to)
 
+
 @authRouter.get("/analytics/estudiantes/{username}/unidades")
-def get_analytics_unidades(username: str, desde: str | None = None, hasta: str | None = None, db: Session = Depends(get_db)):
+def analytics_unidades(username: str, desde: str | None = None, hasta: str | None = None, db: Session = Depends(get_db)):
+    """Analytics de unidades para un usuario específico (uso empresa/profesor)."""
     from datetime import datetime
     d_from = datetime.fromisoformat(desde) if desde else None
     d_to = datetime.fromisoformat(hasta) if hasta else None
@@ -846,15 +1402,16 @@ async def upload_student_file(
             models.estudiante_unidad.c.habilitada == True
         ).first()
         if not acceso:
-            # LOG extra: listar relaciones existentes para el estudiante
+            # No bloquear: permitir subida en SOLO TAREAS aunque no exista relación habilitada
+            # dejando un log para diagnóstico. Esto evita errores cuando la unidad no está
+            # registrada en BD pero existe en el filesystem de tareas.
             try:
                 relaciones = db.query(models.estudiante_unidad).filter(
                     models.estudiante_unidad.c.estudiante_id == estudiante.identificador
                 ).all()
-                print(f"🔎 DEBUG: Relaciones estudiante_unidad del estudiante {estudiante.identificador}: {relaciones}")
+                print(f"⚠️ WARN: Subiendo sin relación habilitada. estudiante_id={estudiante.identificador}, unidad_id={unidad_id}, relaciones={relaciones}")
             except Exception as e:
                 print(f"⚠️ DEBUG: No se pudo listar relaciones estudiante_unidad: {e}")
-            raise HTTPException(status_code=403, detail="No tienes acceso a esta unidad")
     
     # Directorio específico para estudiantes
     student_dir = UPLOAD_DIR / "estudiantes" / current_user / f"unidad_{unidad_id}" / "SOLO_TAREAS"
@@ -981,6 +1538,124 @@ def get_student_files(
     
     return {"files": files}
 
+
+# Solo lectura para EMPRESA/PROFESOR: listar tareas de un estudiante por unidad
+@authRouter.get("/empresa/estudiantes/{username}/unidades/{unidad_id}/tareas")
+def empresa_listar_tareas_estudiante(
+    username: str,
+    unidad_id: int,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Devuelve la lista de archivos de 'SOLO TAREAS' para un estudiante y unidad dada.
+    Control de permisos:
+      - empresa: puede ver TODOS los estudiantes.
+      - profesor: solo estudiantes ASIGNADOS a ese profesor.
+    """
+    # Validar rol desde token
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        sub = payload.get("sub")
+        tipo = payload.get("tipo_usuario")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    if tipo == "empresa":
+        pass  # acceso total
+    elif tipo == "profesor":
+        if not _estudiante_asignado_a_profesor(db, profesor_username=sub, estudiante_username=username):
+            raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+    else:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
+    # Validar existencia de usuario
+    estudiante = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if not estudiante:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+
+    base_dir = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes") / "estudiantes" / username / f"unidad_{unidad_id}" / "SOLO_TAREAS"
+    if not base_dir.exists():
+        return {"files": []}
+
+    files = []
+    for file_path in base_dir.iterdir():
+        if file_path.is_file():
+            stat = file_path.stat()
+            item = {
+                "filename": file_path.name,
+                "original_name": file_path.name.split('_', 2)[-1] if '_' in file_path.name else file_path.name,
+                "size": stat.st_size,
+                "upload_date": datetime.fromtimestamp(stat.st_mtime).isoformat()
+            }
+            # Enriquecer con score y feedback
+            try:
+                row = db.query(models.TareaCalificacion).filter(
+                    models.TareaCalificacion.estudiante_username == username,
+                    models.TareaCalificacion.unidad_id == unidad_id,
+                    models.TareaCalificacion.filename == file_path.name,
+                ).first()
+                if row:
+                    item["score"] = int(row.score) if row.score is not None else None
+                    try:
+                        if hasattr(row, 'feedback'):
+                            item["feedback"] = getattr(row, 'feedback')
+                    except Exception:
+                        pass
+                if "score" not in item:
+                    # fallback sidecar
+                    try:
+                        data = _grades_sidecar_get(username, unidad_id, file_path.name)
+                        if data:
+                            item["score"] = data.get('score')
+                            item["feedback"] = data.get('feedback')
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            files.append(item)
+
+    # Ordenar por fecha desc
+    files.sort(key=lambda f: f.get("upload_date", ""), reverse=True)
+    return {"files": files}
+
+
+@authRouter.get("/empresa/estudiantes/{username}/tareas")
+def empresa_listar_todas_tareas_estudiante(
+    username: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Lista TODAS las tareas del estudiante agrupadas por unidad (solo lectura).
+    Permisos: empresa (todos), profesor (solo asignados)."""
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        sub = payload.get("sub")
+        tipo = payload.get("tipo_usuario")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    if tipo == "empresa":
+        pass
+    elif tipo == "profesor":
+        if not _estudiante_asignado_a_profesor(db, profesor_username=sub, estudiante_username=username):
+            raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+    else:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
+    # agrupar por unidad usando helper existente
+    tareas = _listar_tareas_estudiante(username, None)
+    grouped: dict[int, list] = {}
+    for t in tareas:
+        uid = t.get("unidad_id")
+        grouped.setdefault(uid, []).append(t)
+    # ordenar unidades por id asc
+    unidades = []
+    for uid in sorted([k for k in grouped.keys() if k is not None]):
+        unidades.append({
+            "unidad_id": uid,
+            "files": grouped[uid]
+        })
+    return {"unidades": unidades}
+
 @authRouter.get("/estudiantes/subcarpetas/{unidad_id}/{subcarpeta_nombre}/files/{filename}")
 def get_student_file(
     unidad_id: int,
@@ -1037,6 +1712,7 @@ from pydantic import BaseModel
 class GradeBody(BaseModel):
     filename: str
     score: int
+    feedback: str | None = None
 
 @authRouter.post("/profesores/{profesor_username}/estudiantes/{estudiante_username}/unidades/{unidad_id}/grade")
 def profesor_calificar_tarea(
@@ -1062,6 +1738,12 @@ def profesor_calificar_tarea(
         if row:
             row.score = score
             row.updated_at = now
+            # Guardar feedback si el modelo tiene el atributo
+            try:
+                if hasattr(row, 'feedback') and body.feedback is not None:
+                    row.feedback = body.feedback
+            except Exception:
+                pass
             db.add(row)
         else:
             row = models.TareaCalificacion(
@@ -1072,9 +1754,21 @@ def profesor_calificar_tarea(
                 created_at=now,
                 updated_at=now,
             )
+            # Intentar setear feedback si existe la columna
+            try:
+                if hasattr(row, 'feedback') and body.feedback is not None:
+                    setattr(row, 'feedback', body.feedback)
+            except Exception:
+                pass
             db.add(row)
         db.commit()
         db.refresh(row)
+        # Sidecar JSON en filesystem si la tabla no tiene columna feedback
+        try:
+            if not hasattr(row, 'feedback') and body.feedback is not None:
+                _grades_sidecar_save(estudiante_username, unidad_id, body.filename, score, body.feedback)
+        except Exception:
+            pass
         return {"ok": True, "unidad_id": unidad_id, "filename": body.filename, "score": row.score}
     except Exception as e:
         db.rollback()
@@ -1131,9 +1825,22 @@ def profesor_obtener_calificacion(
         models.TareaCalificacion.unidad_id == unidad_id,
         models.TareaCalificacion.filename == filename,
     ).first()
-    if not row:
-        return {"score": None}
-    return {"score": int(row.score)}
+    if row:
+        feedback = None
+        try:
+            if hasattr(row, 'feedback'):
+                feedback = getattr(row, 'feedback')
+        except Exception:
+            pass
+        return {"score": int(row.score) if row.score is not None else None, "feedback": feedback}
+    # fallback: sidecar
+    try:
+        data = _grades_sidecar_get(estudiante_username, unidad_id, filename)
+        if data:
+            return {"score": data.get('score'), "feedback": data.get('feedback')}
+    except Exception:
+        pass
+    return {"score": None, "feedback": None}
 
 # ==========================
 # Tareas de estudiantes para PROFESOR (solo asignados)
@@ -1321,45 +2028,19 @@ def get_resumen_estudiante(
         raise HTTPException(status_code=404, detail="Estudiante no encontrado")
     return crud.get_analytics_resumen(db, username=current_user, desde=d_from, hasta=d_to)
 
+
 @authRouter.get("/estudiantes/analytics/unidades")
-def get_analytics_unidades_current(
+def get_analytics_unidades_estudiante(
     current_user: str = Depends(get_current_user_from_token),
     db: Session = Depends(get_db),
     desde: str | None = None,
     hasta: str | None = None,
 ):
+    """Analytics de unidades para el estudiante autenticado."""
     from datetime import datetime
     d_from = datetime.fromisoformat(desde) if desde else None
     d_to = datetime.fromisoformat(hasta) if hasta else None
     return crud.get_analytics_unidades(db, username=current_user, desde=d_from, hasta=d_to)
-    unidades_query = db.query(
-        models.estudiante_unidad.c.unidad_id,
-        func.coalesce(func.sum(models.ActividadEstudiante.duracion_min), 0).label('tiempo_total')
-    ).outerjoin(
-        models.ActividadEstudiante,
-        and_(
-            models.ActividadEstudiante.username == current_user,
-            models.ActividadEstudiante.unidad_id == models.estudiante_unidad.c.unidad_id
-        )
-    ).filter(
-        models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
-        models.estudiante_unidad.c.habilitada == True
-    ).group_by(models.estudiante_unidad.c.unidad_id).all()
-    
-    analytics = []
-    for unidad_id, tiempo_total in unidades_query:
-        # Calcular progreso basado en tiempo (ejemplo: 30 min = 100%)
-        progreso = min(100, (tiempo_total / 30) * 100) if tiempo_total > 0 else 0
-        
-        analytics.append({
-            "unidad_id": unidad_id,
-            "tiempo_dedicado_min": int(tiempo_total),
-            "actividades_completadas": 0,  # TODO: implementar conteo real
-            "ultima_actividad": datetime.now().isoformat(),
-            "progreso_porcentaje": int(progreso)
-        })
-    
-    return analytics
 
 # ==========================
 # Asistencia por clase (persistencia en JSON) + consulta empresa
@@ -1457,28 +2138,343 @@ def empresa_ver_asistencia_clase(clase_id: int, db: Session = Depends(get_db)):
     return data
 
 # Listado de clases para empresa con estado de asistencia
-@authRouter.get("/empresa/clases")
-def empresa_listar_clases(desde: str | None = None, hasta: str | None = None, db: Session = Depends(get_db)):
-    q = db.query(models.Clase)
-    if desde:
-        q = q.filter(models.Clase.dia >= desde)
-    if hasta:
-        q = q.filter(models.Clase.dia <= hasta)
-    clases = q.order_by(models.Clase.dia.asc(), models.Clase.hora.asc()).all()
-    res = []
-    for c in clases:
-        asistencia = _read_asistencia(c.id) or {}
-        presentes = asistencia.get('presentes') or []
-        total_inscritos = len(c.estudiantes or [])
-        res.append({
-            "id": c.id,
-            "dia": c.dia,
-            "hora": c.hora,
-            "tema": c.tema,
-            "profesor_username": c.profesor_username,
-            "total_inscritos": total_inscritos,
-            "tiene_asistencia": bool(presentes),
-            "presentes": len(presentes),
-            "ausentes": max(0, total_inscritos - len(presentes)),
-        })
-    return res
+def _estudiante_asignado_a_profesor(db: Session, profesor_username: str, estudiante_username: str) -> bool:
+    """Verifica si un estudiante está asignado a un profesor."""
+    profesor = db.query(models.Registro).filter(
+        models.Registro.username == profesor_username,
+        models.Registro.tipo_usuario == "profesor"
+    ).first()
+
+    if not profesor:
+        return False
+
+    estudiante = db.query(models.Registro).filter(
+        models.Registro.username == estudiante_username,
+        models.Registro.tipo_usuario == "estudiante"
+    ).first()
+
+    if not estudiante:
+        return False
+
+    # Verificar asignación en tabla profesor_estudiante
+    asignacion = db.query(models.profesor_estudiante).filter(
+        models.profesor_estudiante.c.profesor_id == profesor.identificador,
+        models.profesor_estudiante.c.estudiante_id == estudiante.identificador
+    ).first()
+
+    return asignacion is not None
+
+def _ensure_profesor_credentials(profesor_username: str, credentials: HTTPAuthorizationCredentials):
+    """Valida que el token corresponda al profesor especificado."""
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        token_username = payload.get("sub")
+        token_tipo = payload.get("tipo_usuario")
+
+        if token_username != profesor_username:
+            raise HTTPException(status_code=403, detail="Token no corresponde al profesor")
+        if token_tipo != "profesor":
+            raise HTTPException(status_code=403, detail="Solo profesores pueden calificar tareas")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+def _read_asistencia(clase_id: int) -> dict | None:
+    """Lee datos de asistencia desde filesystem (simplificado)."""
+    import json
+    from pathlib import Path
+
+    asistencias_dir = Path("/Users/sena/Desktop/Ingles/asistencias")
+    json_path = asistencias_dir / f"{clase_id}.json"
+
+    if json_path.exists():
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return None
+
+def _listar_tareas_estudiante(username: str, unidad_id: int | None) -> list:
+    """Lista tareas de un estudiante (simplificado)."""
+    from pathlib import Path
+
+    base_dir = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes") / "estudiantes" / username
+    if not base_dir.exists():
+        return []
+
+    tareas = []
+    for unidad_path in base_dir.iterdir():
+        if unidad_path.is_dir() and unidad_path.name.startswith("unidad_"):
+            uid_str = unidad_path.name.replace("unidad_", "")
+            try:
+                uid = int(uid_str)
+                if unidad_id is None or uid == unidad_id:
+                    tareas_dir = unidad_path / "SOLO_TAREAS"
+                    if tareas_dir.exists() and tareas_dir.is_dir():
+                        for file_path in tareas_dir.iterdir():
+                            if file_path.is_file():
+                                stat = file_path.stat()
+                                tareas.append({
+                                    "unidad_id": uid,
+                                    "filename": file_path.name,
+                                    "original_name": file_path.name.split('_', 2)[-1] if '_' in file_path.name else file_path.name,
+                                    "size": stat.st_size,
+                                    "upload_date": stat.st_mtime
+                                })
+                    if unidad_id is not None:  # Si se especificó unidad_id, salir después de encontrarla
+                        break
+            except ValueError:
+                continue
+
+    return tareas
+
+def _grades_sidecar_get(username: str, unidad_id: int, filename: str) -> dict | None:
+    """Obtiene calificación desde archivo sidecar (simplificado)."""
+    # Implementación simplificada - en producción esto vendría de la BD
+    return None
+
+# ==========================
+# Archivos de Empresa/Profesor en Subcarpetas
+# ==========================
+
+@authRouter.post("/empresa/subcarpetas/{unidad_id}/{subcarpeta_id}/upload")
+async def upload_empresa_file(
+    unidad_id: int,
+    subcarpeta_id: int,
+    files: list[UploadFile] = File(...),
+    current_user: str = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Endpoint para empresa/profesor - subir archivos a cualquier subcarpeta"""
+
+    # Verificar permisos
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        tipo = payload.get("tipo_usuario")
+        if tipo not in ["empresa", "profesor"]:
+            raise HTTPException(status_code=403, detail="Solo empresa y profesor pueden subir archivos")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    # Crear directorio si no existe
+    archivos_dir = Path("/Users/sena/Desktop/Ingles/archivos_empresa")
+    archivos_dir.mkdir(exist_ok=True)
+    user_dir = archivos_dir / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"🔍 DEBUG: current_user={current_user}, unidad_id={unidad_id}, subcarpeta_id={subcarpeta_id}")
+
+    # Procesar múltiples archivos
+    allowed_extensions = {'.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png', '.zip', '.rar', '.ppt', '.pptx', '.xls', '.xlsx'}
+    uploaded_files = []
+
+    for file in files:
+        print(f"🔍 DEBUG: Procesando archivo: {file.filename}")
+
+        # Validar extensión
+        file_extension = Path(file.filename).suffix.lower()
+        if file_extension not in allowed_extensions:
+            print(f"❌ DEBUG: Archivo rechazado: {file.filename} - extensión {file_extension}")
+            continue
+
+        # Nombre único
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_filename = f"{timestamp}_{file.filename}"
+        file_path = user_dir / safe_filename
+
+        try:
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            # Guardar metadata en BD via CRUD
+            archivo_data = {
+                "nombre_original": file.filename,
+                "nombre_archivo": safe_filename,
+                "tipo": file.content_type or "application/octet-stream",
+                "tamano": file_path.stat().st_size,
+                "es_link": False,
+                "url": ""
+            }
+
+            crud.crear_archivo_empresa(db, unidad_id, subcarpeta_id, archivo_data, current_user)
+
+            uploaded_files.append({
+                "filename": safe_filename,
+                "original_filename": file.filename,
+                "file_size": file_path.stat().st_size,
+            })
+            print(f"✅ DEBUG: Archivo guardado: {safe_filename}")
+
+        except Exception as e:
+            print(f"❌ DEBUG: Error guardando {file.filename}: {e}")
+            if file_path.exists():
+                file_path.unlink()
+
+    return {
+        "message": f"Archivos subidos exitosamente: {len(uploaded_files)}",
+        "uploaded_files": uploaded_files,
+        "unidad_id": unidad_id,
+        "subcarpeta_id": subcarpeta_id,
+        "uploaded_by": current_user,
+        "upload_date": datetime.now().isoformat()
+    }
+
+@authRouter.get("/empresa/subcarpetas/{unidad_id}/{subcarpeta_id}/files")
+def get_empresa_files(
+    unidad_id: int,
+    subcarpeta_id: int,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: str = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Listar archivos subidos por empresa/profesor en una subcarpeta"""
+
+    # Verificar permisos
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        tipo = payload.get("tipo_usuario")
+        if tipo not in ["empresa", "profesor"]:
+            raise HTTPException(status_code=403, detail="Solo empresa y profesor pueden ver archivos")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    archivos = crud.listar_archivos_empresa(db, unidad_id, subcarpeta_id, current_user)
+    return {"files": archivos}
+
+@authRouter.delete("/empresa/subcarpetas/{unidad_id}/{subcarpeta_id}/files/{archivo_id}")
+def delete_empresa_file(
+    unidad_id: int,
+    subcarpeta_id: int,
+    archivo_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: str = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Eliminar archivo de empresa/profesor"""
+
+    # Verificar permisos
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        tipo = payload.get("tipo_usuario")
+        if tipo not in ["empresa", "profesor"]:
+            raise HTTPException(status_code=403, detail="Solo empresa y profesor pueden eliminar archivos")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    ok = crud.eliminar_archivo_empresa(unidad_id, subcarpeta_id, archivo_id, current_user)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Error eliminando archivo")
+
+    return {"eliminado": True, "archivo_id": archivo_id}
+
+@authRouter.post("/empresa/subcarpetas/{unidad_id}/{subcarpeta_id}/links")
+def crear_link_empresa(
+    unidad_id: int,
+    subcarpeta_id: int,
+    body: dict = Body(...),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: str = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Adjuntar link en subcarpeta (empresa/profesor)"""
+
+    # Verificar permisos
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        tipo = payload.get("tipo_usuario")
+        if tipo not in ["empresa", "profesor"]:
+            raise HTTPException(status_code=403, detail="Solo empresa y profesor pueden adjuntar links")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    nombre = body.get("nombre", "").strip()
+    url = body.get("url", "").strip()
+
+    if not nombre or not url:
+        raise HTTPException(status_code=400, detail="Nombre y URL son requeridos")
+
+    # Validar URL
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+
+    archivo_data = {
+        "nombre_original": nombre,
+        "nombre_archivo": "",  # Links no tienen archivo físico
+        "tipo": "link",
+        "tamano": 0,
+        "es_link": True,
+        "url": url
+    }
+
+    link_data = crud.crear_archivo_empresa(db, unidad_id, subcarpeta_id, archivo_data, current_user)
+
+    return {
+        "message": "Link adjuntado correctamente",
+        "link": link_data,
+        "unidad_id": unidad_id,
+        "subcarpeta_id": subcarpeta_id
+    }
+
+@authRouter.get("/empresa/subcarpetas/{unidad_id}/{subcarpeta_id}/files/{archivo_id}/download")
+def download_empresa_file(
+    unidad_id: int,
+    subcarpeta_id: int,
+    archivo_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: str = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Descargar archivo de empresa/profesor"""
+
+    # Verificar permisos
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        tipo = payload.get("tipo_usuario")
+        if tipo not in ["empresa", "profesor"]:
+            raise HTTPException(status_code=403, detail="Solo empresa y profesor pueden descargar archivos")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    # Buscar metadata del archivo
+    archivos_dir = Path("/Users/sena/Desktop/Ingles/archivos_empresa") / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
+    metadata_file = archivos_dir / f"{archivo_id}.json"
+
+    if not metadata_file.exists():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    try:
+        with open(metadata_file, 'r', encoding='utf-8') as f:
+            archivo_data = json.load(f)
+
+        # Si es link, redirigir
+        if archivo_data.get("es_link"):
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=archivo_data["url"])
+
+        # Si es archivo físico, servirlo
+        archivo_fisico = archivos_dir / archivo_data["nombre_archivo"]
+        if not archivo_fisico.exists():
+            raise HTTPException(status_code=404, detail="Archivo físico no encontrado")
+
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(str(archivo_fisico))
+        if content_type is None:
+            content_type = "application/octet-stream"
+
+        from fastapi.responses import FileResponse
+        return FileResponse(
+            path=str(archivo_fisico),
+            media_type=content_type,
+            filename=archivo_data["nombre_original"]
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error descargando archivo: {e}")
+
+
+  

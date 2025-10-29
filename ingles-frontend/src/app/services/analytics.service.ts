@@ -85,6 +85,39 @@ export class AnalyticsService {
     return this.http.get(`${this.base}/estudiantes/subcarpetas/${unidad_id}/${encodeURIComponent(subcarpeta_nombre)}/files`, this.headers());
   }
 
+  // SOLO LECTURA (empresa/profesor): listar tareas de un estudiante por unidad
+  getStudentFilesFor(username: string, unidad_id: number): Observable<any> {
+    return this.http.get(`${this.base}/empresa/estudiantes/${encodeURIComponent(username)}/unidades/${unidad_id}/tareas`, this.headers());
+  }
+
+  // Asegurar relación estudiante_unidad habilitada
+  ensureUnidadHabilitada(username: string, unidad_id: number) {
+    return this.http.put(`${this.base}/estudiantes/${encodeURIComponent(username)}/unidades/${unidad_id}/ensure-enabled`, {}, this.headers());
+  }
+
+  // Empresa/Profesor: listar todas las tareas agrupadas por unidad
+  getAllStudentTasksFor(username: string): Observable<any> {
+    return this.http.get(`${this.base}/empresa/estudiantes/${encodeURIComponent(username)}/tareas`, this.headers());
+  }
+
+  // Profesor: calificar tarea (score y feedback)
+  gradeStudentTask(profesor_username: string, estudiante_username: string, unidad_id: number, filename: string, score: number, feedback?: string) {
+    const body: any = { filename, score };
+    if (feedback !== undefined) body.feedback = feedback;
+    return this.http.post(`${this.base}/profesores/${encodeURIComponent(profesor_username)}/estudiantes/${encodeURIComponent(estudiante_username)}/unidades/${unidad_id}/grade`, body, this.headers());
+  }
+
+  // Resumen REAL de calificaciones por estudiante (ponderado por tareas y tiempo)
+  getGradesResumen(username: string, params?: { objetivo_min?: number; wt_tareas?: number; wt_tiempo?: number }) {
+    const q = new URLSearchParams();
+    if (params?.objetivo_min != null) q.set('objetivo_min', String(params.objetivo_min));
+    if (params?.wt_tareas != null) q.set('wt_tareas', String(params.wt_tareas));
+    if (params?.wt_tiempo != null) q.set('wt_tiempo', String(params.wt_tiempo));
+    const query = q.toString();
+    const url = `${this.base}/grades/estudiantes/${encodeURIComponent(username)}/resumen${query ? `?${query}` : ''}`;
+    return this.http.get<any>(url, this.headers());
+  }
+
   // Métodos con nombres alternativos para compatibilidad
   subirArchivosSubcarpeta(unidad_id: number, subcarpeta_nombre: string, files: File[]): Observable<any> {
     const formData = new FormData();
