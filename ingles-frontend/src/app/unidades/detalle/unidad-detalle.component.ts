@@ -164,10 +164,11 @@ export class UnidadDetalleComponent implements OnInit, OnDestroy {
       const unidades = JSON.parse(unidadesGuardadas);
       const idx = Number(this.unidadId) - 1;
       if (unidades[idx] && Array.isArray(unidades[idx].subcarpetas)) {
-        // Normaliza: si no existe 'habilitada', se asume true
-        this.subcarpetas = (unidades[idx].subcarpetas as any[]).map((s: any) => ({
+        // Normaliza: filtra nulos y si no existe 'habilitada', se asume true
+        const arr: any[] = (unidades[idx].subcarpetas as any[]).filter((s: any) => s && typeof s === 'object');
+        this.subcarpetas = arr.map((s: any) => ({
           ...s,
-          habilitada: s.habilitada === undefined ? true : s.habilitada
+          habilitada: (s && s.habilitada !== undefined) ? s.habilitada : true
         }));
         // guarda normalización
         unidades[idx].subcarpetas = this.subcarpetas;
@@ -188,11 +189,12 @@ export class UnidadDetalleComponent implements OnInit, OnDestroy {
     this.empresaSvc.listarSubcarpetas(idNum).subscribe({
       next: (subs: any[]) => {
         console.log('[UI] GET subcarpetas OK ->', subs);
-        this.subcarpetas = (subs || []).map((s: any) => ({
+        const arr = (subs || []).filter((s: any) => s && typeof s === 'object');
+        this.subcarpetas = arr.map((s: any) => ({
           id: s.id,
           nombre: s.nombre,
           descripcion: s.descripcion,
-          habilitada: s.habilitada
+          habilitada: (s && s.habilitada !== undefined) ? !!s.habilitada : true
         }));
         // Reflejar en localStorage para compatibilidad
         const unidadesGuardadas = localStorage.getItem('unidades');
