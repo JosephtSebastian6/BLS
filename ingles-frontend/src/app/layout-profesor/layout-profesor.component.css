@@ -1,3 +1,50 @@
+/* --- BARRA SUPERIOR --- */
+.top-bar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 72px;
+  height: 70px;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 90;
+  transition: left 0.3s ease;
+}
+
+.sidebar:hover ~ .main-content .top-bar {
+  left: 280px;
+}
+
+.top-bar .logo h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #333;
+  font-weight: 500;
+}
+
+.user-info .material-icons {
+  color: #666;
+  font-size: 28px;
+}
+
 /* --- LAYOUT BASE --- */
 .dashboard-layout {
   display: flex;
@@ -162,11 +209,13 @@
 .main-content {
   flex: 1;
   min-height: 100vh;
-  padding: 2rem;
+  padding: 90px 2rem 2rem;
   background: #fff;
   position: relative;
   overflow-x: auto;
   display: block;
+  margin-left: 72px;
+  transition: margin-left 0.3s ease;
 }
 
 /* --- RESPONSIVE --- */

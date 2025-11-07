@@ -1,4 +1,37 @@
+from __future__ import annotations
+
 # FastAPI and related imports
+from sqlalchemy.orm import Session  # necesario para la anotación del helper superior
+def _notify_profesores_asignados(db: Session, estudiante_username: str, mensaje: str, unidad_id: int, tipo: str = "info") -> int:
+    """Crea notificaciones para todos los profesores asignados a un estudiante.
+    No lanza excepciones para no interferir con el flujo principal."""
+    try:
+        est = db.query(models.Registro).filter(models.Registro.username == estudiante_username).first()
+        if not est:
+            return 0
+        asign = db.query(models.profesor_estudiante.c.profesor_id).filter(
+            models.profesor_estudiante.c.estudiante_id == est.identificador
+        ).all()
+        prof_ids = [row[0] for row in asign]
+        count = 0
+        for pid in prof_ids:
+            try:
+                crud.crear_notificacion(
+                    db,
+                    usuario_id=int(pid),
+                    tipo=tipo,
+                    mensaje=mensaje,
+                    usuario_remitente_id=est.identificador,
+                    unidad_id=unidad_id,
+                )
+                count += 1
+            except Exception as e:
+                print(f"[WARN] No se pudo crear notificación para profesor_id={pid}: {e}")
+        return count
+    except Exception as e:
+        print(f"[WARN] _notify_profesores_asignados error: {e}")
+        return 0
+
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, status, Body, UploadFile, File
 from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -10,6 +43,7 @@ from pydantic import EmailStr, BaseModel
 from fastapi import Body
 from pathlib import Path
 import os
+import json
 import shutil
 import mimetypes
 # Local imports
@@ -17,7 +51,7 @@ import crud
 import models
 import schemas
 from schemas import ClaseCreate, ClaseResponse
-from schemas import QuizCreate, QuizResponse
+from schemas import QuizCreate, QuizResponse, QuizAsignacionCreate, QuizAsignacionResponse
 from Clever_MySQL_conn import get_db, Base, engine
 from settings import settings
 
@@ -29,7 +63,8 @@ from jose import jwt
 
 # JWT configuration (centralizado en settings.py)
 SECRET_KEY = settings.SECRET_KEY
-ALGORITHM = settings.ALGORITHM
+ALGORITHM = "HS256"
+settings.ALGORITHM
 EXPIRATION_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
@@ -222,6 +257,24 @@ def upsert_unidad_final(body: UnidadFinalBody, db: Session = Depends(get_db), wh
         db.add(row)
     db.commit()
     db.refresh(row)
+    # Notificar al estudiante sobre el cambio de nota final de la unidad
+    try:
+        est = db.query(models.Registro).filter(models.Registro.username == body.estudiante_username).first()
+        remitente = db.query(models.Registro).filter(models.Registro.username == who["username"]).first()
+        if est:
+            score_txt = "sin nota" if row.score is None else f"{int(row.score)}/100"
+            estado_txt = "Aprobado" if bool(row.aprobado) else "Pendiente"
+            msg = f"Tu nota final de la unidad {body.unidad_id} fue actualizada: {score_txt} ({estado_txt})."
+            crud.crear_notificacion(
+                db,
+                usuario_id=int(est.identificador),
+                tipo="unidad_final_actualizada",
+                mensaje=msg,
+                usuario_remitente_id=int(remitente.identificador) if remitente else None,
+                unidad_id=body.unidad_id,
+            )
+    except Exception as e:
+        print(f"[WARN] Notificación unidad_final_actualizada fallida: {e}")
     return {"id": row.id, "estudiante_username": row.estudiante_username, "unidad_id": row.unidad_id, "score": row.score, "aprobado": row.aprobado}
 def require_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
@@ -731,6 +784,144 @@ def agendar_estudiante(clase_id: int, body: AgendarEstudianteRequest, db: Sessio
         estudiantes=estudiantes
     )
 
+# ============================
+# Quizzes (profesor/empresa)
+# ============================
+
+@authRouter.post("/quizzes", response_model=QuizResponse)
+def crear_quiz(body: QuizCreate, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    q = models.Quiz(
+        unidad_id=body.unidad_id,
+        titulo=body.titulo,
+        descripcion=body.descripcion,
+        preguntas=body.preguntas or None,
+    )
+    db.add(q)
+    db.commit()
+    db.refresh(q)
+    return q
+
+@authRouter.get("/quizzes", response_model=list[QuizResponse])
+def listar_quizzes(unidad_id: int | None = None, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    query = db.query(models.Quiz)
+    if unidad_id is not None:
+        query = query.filter(models.Quiz.unidad_id == unidad_id)
+    rows = query.order_by(models.Quiz.created_at.desc()).all()
+    return rows
+
+# ============================
+# Quizzes (estudiante)
+# ============================
+
+@authRouter.get("/estudiante/quizzes-disponibles", response_model=list[QuizResponse])
+def quizzes_disponibles_estudiante(db: Session = Depends(get_db), who=Depends(require_roles(["estudiante", "admin"]))):
+    """Lista evaluaciones disponibles para el estudiante autenticado según:
+    - Existe asignación en quiz_asignacion
+    - Ventana vigente (start_at <= now <= end_at) o sin límites
+    - La unidad está habilitada para el estudiante (según tabla estudiante_unidad)
+    """
+    now = datetime.utcnow()
+    user = db.query(models.Registro).filter(models.Registro.username == who["username"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    # Join Quiz -> QuizAsignacion -> estudiante_unidad
+    q = (
+        db.query(models.Quiz)
+        .join(models.QuizAsignacion, models.Quiz.id == models.QuizAsignacion.quiz_id)
+        .join(models.estudiante_unidad, models.estudiante_unidad.c.unidad_id == models.QuizAsignacion.unidad_id)
+        .filter(
+            models.estudiante_unidad.c.estudiante_id == user.identificador,
+            (models.QuizAsignacion.start_at.is_(None) | (models.QuizAsignacion.start_at <= now)),
+            (models.QuizAsignacion.end_at.is_(None) | (models.QuizAsignacion.end_at >= now)),
+        )
+        .order_by(models.Quiz.created_at.desc())
+    )
+    return q.all()
+
+@authRouter.get("/estudiante/quizzes/{quiz_id}", response_model=QuizResponse)
+def obtener_quiz_estudiante(quiz_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["estudiante", "admin"]))):
+    now = datetime.utcnow()
+    user = db.query(models.Registro).filter(models.Registro.username == who["username"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    q = (
+        db.query(models.Quiz)
+        .join(models.QuizAsignacion, models.Quiz.id == models.QuizAsignacion.quiz_id)
+        .join(models.estudiante_unidad, models.estudiante_unidad.c.unidad_id == models.QuizAsignacion.unidad_id)
+        .filter(
+            models.Quiz.id == quiz_id,
+            models.estudiante_unidad.c.estudiante_id == user.identificador,
+            (models.QuizAsignacion.start_at.is_(None) | (models.QuizAsignacion.start_at <= now)),
+            (models.QuizAsignacion.end_at.is_(None) | (models.QuizAsignacion.end_at >= now)),
+        )
+        .first()
+    )
+    if not q:
+        raise HTTPException(status_code=403, detail="No tienes acceso a esta evaluación o no está disponible")
+    return q
+
+@authRouter.get("/quizzes/{quiz_id}", response_model=QuizResponse)
+def obtener_quiz(quiz_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    q = db.query(models.Quiz).filter(models.Quiz.id == quiz_id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Quiz no encontrado")
+    return q
+
+@authRouter.put("/quizzes/{quiz_id}", response_model=QuizResponse)
+def actualizar_quiz(quiz_id: int, body: QuizCreate, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    q = db.query(models.Quiz).filter(models.Quiz.id == quiz_id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Quiz no encontrado")
+    q.unidad_id = body.unidad_id
+    q.titulo = body.titulo
+    q.descripcion = body.descripcion
+    q.preguntas = body.preguntas or None
+    db.add(q)
+    db.commit()
+    db.refresh(q)
+    return q
+
+@authRouter.delete("/quizzes/{quiz_id}")
+def eliminar_quiz(quiz_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    q = db.query(models.Quiz).filter(models.Quiz.id == quiz_id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Quiz no encontrado")
+    db.delete(q)
+    db.commit()
+    return {"eliminado": True, "id": quiz_id}
+
+# ===== Asignaciones =====
+@authRouter.post("/quizzes/{quiz_id}/assignments", response_model=QuizAsignacionResponse)
+def crear_asignacion(quiz_id: int, body: QuizAsignacionCreate, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    q = db.query(models.Quiz).filter(models.Quiz.id == quiz_id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Quiz no encontrado")
+    asig = models.QuizAsignacion(
+        quiz_id=quiz_id,
+        unidad_id=body.unidad_id,
+        start_at=body.start_at,
+        end_at=body.end_at,
+    )
+    db.add(asig)
+    db.commit()
+    db.refresh(asig)
+    return asig
+
+@authRouter.get("/quizzes/{quiz_id}/assignments", response_model=list[QuizAsignacionResponse])
+def listar_asignaciones(quiz_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    rows = db.query(models.QuizAsignacion).filter(models.QuizAsignacion.quiz_id == quiz_id).order_by(models.QuizAsignacion.created_at.desc()).all()
+    return rows
+
+@authRouter.delete("/quizzes/{quiz_id}/assignments/{asig_id}")
+def eliminar_asignacion(quiz_id: int, asig_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
+    row = db.query(models.QuizAsignacion).filter(models.QuizAsignacion.id == asig_id, models.QuizAsignacion.quiz_id == quiz_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Asignación no encontrada")
+    db.delete(row)
+    db.commit()
+    return {"eliminada": True, "id": asig_id}
+
 @authRouter.post("/profesor/", response_model=schemas.UsuarioResponse)
 async def registrar_profesor(
     user: schemas.RegistroCreate,
@@ -916,9 +1107,16 @@ def eliminar_unidad(unidad_id: int, db: Session = Depends(get_db), admin=Depends
 
 # ===== Subcarpetas =====
 @authRouter.get("/unidades/{unidad_id}/subcarpetas", response_model=List[dict])
-def listar_subcarpetas(unidad_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa", "profesor"]))):
-    """Lista subcarpetas de una unidad"""
-    return crud.listar_subcarpetas(db, unidad_id)
+def listar_subcarpetas(unidad_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa", "profesor", "estudiante"]))):
+    """Lista subcarpetas de una unidad. Para estudiantes, solo devuelve las habilitadas."""
+    subs = crud.listar_subcarpetas(db, unidad_id)
+    try:
+        rol = who.get("tipo_usuario") if isinstance(who, dict) else None
+    except Exception:
+        rol = None
+    if rol == "estudiante":
+        subs = [s for s in subs if s.get("habilitada", True)]
+    return subs
 
 @authRouter.post("/unidades/{unidad_id}/subcarpetas", response_model=dict)
 def crear_subcarpeta(unidad_id: int, body: dict = Body(...), db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa"]))):
@@ -966,6 +1164,43 @@ def toggle_subcarpeta(unidad_id: int, subcarpeta_id: int, db: Session = Depends(
     if resultado is None:
         raise HTTPException(status_code=404, detail="Subcarpeta no encontrada")
     return {"habilitada": resultado}
+
+# ===== Notificaciones =====
+@authRouter.get("/notificaciones/usuario/{usuario_id}")
+def listar_notificaciones_usuario(usuario_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa", "profesor", "estudiante"]))):
+    """Lista notificaciones del usuario destinatario"""
+    return crud.listar_notificaciones_usuario(db, usuario_id)
+
+@authRouter.post("/notificaciones", response_model=dict)
+def crear_notificacion(body: dict = Body(...), db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa", "profesor"]))):
+    """Crea una notificación dirigida a un usuario (solo admin/empresa/profesor)."""
+    usuario_id = int(body.get("usuario_id"))
+    tipo = (body.get("tipo") or "").strip() or "info"
+    mensaje = (body.get("mensaje") or "").strip()
+    if not mensaje:
+        raise HTTPException(status_code=400, detail="El mensaje es requerido")
+    usuario_remitente_id = body.get("usuario_remitente_id")
+    unidad_id = body.get("unidad_id")
+    return crud.crear_notificacion(
+        db,
+        usuario_id=usuario_id,
+        tipo=tipo,
+        mensaje=mensaje,
+        usuario_remitente_id=usuario_remitente_id,
+        unidad_id=unidad_id,
+    )
+
+@authRouter.put("/notificaciones/{notificacion_id}/marcar-leida", response_model=dict)
+def marcar_notificacion_leida(notificacion_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa", "profesor", "estudiante"]))):
+    res = crud.marcar_notificacion_leida(db, notificacion_id)
+    if not res:
+        raise HTTPException(status_code=404, detail="Notificación no encontrada")
+    return res
+
+@authRouter.put("/notificaciones/usuario/{usuario_id}/marcar-todas-leidas", response_model=dict)
+def marcar_todas_leidas(usuario_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa", "profesor", "estudiante"]))):
+    count = crud.marcar_todas_notificaciones_leidas(db, usuario_id)
+    return {"actualizadas": count}
 
 @authRouter.get("/estudiantes/me/unidades-habilitadas")
 def obtener_unidades_habilitadas_estudiante(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
@@ -1113,7 +1348,7 @@ class UpsertTareaBody(BaseModel):
     score: int
 
 @authRouter.post("/grades/tareas")
-def upsert_tarea(body: UpsertTareaBody, db: Session = Depends(get_db)):
+def upsert_tarea(body: UpsertTareaBody, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
     row = crud.upsert_tarea_calificacion(
         db,
         estudiante_username=body.estudiante_username,
@@ -1121,6 +1356,21 @@ def upsert_tarea(body: UpsertTareaBody, db: Session = Depends(get_db)):
         filename=body.filename,
         score=body.score,
     )
+    try:
+        est = db.query(models.Registro).filter(models.Registro.username == body.estudiante_username).first()
+        remitente = db.query(models.Registro).filter(models.Registro.username == who["username"]).first()
+        if est:
+            msg = f"Tu tarea de la unidad {body.unidad_id} fue calificada: {body.score}/100."
+            crud.crear_notificacion(
+                db,
+                usuario_id=int(est.identificador),
+                tipo="tarea_calificada",
+                mensaje=msg,
+                usuario_remitente_id=int(remitente.identificador) if remitente else None,
+                unidad_id=body.unidad_id,
+            )
+    except Exception as e:
+        print(f"[WARN] Notificación tarea_calificada fallida: {e}")
     return {"id": row.id, "score": row.score}
 
 class UpsertQuizBody(BaseModel):
@@ -1281,6 +1531,21 @@ def upsert_progreso(
     porcentaje = body.get("porcentaje_completado")
     score = body.get("score")
     row = crud.upsert_progreso_score(db, username=username, unidad_id=unidad_id, porcentaje_completado=porcentaje, score=score)
+    # Registrar actividad para racha
+    try:
+        crud.track_activity(db, username=username, unidad_id=unidad_id, tipo_evento="progreso_update")
+    except Exception as e:
+        print(f"[WARN] track_activity progreso_update fallido: {e}")
+    # Disparo de notificación cuando el estudiante entrega la unidad (porcentaje 100)
+    try:
+        if porcentaje is not None and float(porcentaje) >= 100:
+            msg = f"El estudiante {username} entregó la unidad #{unidad_id}."
+            created = _notify_profesores_asignados(db, estudiante_username=username, mensaje=msg, unidad_id=unidad_id, tipo="entrega_unidad")
+            print(f"[NOTIFY] entrega_unidad -> profesores_notificados={created} | estudiante={username} | unidad={unidad_id}")
+        else:
+            print(f"[NOTIFY] entrega_unidad -> no dispara (porcentaje={porcentaje}) | estudiante={username} | unidad={unidad_id}")
+    except Exception as e:
+        print(f"[WARN] Notificación entrega unidad fallida: {e}")
     return {
         "unidad_id": row.unidad_id,
         "porcentaje_completado": row.porcentaje_completado,
@@ -1440,26 +1705,57 @@ async def upload_student_file(
         try:
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
-            
+
+            # Guardar metadata en BD via CRUD
             uploaded_files.append({
                 "filename": safe_filename,
                 "original_filename": file.filename,
                 "file_size": file_path.stat().st_size,
             })
             print(f"✅ DEBUG: Archivo guardado: {safe_filename}")
+            # Sidecar de metadata con fecha de subida estable
+            try:
+                meta_path = file_path.with_name(file_path.name + ".meta.json")
+                meta = {
+                    "upload_date": datetime.now().isoformat(),
+                    "original_name": file.filename,
+                    "size": file_path.stat().st_size,
+                }
+                with open(meta_path, 'w', encoding='utf-8') as mf:
+                    json.dump(meta, mf, ensure_ascii=False)
+            except Exception as me:
+                print(f"[WARN] No se pudo escribir metadata de subida para {safe_filename}: {me}")
             
         except Exception as e:
             print(f"❌ DEBUG: Error guardando {file.filename}: {e}")
             if file_path.exists():
                 file_path.unlink()
     
+    # Notificar a profesores asignados si hubo subidas
+    notifications_created = 0
+    try:
+        if uploaded_files:
+            msg = f"El estudiante {current_user} subió {len(uploaded_files)} archivo(s) en SOLO TAREAS de la unidad #{unidad_id}."
+            notifications_created = _notify_profesores_asignados(db, estudiante_username=current_user, mensaje=msg, unidad_id=unidad_id, tipo="subida_tarea")
+            print(f"[NOTIFY] subida_tarea -> profesores_notificados={notifications_created} | estudiante={current_user} | unidad={unidad_id}")
+            # Registrar actividad para racha por entrega de tarea
+            try:
+                crud.track_activity(db, username=current_user, unidad_id=unidad_id, tipo_evento="entrega_tarea")
+            except Exception as e:
+                print(f"[WARN] track_activity entrega_tarea fallido: {e}")
+        else:
+            print(f"[NOTIFY] subida_tarea -> no dispara (uploaded_files=0) | estudiante={current_user} | unidad={unidad_id}")
+    except Exception as e:
+        print(f"[WARN] Notificación subida tareas fallida: {e}")
+
     return {
         "message": f"Archivos subidos exitosamente: {len(uploaded_files)}",
         "uploaded_files": uploaded_files,
         "unidad_id": unidad_id,
         "subcarpeta": subcarpeta_nombre,
         "uploaded_by": current_user,
-        "upload_date": datetime.now().isoformat()
+        "upload_date": datetime.now().isoformat(),
+        "notifications_created": notifications_created
     }
 
 @authRouter.get("/estudiantes/subcarpetas/{unidad_id}/{subcarpeta_nombre}/files")
@@ -1585,8 +1881,22 @@ def empresa_listar_tareas_estudiante(
                 "filename": file_path.name,
                 "original_name": file_path.name.split('_', 2)[-1] if '_' in file_path.name else file_path.name,
                 "size": stat.st_size,
-                "upload_date": datetime.fromtimestamp(stat.st_mtime).isoformat()
+                # Leer fecha desde sidecar si existe; fallback a mtime
+                "upload_date": None
             }
+            try:
+                meta_path = file_path.with_name(file_path.name + ".meta.json")
+                if meta_path.exists():
+                    with open(meta_path, 'r', encoding='utf-8') as mf:
+                        meta = json.load(mf)
+                    item["upload_date"] = meta.get("upload_date")
+            except Exception:
+                pass
+            if not item["upload_date"]:
+                try:
+                    item["upload_date"] = datetime.fromtimestamp(stat.st_mtime).isoformat()
+                except Exception:
+                    item["upload_date"] = datetime.now().isoformat()
             # Enriquecer con score y feedback
             try:
                 row = db.query(models.TareaCalificacion).filter(
@@ -2214,12 +2524,27 @@ def _listar_tareas_estudiante(username: str, unidad_id: int | None) -> list:
                         for file_path in tareas_dir.iterdir():
                             if file_path.is_file():
                                 stat = file_path.stat()
+                                # Determinar fecha estable desde sidecar
+                                upload_date_val = None
+                                try:
+                                    meta_path = file_path.with_name(file_path.name + ".meta.json")
+                                    if meta_path.exists():
+                                        with open(meta_path, 'r', encoding='utf-8') as mf:
+                                            meta = json.load(mf)
+                                        upload_date_val = meta.get("upload_date")
+                                except Exception:
+                                    pass
+                                if not upload_date_val:
+                                    try:
+                                        upload_date_val = datetime.fromtimestamp(stat.st_mtime).isoformat()
+                                    except Exception:
+                                        upload_date_val = datetime.now().isoformat()
                                 tareas.append({
                                     "unidad_id": uid,
                                     "filename": file_path.name,
                                     "original_name": file_path.name.split('_', 2)[-1] if '_' in file_path.name else file_path.name,
                                     "size": stat.st_size,
-                                    "upload_date": stat.st_mtime
+                                    "upload_date": upload_date_val
                                 })
                     if unidad_id is not None:  # Si se especificó unidad_id, salir después de encontrarla
                         break

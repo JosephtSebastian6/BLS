@@ -1,14 +1,16 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
-import { CommonModule } from '@angular/common'; // Necesario para directivas comunes (*ngIf, *ngFor)
-import { RouterOutlet, RouterLink } from '@angular/router'; // Para el enrutamiento
+import { CommonModule, DatePipe } from '@angular/common';
+import { RouterOutlet, RouterLink } from '@angular/router';
+import { CampanaNotificacionesComponent } from './componentes/campana-notificaciones/campana-notificaciones.component';
 
 @Component({
-  selector: 'app-root', // Este es el selector que se usa en index.html
-  standalone: true, // ¡IMPORTANTE! Indica que es un componente independiente
-  imports: [CommonModule, RouterOutlet, RouterLink], // Importa los módulos necesarios
-  templateUrl: './app.html', // Ruta a su propia plantilla HTML
-  styleUrls: ['./app.css'] // Ruta a sus propios estilos CSS/SCSS
+  selector: 'app-root',
+  standalone: true,
+  imports: [CommonModule, RouterOutlet, RouterLink, CampanaNotificacionesComponent, DatePipe],
+  templateUrl: './app.html',
+  styleUrls: ['./app.css'],
+  providers: [DatePipe]
 })
 export class AppComponent {
   title = 'DriveFlow App';

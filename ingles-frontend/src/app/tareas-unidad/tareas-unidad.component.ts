@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
@@ -22,7 +22,9 @@ interface TareaFile {
   standalone: true,
   imports: [CommonModule, FormsModule, MatCardModule, MatTableModule, MatButtonModule],
   templateUrl: './tareas-unidad.component.html',
-  styleUrls: ['./tareas-unidad.component.css']
+  styleUrls: ['./tareas-unidad.component.css'],
+  encapsulation: ViewEncapsulation.None,
+  host: { 'class': 'tareas-unidad-host' }
 })
 export class TareasUnidadComponent implements OnInit {
   unidadId!: number;
@@ -143,5 +145,34 @@ export class TareasUnidadComponent implements OnInit {
           alert('No se pudo guardar la calificación');
         },
       });
+  }
+
+  // UI helpers
+  formatSize(bytes: number | null | undefined): string {
+    const b = Number(bytes || 0);
+    if (b < 1024) return `${b} B`;
+    const kb = b / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    const mb = kb / 1024;
+    if (mb < 1024) return `${mb.toFixed(1)} MB`;
+    const gb = mb / 1024;
+    return `${gb.toFixed(1)} GB`;
+  }
+
+  fileIcon(name: string | null | undefined): string {
+    const n = (name || '').toLowerCase();
+    if (/(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/.test(n)) return '🖼️';
+    if (/(\.pdf)$/.test(n)) return '📕';
+    if (/(\.docx?|\.odt)$/.test(n)) return '📝';
+    if (/(\.pptx?)$/.test(n)) return '📊';
+    if (/(\.xlsx?|\.csv)$/.test(n)) return '📈';
+    return '📄';
+  }
+
+  autoResize(e: Event) {
+    const el = e.target as HTMLTextAreaElement;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
   }
 }

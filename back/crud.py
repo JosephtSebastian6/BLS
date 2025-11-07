@@ -674,6 +674,69 @@ def listar_subcarpetas(db: Session, unidad_id: int):
         "orden": s.orden
     } for s in subs]
 
+def crear_subcarpeta(db: Session, unidad_id: int, data: dict):
+    """Crea una subcarpeta para una unidad.
+    Espera en data, al menos: { "nombre": str }
+    Opcional: { "descripcion": str, "habilitada": bool, "orden": int }
+    """
+    print(f"[CRUD] crear_subcarpeta() unidad_id={unidad_id} data={data}")
+    # Validar unidad
+    u = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Unidad no encontrada")
+
+    nombre = (data.get("nombre") or "").strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre de la subcarpeta es requerido")
+
+    descripcion = data.get("descripcion")
+    habilitada = bool(data.get("habilitada", True))
+
+    # Calcular orden por defecto: último + 1 dentro de la unidad
+    try:
+        max_orden = (
+            db.query(models.Subcarpeta.orden)
+            .filter(models.Subcarpeta.unidad_id == unidad_id)
+            .order_by(models.Subcarpeta.orden.desc())
+            .first()
+        )
+        next_orden = (max_orden[0] + 1) if max_orden else 1
+    except Exception:
+        next_orden = 1
+
+    orden = data.get("orden")
+    try:
+        orden = int(orden) if orden is not None else next_orden
+    except Exception:
+        orden = next_orden
+
+    s = models.Subcarpeta(
+        unidad_id=unidad_id,
+        nombre=nombre,
+        descripcion=descripcion,
+        habilitada=habilitada,
+        orden=orden,
+    )
+
+    try:
+        db.add(s)
+        db.commit()
+        db.refresh(s)
+        print(f"[CRUD] crear_subcarpeta() OK id={s.id}")
+    except Exception as e:
+        db.rollback()
+        print(f"[CRUD][ERROR] crear_subcarpeta() exception={e}")
+        raise
+
+    return {
+        "id": s.id,
+        "unidad_id": s.unidad_id,
+        "nombre": s.nombre,
+        "descripcion": s.descripcion,
+        "habilitada": s.habilitada,
+        "orden": s.orden,
+    }
+
 def actualizar_subcarpeta(db: Session, subcarpeta_id: int, data: dict):
     """Actualiza campos de una subcarpeta existente (nombre, descripcion, orden)."""
     print(f"[CRUD] actualizar_subcarpeta() id={subcarpeta_id} data={data}")
@@ -755,7 +818,27 @@ def obtener_unidades_habilitadas_estudiante(db: Session, username: str):
     if not tiene_configuracion:
         # Si no tiene configuración, mostrar todas las unidades disponibles
         todas_unidades = db.query(models.Unidad).order_by(models.Unidad.orden).all()
-        return [{"id": u.id, "nombre": u.nombre, "descripcion": u.descripcion, "orden": u.orden} for u in todas_unidades]
+        # Conteo de subcarpetas habilitadas por unidad
+        try:
+            from sqlalchemy import func as sa_func
+            counts_rows = (
+                db.query(models.Subcarpeta.unidad_id, sa_func.count(models.Subcarpeta.id))
+                .filter(models.Subcarpeta.habilitada == True)
+                .group_by(models.Subcarpeta.unidad_id)
+                .all()
+            )
+            counts = dict(counts_rows)
+        except Exception as e:
+            print(f"[WARN] Count subcarpetas (default config) deshabilitado: {e}")
+            counts = {}
+        return [{
+            "id": u.id,
+            "nombre": u.nombre,
+            "descripcion": u.descripcion,
+            "orden": u.orden,
+            "subcarpetas_count": int(counts.get(u.id, 0)),
+            "subcarpetas": int(counts.get(u.id, 0)),
+        } for u in todas_unidades]
     
     # Si tiene configuración, obtener solo las habilitadas
     unidades_habilitadas_query = db.query(
@@ -772,12 +855,28 @@ def obtener_unidades_habilitadas_estudiante(db: Session, username: str):
     ).order_by(models.Unidad.orden)
     
     unidades_habilitadas = []
+    # Precalcular conteo de subcarpetas habilitadas por unidad
+    try:
+        from sqlalchemy import func as sa_func
+        counts_rows = (
+            db.query(models.Subcarpeta.unidad_id, sa_func.count(models.Subcarpeta.id))
+            .filter(models.Subcarpeta.habilitada == True)
+            .group_by(models.Subcarpeta.unidad_id)
+            .all()
+        )
+        counts = dict(counts_rows)
+    except Exception as e:
+        print(f"[WARN] Count subcarpetas (habilitadas) deshabilitado: {e}")
+        counts = {}
+
     for unidad in unidades_habilitadas_query.all():
         unidades_habilitadas.append({
             "id": unidad.id,
             "nombre": unidad.nombre,
             "descripcion": unidad.descripcion,
-            "orden": unidad.orden
+            "orden": unidad.orden,
+            "subcarpetas_count": int(counts.get(unidad.id, 0)),
+            "subcarpetas": int(counts.get(unidad.id, 0)),
         })
     
     # Obtener también las unidades que no tienen configuración específica (están habilitadas por defecto)
@@ -797,13 +896,95 @@ def obtener_unidades_habilitadas_estudiante(db: Session, username: str):
             "id": unidad.id,
             "nombre": unidad.nombre,
             "descripcion": unidad.descripcion,
-            "orden": unidad.orden
+            "orden": unidad.orden,
+            "subcarpetas_count": int(counts.get(unidad.id, 0)),
+            "subcarpetas": int(counts.get(unidad.id, 0)),
         })
     
     # Ordenar por orden
     unidades_habilitadas.sort(key=lambda x: x["orden"])
     
     return unidades_habilitadas
+
+# ===== Notificaciones =====
+def crear_notificacion(db: Session, *, usuario_id: int, tipo: str, mensaje: str, usuario_remitente_id: int | None = None, unidad_id: int | None = None) -> dict:
+    n = models.Notificacion(
+        usuario_id=usuario_id,
+        tipo=tipo,
+        mensaje=mensaje,
+        usuario_remitente_id=usuario_remitente_id,
+        unidad_id=unidad_id,
+        fecha_creacion=datetime.utcnow(),
+        leida=False,
+    )
+    try:
+        db.add(n)
+        db.commit()
+        db.refresh(n)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creando notificación: {e}")
+    return {
+        "id": n.id,
+        "usuario_id": n.usuario_id,
+        "tipo": n.tipo,
+        "mensaje": n.mensaje,
+        "leida": n.leida,
+        "fecha_creacion": n.fecha_creacion,
+        "usuario_remitente_id": n.usuario_remitente_id,
+        "unidad_id": n.unidad_id,
+    }
+
+def listar_notificaciones_usuario(db: Session, usuario_id: int) -> list[dict]:
+    filas = db.query(models.Notificacion).filter(models.Notificacion.usuario_id == usuario_id).order_by(models.Notificacion.fecha_creacion.desc(), models.Notificacion.id.desc()).all()
+    return [{
+        "id": n.id,
+        "usuario_id": n.usuario_id,
+        "tipo": n.tipo,
+        "mensaje": n.mensaje,
+        "leida": n.leida,
+        "fecha_creacion": n.fecha_creacion,
+        "usuario_remitente_id": n.usuario_remitente_id,
+        "unidad_id": n.unidad_id,
+    } for n in filas]
+
+def marcar_notificacion_leida(db: Session, notificacion_id: int) -> dict | None:
+    n = db.query(models.Notificacion).filter(models.Notificacion.id == notificacion_id).first()
+    if not n:
+        return None
+    try:
+        n.leida = True
+        db.add(n)
+        db.commit()
+        db.refresh(n)
+        return {
+            "id": n.id,
+            "usuario_id": n.usuario_id,
+            "tipo": n.tipo,
+            "mensaje": n.mensaje,
+            "leida": n.leida,
+            "fecha_creacion": n.fecha_creacion,
+            "usuario_remitente_id": n.usuario_remitente_id,
+            "unidad_id": n.unidad_id,
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error marcando notificación: {e}")
+
+def marcar_todas_notificaciones_leidas(db: Session, usuario_id: int) -> int:
+    filas = db.query(models.Notificacion).filter(models.Notificacion.usuario_id == usuario_id, models.Notificacion.leida == False).all()
+    count = 0
+    try:
+        for n in filas:
+            n.leida = True
+            db.add(n)
+            count += 1
+        if count:
+            db.commit()
+        return count
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error marcando todas como leídas: {e}")
 
 def obtener_estado_unidades_estudiante(db: Session, username: str):
     """Obtiene todas las unidades con su estado (habilitada/deshabilitada) para un estudiante"""
@@ -1007,6 +1188,119 @@ def get_analytics_resumen(db: Session, username: str, desde: datetime | None = N
         "tiempo_dedicado_min": int(tiempo_total),
         "racha_dias": int(racha)
     }
+
+def get_analytics_unidades(db: Session, username: str, desde: datetime | None = None, hasta: datetime | None = None):
+    """Devuelve desempeño por unidad para un estudiante.
+    Campos por unidad:
+    - unidad_id, nombre
+    - progreso_porcentaje (o porcentaje_completado)
+    - tiempo_min (tiempo_dedicado_min si existe)
+    - tareas_count
+    - promedio_score (avg de TareaCalificacion.score)
+    - ultima_entrega (ISO) tomada del sidecar .meta.json si existe, fallback mtime
+    """
+    from pathlib import Path
+    from datetime import datetime as dt
+    import json
+    import models
+    from sqlalchemy import func as sa_func
+
+    # Validar estudiante
+    est = db.query(models.Registro).filter(models.Registro.username == username).first()
+    if not est:
+        return []
+
+    unidades = db.query(models.Unidad).all()
+    base_fs = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes") / "estudiantes" / username
+    resultados = []
+
+    for u in unidades:
+        # Progreso y tiempo (si existe tabla Progreso)
+        prog = db.query(models.Progreso).filter(
+            models.Progreso.username == username,
+            models.Progreso.unidad_id == u.id
+        ).first() if hasattr(models, 'Progreso') else None
+        progreso = int(getattr(prog, 'porcentaje_completado', 0) or 0)
+        tiempo_min = int(getattr(prog, 'tiempo_dedicado_min', 0) or 0)
+
+        # Archivos de tareas
+        tareas_dir = base_fs / f"unidad_{u.id}" / "SOLO_TAREAS"
+        tareas_count = 0
+        ultima_entrega = None
+        try:
+            if tareas_dir.exists() and tareas_dir.is_dir():
+                archivos = [p for p in tareas_dir.iterdir() if p.is_file()]
+                tareas_count = len(archivos)
+                def file_upload_date(p: Path):
+                    meta = p.with_name(p.name + ".meta.json")
+                    if meta.exists():
+                        try:
+                            with open(meta, 'r', encoding='utf-8') as mf:
+                                data = json.load(mf)
+                            if data.get('upload_date'):
+                                return data['upload_date']
+                        except Exception:
+                            pass
+                    try:
+                        return dt.fromtimestamp(p.stat().st_mtime).isoformat()
+                    except Exception:
+                        return None
+                fechas = [file_upload_date(p) for p in archivos]
+                fechas_validas = [f for f in fechas if f]
+                if fechas_validas:
+                    ultima_entrega = max(fechas_validas)
+        except Exception:
+            pass
+
+        # Promedio de score
+        avg_score = db.query(sa_func.avg(models.TareaCalificacion.score)).filter(
+            models.TareaCalificacion.estudiante_username == username,
+            models.TareaCalificacion.unidad_id == u.id
+        ).scalar()
+        promedio_score = float(avg_score) if avg_score is not None else None
+
+        # Override final
+        aprobado = None
+        tiene_score_final = False
+        score_final_val = None
+        try:
+            if hasattr(models, 'UnidadCalificacionFinal'):
+                uf = db.query(models.UnidadCalificacionFinal).filter(
+                    models.UnidadCalificacionFinal.estudiante_username == username,
+                    models.UnidadCalificacionFinal.unidad_id == u.id
+                ).first()
+                if uf is not None:
+                    aprobado = bool(getattr(uf, 'aprobado', None)) if getattr(uf, 'aprobado', None) is not None else None
+                    # Opción A: si hay score final, la unidad se considera completada (progreso 100)
+                    if getattr(uf, 'score', None) is not None:
+                        tiene_score_final = True
+                        score_final_val = float(getattr(uf, 'score'))
+                        progreso = max(progreso, 100)
+                    # Si está aprobado, considerar progreso completo
+                    if aprobado is True:
+                        progreso = max(progreso, 100)
+        except Exception:
+            pass
+
+        # Fallback de progreso si no hay Progreso persistido pero sí actividad de tareas
+        if (progreso is None or progreso == 0) and tareas_count > 0 and (aprobado is not True):
+            # Considerar al menos 30% si hay evidencia de tareas subidas
+            progreso = 30
+
+        resultados.append({
+            "unidad_id": u.id,
+            "nombre": getattr(u, 'nombre', f"Unidad {u.id}"),
+            "progreso_porcentaje": progreso,
+            "tiempo_min": tiempo_min,
+            "tareas_count": tareas_count,
+            "promedio_score": promedio_score,
+            "ultima_entrega": ultima_entrega,
+            "aprobado": aprobado,
+            "tiene_score_final": tiene_score_final,
+            "score_final": score_final_val,
+        })
+
+    return resultados
 
 def crear_archivo_empresa(db: Session, unidad_id: int, subcarpeta_id: int, data: dict, current_user: str):
     """Crea registro de archivo subido por empresa/profesor."""

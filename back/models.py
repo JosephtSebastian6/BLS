@@ -127,6 +127,16 @@ class TareaCalificacion(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
+# Asignaciones de Quiz a Unidades (ventanas de disponibilidad)
+class QuizAsignacion(Base):
+    __tablename__ = "quiz_asignacion"
+    id = Column(Integer, primary_key=True, index=True)
+    quiz_id = Column(Integer, ForeignKey('quiz.id'), nullable=False)
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=False)
+    start_at = Column(DateTime, nullable=True)
+    end_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 # Calificación global/override de unidad
 class UnidadCalificacionFinal(Base):
     __tablename__ = "unidad_calificacion_final"
@@ -157,3 +167,15 @@ class EstudianteQuizCalificacion(Base):
     score = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
+
+# ===== Notificaciones =====
+class Notificacion(Base):
+    __tablename__ = "notificaciones"
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey('estudiante.identificador'), nullable=False)  # destinatario (empresa/profesor/estudiante)
+    tipo = Column(String(50), nullable=False)
+    mensaje = Column(String(500), nullable=False)
+    leida = Column(Boolean, default=False)
+    fecha_creacion = Column(DateTime, default=datetime.utcnow)
+    usuario_remitente_id = Column(Integer, ForeignKey('estudiante.identificador'), nullable=True)  # opcional
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=True)

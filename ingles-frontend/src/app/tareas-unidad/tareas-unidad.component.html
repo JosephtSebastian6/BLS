@@ -1,14 +1,19 @@
 <mat-card class="tareas-card">
-  <h1>Tareas de la unidad {{ unidadId }}</h1>
-  <div class="actions">
-    <button mat-raised-button color="primary" (click)="back()">Volver</button>
+  <div class="card-top">
+    <h1>Tareas de la unidad {{ unidadId }}</h1>
+    <div class="actions">
+      <button class="btn-volver" (click)="back()"><span class="ico">←</span> Volver</button>
+    </div>
   </div>
 
   <div class="table-wrapper" *ngIf="!loading; else loadingTpl">
     <table mat-table [dataSource]="files" class="mat-elevation-z0 tareas-table" *ngIf="files.length; else emptyTpl">
       <ng-container matColumnDef="original_name">
         <th mat-header-cell *matHeaderCellDef> Archivo </th>
-        <td mat-cell *matCellDef="let f"> {{ f.original_name || f.filename }} </td>
+        <td mat-cell *matCellDef="let f" title="{{ f.original_name || f.filename }}">
+          <span class="file-ico">{{ fileIcon(f.original_name || f.filename) }}</span>
+          <span class="file-name">{{ f.original_name || f.filename }}</span>
+        </td>
       </ng-container>
 
       <ng-container matColumnDef="upload_date">
@@ -18,14 +23,21 @@
 
       <ng-container matColumnDef="size">
         <th mat-header-cell *matHeaderCellDef> Tamaño </th>
-        <td mat-cell *matCellDef="let f"> {{ f.size | number }} bytes </td>
+        <td mat-cell *matCellDef="let f"> {{ formatSize(f.size) }} </td>
       </ng-container>
 
       <ng-container matColumnDef="score">
         <th mat-header-cell *matHeaderCellDef> Calificación </th>
         <td mat-cell *matCellDef="let f">
           <ng-container *ngIf="canEdit(); else scoreRead">
-            <input type="number" min="0" max="100" [(ngModel)]="f.score" class="input-score" />
+            <input type="number" min="0" max="100" [(ngModel)]="f.score" class="input-score"
+              [ngClass]="{
+                'score-empty': f.score == null,
+                'score-good': (f.score||0) >= 80,
+                'score-warn': (f.score||0) >= 60 && (f.score||0) < 80,
+                'score-bad': (f.score||0) > 0 && (f.score||0) < 60
+              }"
+            />
           </ng-container>
           <ng-template #scoreRead>
             <span class="badge" [ngClass]="{
@@ -41,7 +53,7 @@
         <th mat-header-cell *matHeaderCellDef> Feedback </th>
         <td mat-cell *matCellDef="let f">
           <ng-container *ngIf="canEdit(); else fbRead">
-            <textarea rows="1" [(ngModel)]="f.feedback" class="input-feedback" placeholder="Comentarios opcionales..."></textarea>
+            <textarea rows="1" [(ngModel)]="f.feedback" class="input-feedback" placeholder="Comentarios opcionales..." (input)="autoResize($event)"></textarea>
           </ng-container>
           <ng-template #fbRead>
             <span class="feedback-text">{{ f.feedback || '—' }}</span>
@@ -52,8 +64,8 @@
       <ng-container matColumnDef="actions">
         <th mat-header-cell *matHeaderCellDef> Acciones </th>
         <td mat-cell *matCellDef="let f">
-          <button mat-button color="primary" (click)="descargar(f)">Descargar</button>
-          <button mat-stroked-button color="accent" *ngIf="canEdit()" (click)="guardar(f)">Guardar</button>
+          <button class="btn-link" (click)="descargar(f)">Descargar</button>
+          <button class="btn-outline" *ngIf="canEdit()" (click)="guardar(f)">Guardar</button>
         </td>
       </ng-container>
 

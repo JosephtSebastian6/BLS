@@ -105,6 +105,12 @@ export class AnalisisEstudianteComponent implements OnInit {
           nombres: est.nombres,
           apellidos: est.apellidos
         }));
+        // Auto-seleccionar el primero si es profesor/empresa y no hay selección
+        if ((this.tipoUsuario === 'empresa' || this.tipoUsuario === 'profesor') && !this.selectedUsername && this.estudiantes.length > 0) {
+          this.selectedUsername = this.estudiantes[0].username;
+          // Cargar datos del primer estudiante para evitar usar el usuario del token
+          this.cargarDatosEstudiante(this.selectedUsername);
+        }
       },
       error: (error) => {
         console.error('Error cargando estudiantes:', error);
@@ -166,26 +172,31 @@ export class AnalisisEstudianteComponent implements OnInit {
     const unidades$ = usernameResumen ? this.analytics.getUnidades(usernameResumen) : this.analytics.getAnalyticsUnidades();
     unidades$.subscribe({
       next: (unidades: any[]) => {
-        // 1) Desempeño por unidad (barras simples)
+        const clamp = (n: any) => Math.max(0, Math.min(100, Number(n || 0)));
         this.desempeno = (unidades || []).map(u => ({
-          nombre: u.nombre || `Unidad ${u.unidad_id}`,
-          score: Number(u.porcentaje_completado ?? u.progreso_porcentaje ?? 0)
+          nombre: u?.nombre || `Unidad ${u?.unidad_id}`,
+          score: clamp(u?.progreso_porcentaje ?? u?.porcentaje_completado)
         }));
 
-        // 2) Tarjetas de "Unidades" (datos reales)
         this.unidadesProgreso = (unidades || []).map(u => {
-          const progreso = Number(u.porcentaje_completado ?? u.progreso_porcentaje ?? 0);
-          const tiempoMin = Number(u.tiempo_dedicado_min ?? u.tiempo_min ?? 0);
-          const score = u.score ?? u.promedio_score ?? u.score_promedio ?? null;
+          const progreso = clamp(u?.progreso_porcentaje ?? u?.porcentaje_completado);
+          const tiempoMin = Number(u?.tiempo_min ?? u?.tiempo_dedicado_min ?? 0);
+          const scoreRaw = u?.score ?? u?.promedio_score ?? u?.score_promedio;
+          const scoreNum = scoreRaw != null ? Number(scoreRaw) : null;
+          const promedioRaw = u?.score_promedio != null ? u?.score_promedio : u?.promedio_score;
+          const promedioNum = promedioRaw != null ? Number(promedioRaw) : null;
+          const scoreFinal = u?.score_final != null ? Number(u?.score_final) : null;
           return {
-            nombre: u.nombre || `Unidad ${u.unidad_id}`,
+            nombre: u?.nombre || `Unidad ${u?.unidad_id}`,
             progreso,
             tiempo: this.formatearMinutos(tiempoMin),
-            score: score != null ? Number(score) : null,
-            tareas_count: Number(u.tareas_count ?? 0),
-            score_promedio: u.score_promedio != null ? Number(u.score_promedio) : (u.promedio_score != null ? Number(u.promedio_score) : null),
-            ultima_entrega: u.ultima_entrega || null,
-            unidad_id: u.unidad_id
+            score: scoreNum,
+            promedio_tareas: promedioNum ?? scoreNum,
+            score_final: scoreFinal,
+            tareas_count: Number(u?.tareas_count ?? 0),
+            score_promedio: promedioNum,
+            ultima_entrega: u?.ultima_entrega || null,
+            unidad_id: u?.unidad_id
           };
         });
         this.cargandoUnidades = false;
@@ -216,6 +227,23 @@ export class AnalisisEstudianteComponent implements OnInit {
   inicializarUnidadesProgreso() {
     // Fallback: dejar vacío si no hay datos reales
     this.unidadesProgreso = [];
+  }
+
+  // Color dinámico de barra según progreso: ≥80 verde, 60–79 ámbar, <60 rojo
+  colorFor(pct: number | null | undefined): string {
+    const p = Number(pct ?? 0);
+    if (p >= 80) return 'linear-gradient(90deg, #10b981 0%, #34d399 100%)';
+    if (p >= 60) return 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)';
+    return 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)';
+  }
+
+  // Tooltip con métricas clave de la unidad
+  tooltipFor(unidad: any): string {
+    const tareas = unidad?.tareas_count ?? 0;
+    const tiempo = unidad?.tiempo ?? '0m';
+    const prom = unidad?.score_promedio != null ? `${Math.round(unidad.score_promedio)}/100` : '—';
+    const ultima = unidad?.ultima_entrega ? new Date(unidad.ultima_entrega).toLocaleString() : '—';
+    return `Tareas: ${tareas}\nTiempo: ${tiempo}\nPromedio: ${prom}\nÚltima entrega: ${ultima}`;
   }
 
   private formatearMinutos(min: number): string {

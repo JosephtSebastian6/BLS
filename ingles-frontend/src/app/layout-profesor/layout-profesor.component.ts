@@ -1,13 +1,20 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
+import { CampanaNotificacionesComponent } from '../componentes/campana-notificaciones/campana-notificaciones.component';
 
 @Component({
   selector: 'app-layout-profesor',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [
+    CommonModule, 
+    RouterModule, 
+    CampanaNotificacionesComponent,
+    DatePipe
+  ],
   templateUrl: './layout-profesor.component.html',
-  styleUrls: ['./layout-profesor.component.css']
+  styleUrls: ['./layout-profesor.component.css'],
+  providers: [DatePipe]
 })
 export class LayoutProfesorComponent {
   constructor(private router: Router) {}

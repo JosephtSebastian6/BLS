@@ -72,8 +72,8 @@ export class UnidadDetalleComponent implements OnInit, OnDestroy {
     // Detecta tipo de usuario
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     this.tipoUsuario = user.tipo_usuario || localStorage.getItem('tipo_usuario') || '';
-    // Si empresa/profesor, sincroniza desde backend
-    if (this.tipoUsuario === 'empresa' || this.tipoUsuario === 'profesor') {
+    // Sincroniza desde backend para todos los roles (incluye estudiante)
+    if (this.tipoUsuario === 'empresa' || this.tipoUsuario === 'profesor' || this.tipoUsuario === 'estudiante') {
       this.cargarSubcarpetasDesdeBackend();
     }
   }

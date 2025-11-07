@@ -39,6 +39,11 @@ import { AdminDashboardComponent } from './admin/admin-dashboard.component';
 import { ForgotPasswordComponent } from './auth/forgot-password/forgot-password';
 import { ResetPasswordComponent } from './auth/reset-password/reset-password';
 import { TareasUnidadComponent } from './tareas-unidad/tareas-unidad.component';
+import { QuizzesListaComponent } from './dashboard-evaluaciones/quizzes-lista.component';
+import { QuizFormComponent } from './dashboard-evaluaciones/quiz-form.component';
+import { QuizAsignarComponent } from './dashboard-evaluaciones/quiz-asignar.component';
+import { EvaluacionesListaEstudianteComponent } from './evaluaciones-estudiante/evaluaciones-lista-estudiante.component';
+import { EvaluacionRendirComponent } from './evaluaciones-estudiante/evaluacion-rendir.component';
 
 
 export const routes: Routes = [
@@ -60,6 +65,8 @@ export const routes: Routes = [
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
       { path: 'tareas-unidad/:unidadId', component: TareasUnidadComponent },
+      { path: 'evaluaciones', component: EvaluacionesListaEstudianteComponent },
+      { path: 'evaluaciones/:id', component: EvaluacionRendirComponent },
       { path: 'planeador', component: PlaneadorComponent },
       { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },
       { path: 'analisis-estudiante/:username', component: AnalisisEstudianteComponent },
@@ -72,6 +79,10 @@ export const routes: Routes = [
     data: { expectedRole: 'empresa' },
     children: [
       { path: '', component: HomeResumenComponent },
+      { path: 'quizzes', component: QuizzesListaComponent },
+      { path: 'quizzes/nuevo', component: QuizFormComponent },
+      { path: 'quizzes/:id/editar', component: QuizFormComponent },
+      { path: 'quizzes/:id/asignar', component: QuizAsignarComponent },
       { path: 'unidades', component: UnidadesComponent },
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
@@ -94,6 +105,10 @@ export const routes: Routes = [
     data: { expectedRole: 'profesor' },
     children: [
       { path: '', component: DashboardProfesorComponent },
+      { path: 'quizzes', component: QuizzesListaComponent },
+      { path: 'quizzes/nuevo', component: QuizFormComponent },
+      { path: 'quizzes/:id/editar', component: QuizFormComponent },
+      { path: 'quizzes/:id/asignar', component: QuizAsignarComponent },
       { path: 'mis-clases', component: MisClasesComponent },
       { path: 'planeador', component: PlaneadorComponent },
       { path: 'tareas', component: TareasProfesorComponent },

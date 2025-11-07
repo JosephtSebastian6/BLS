@@ -7,6 +7,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { AnalyticsService } from '../../services/analytics.service';
+import { EmpresaGruposService } from '../../services/empresa-grupos.service';
 
 @Component({
   selector: 'app-subcarpeta-detalle',
@@ -37,7 +38,7 @@ export class SubcarpetaDetalleComponent implements OnInit, OnDestroy {
   isDragOverEstudiante = false;
   
   private heartbeatId: any;
-  constructor(private route: ActivatedRoute, private router: Router, private sanitizer: DomSanitizer, private analytics: AnalyticsService) {
+  constructor(private route: ActivatedRoute, private router: Router, private sanitizer: DomSanitizer, private analytics: AnalyticsService, private empresaSvc: EmpresaGruposService) {
     this.unidadId = this.route.snapshot.paramMap.get('id');
     this.subcarpetaIdx = Number(this.route.snapshot.paramMap.get('sub'));
     // Detecta tipo de usuario
@@ -48,11 +49,9 @@ export class SubcarpetaDetalleComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.cargarArchivos();
     this.cargarNombreSubcarpeta();
+    this.cargarNombreSubcarpetaDesdeBackend();
     
-    // Si es estudiante y está en SOLO TAREAS, cargar archivos del backend
-    if (this.tipoUsuario === 'estudiante' && this.esSoloTareas()) {
-      this.cargarArchivosEstudiante();
-    }
+    // La carga de archivos para estudiantes se dispara cuando tengamos el nombre real (ver cargarNombreSubcarpetaDesdeBackend)
     
     // Tracking start + heartbeat por unidad
     if (this.unidadId) {
@@ -201,6 +200,24 @@ export class SubcarpetaDetalleComponent implements OnInit, OnDestroy {
         this.subcarpetaNombre = unidad.subcarpetas[this.subcarpetaIdx].nombre;
       }
     }
+  }
+
+  // Intenta sincronizar el nombre real desde backend
+  private cargarNombreSubcarpetaDesdeBackend() {
+    if (!this.unidadId) return;
+    const idNum = Number(this.unidadId);
+    this.empresaSvc.listarSubcarpetas(idNum).subscribe({
+      next: (subs: any[]) => {
+        if (Array.isArray(subs) && subs[this.subcarpetaIdx]) {
+          this.subcarpetaNombre = subs[this.subcarpetaIdx].nombre || this.subcarpetaNombre;
+          // Si es estudiante y esta subcarpeta es SOLO TAREAS, cargar archivos ahora que ya sabemos el nombre
+          if (this.tipoUsuario === 'estudiante' && this.esSoloTareas()) {
+            this.cargarArchivosEstudiante();
+          }
+        }
+      },
+      error: () => {}
+    });
   }
 
   cargarArchivosEstudiante() {

@@ -1,4 +1,17 @@
 <div class="dashboard-layout">
+  <header class="top-bar">
+    <div class="logo">
+      <h1>Panel del Profesor</h1>
+    </div>
+    <div class="user-actions">
+      <app-campana-notificaciones></app-campana-notificaciones>
+      <div class="user-info">
+        <span class="material-icons">account_circle</span>
+        <span>Profesor</span>
+      </div>
+    </div>
+  </header>
+  
   <aside class="sidebar">
     <h3>Menú</h3>
     <ul>
@@ -42,6 +55,12 @@
         <button [routerLink]="['calificar']" routerLinkActive="active">
           <span class="material-icons" style="vertical-align: middle;">grade</span>
           <span class="sidebar-text">Calificar</span>
+        </button>
+      </li>
+      <li>
+        <button [routerLink]="['quizzes']" routerLinkActive="active">
+          <span class="material-icons" style="vertical-align: middle;">quiz</span>
+          <span class="sidebar-text">Evaluaciones</span>
         </button>
       </li>
     </ul>

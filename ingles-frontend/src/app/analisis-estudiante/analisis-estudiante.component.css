@@ -286,6 +286,17 @@ body {
   margin: 3rem 0;
 }
 
+/* Solo profesor: exactamente 2 cards por fila en desktop */
+.profesor-grid {
+  grid-template-columns: repeat(2, minmax(360px, 1fr));
+}
+
+@media (max-width: 900px) {
+  .profesor-grid {
+    grid-template-columns: 1fr; /* una por fila en pantallas pequeñas */
+  }
+}
+
 .unidad-progreso-card {
   background: var(--glass-bg);
   backdrop-filter: blur(20px);

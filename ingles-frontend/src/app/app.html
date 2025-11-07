@@ -9,7 +9,6 @@
   <nav>
     <div class="nav-links">
       <ng-container *ngIf="!isLoggedIn">
-        
         <li><a routerLink="/">Inicio</a></li>
         <li class="dropdown">
           <a routerLink="/programas" class="dropdown-toggle">Programas 
@@ -24,16 +23,15 @@
             <li><a routerLink="/ief">Inglés para Entidades Financieras</a></li>
             <li><a routerLink="/exp">Executive Plus</a></li>
             <li><a routerLink="/ete">English Test Empresarial</a></li>
-            
           </ul>
         </li>
         <li><a routerLink="/nosotros">Nosotros</a></li>
         <li><a href="https://wa.me/573014893304" target="_blank">Contacto</a></li>
         <a routerLink="/login">Inicio de Sesión</a> |
         <a routerLink="/register">Registrarse</a>
-       
-        </ng-container>
+      </ng-container>
       <ng-container *ngIf="isLoggedIn">
+        <app-campana-notificaciones></app-campana-notificaciones>
         <a *ngIf="isAdmin" routerLink="/admin">Admin</a>
         <button (click)="cerrarSesion()" class="logout-btn" title="Cerrar sesión">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#2563eb" stroke-width="2">

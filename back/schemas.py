@@ -105,3 +105,21 @@ class QuizResponse(BaseModel):
         from_attributes = True
 
 
+# ===== Asignaciones de Quiz =====
+class QuizAsignacionCreate(BaseModel):
+    unidad_id: int
+    start_at: Optional[datetime] = None
+    end_at: Optional[datetime] = None
+
+class QuizAsignacionResponse(BaseModel):
+    id: int
+    quiz_id: int
+    unidad_id: int
+    start_at: Optional[datetime] = None
+    end_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+

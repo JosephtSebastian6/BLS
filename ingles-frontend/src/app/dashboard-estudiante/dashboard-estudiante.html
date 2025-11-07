@@ -26,6 +26,12 @@
           <span class="sidebar-text">Análisis estudiante</span>
         </button>
       </li>
+      <li>
+        <button [routerLink]="['/dashboard-estudiante/evaluaciones']" [class.active]="currentUrl === '/dashboard-estudiante/evaluaciones'">
+          <span class="material-icons" style="vertical-align: middle;">assignment</span>
+          <span class="sidebar-text">Evaluaciones</span>
+        </button>
+      </li>
     </ul>
   </aside>
   <main class="main-content">

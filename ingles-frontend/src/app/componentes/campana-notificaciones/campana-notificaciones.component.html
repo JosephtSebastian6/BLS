@@ -1,0 +1,27 @@
+<div class="notificacion-campana" (click)="alternarNotificaciones()">
+  <i class="material-icons">notifications</i>
+  <span class="contador" *ngIf="contadorNoLeidas > 0">{{ contadorNoLeidas }}</span>
+  
+  <div class="notificaciones-contenedor" *ngIf="mostrarNotificaciones">
+    <div class="encabezado">
+      <h3>Notificaciones</h3>
+      <button (click)="marcarTodasComoLeidas()" [disabled]="contadorNoLeidas === 0">
+        Marcar todas como leídas
+      </button>
+    </div>
+    
+    <div class="lista-notificaciones">
+      <div *ngFor="let notif of notificaciones" 
+           class="notificacion" 
+           [class.no-leida]="!notif.leida"
+           (click)="marcarComoLeida(notif.id, $event)">
+        <p class="mensaje">{{ notif.mensaje }}</p>
+        <span class="fecha">{{ notif.fecha_creacion | date:'dd/MM/yyyy HH:mm' }}</span>
+      </div>
+      
+      <div *ngIf="notificaciones.length === 0" class="sin-notificaciones">
+        No hay notificaciones nuevas
+      </div>
+    </div>
+  </div>
+</div>

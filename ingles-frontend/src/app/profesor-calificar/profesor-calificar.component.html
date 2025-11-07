@@ -105,25 +105,35 @@
     <h2>Calificación global de la unidad</h2>
   </div>
   <div class="card-body">
-    <div class="grid">
-      <div class="field">
-        <label>Unidades a calificar (puede seleccionar varias)</label>
-        <select name="unidadesMultiples" [ngModelOptions]="{standalone: true}" multiple size="5" [(ngModel)]="finalUnidadesSeleccionadas">
+    <div class="final-grid">
+      <div class="field fullheight">
+        <label>Unidades a calificar <span class="hint">(puede seleccionar varias)</span></label>
+        <select name="unidadesMultiples" [ngModelOptions]="{standalone: true}" multiple size="8" [(ngModel)]="finalUnidadesSeleccionadas">
           <option *ngFor="let u of unidades" [ngValue]="u.id">{{ u.nombre }}</option>
         </select>
+        <div class="help" *ngIf="!unidades?.length">No hay unidades habilitadas para este estudiante.</div>
       </div>
-      <div class="field">
-        <label>Score final (0-100)</label>
-        <input type="number" [(ngModel)]="formFinal.score" min="0" max="100" placeholder="opcional" />
-      </div>
-      <div class="field">
-        <label>Aprobado</label>
-        <label style="display:flex;align-items:center;gap:8px">
-          <input type="checkbox" [(ngModel)]="formFinal.aprobado" /> Marcar aprobado
-        </label>
+
+      <div class="right-pane">
+        <div class="field">
+          <label>Score final (0-100) <span class="hint">(opcional)</span></label>
+          <input type="number" [(ngModel)]="formFinal.score" min="0" max="100" placeholder="Ej: 85" />
+          <div class="help">Si lo dejas vacío, solo se marcará Aprobado/No aprobado.</div>
+        </div>
+
+        <div class="field toggle-inline">
+          <label>Aprobación</label>
+          <label class="switchline">
+            <input type="checkbox" [(ngModel)]="formFinal.aprobado" />
+            <span>Marcar aprobado</span>
+          </label>
+        </div>
+
+        <div class="final-actions">
+          <button class="btn" [disabled]="cargandoFinal" (click)="guardarFinal()">{{ cargandoFinal ? 'Guardando...' : 'Guardar final' }}</button>
+          <div class="msg" *ngIf="msgFinal">{{ msgFinal }}</div>
+        </div>
       </div>
     </div>
-    <button class="btn" [disabled]="cargandoFinal" (click)="guardarFinal()">{{ cargandoFinal ? 'Guardando...' : 'Guardar final' }}</button>
-    <div class="msg" *ngIf="msgFinal">{{ msgFinal }}</div>
   </div>
 </div>
