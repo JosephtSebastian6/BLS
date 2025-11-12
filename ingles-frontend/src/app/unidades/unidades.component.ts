@@ -11,8 +11,708 @@ import { AnalyticsService } from '../services/analytics.service';
   selector: 'app-unidades',
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
-  templateUrl: './unidades.component.html',
-  styleUrls: ['./unidades.component.css']
+  template: `
+  <div class="dashboard-container" [ngClass]="{ profesor: tipoUsuario === 'profesor' }">
+    <!-- Header Section -->
+    <div class="dashboard-header">
+      <div class="header-content">
+        <div class="title-section">
+          <h1 class="dashboard-title">📚 Unidades</h1>
+          <p class="dashboard-subtitle">Gestiona y organiza las unidades de aprendizaje</p>
+        </div>
+        <div class="header-stats">
+          <div class="stat-card">
+            <div class="stat-value">{{ unidades.length }}</div>
+            <div class="stat-label">📚 Unidades</div>
+          </div>
+          <div class="stat-card" *ngIf="tipoUsuario === 'estudiante'">
+            <div class="stat-value">{{ privadas_entregadas.size }}</div>
+            <div class="stat-label">✅ Entregadas</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Unit Button -->
+    <div *ngIf="tipoUsuario === 'empresa'" class="create-section">
+      <div class="create-container">
+        <button class="create-btn" (click)="mostrarFormulario = true" [disabled]="mostrarFormulario">
+          <span class="btn-icon">➕</span>
+          <span class="btn-text">Crear Nueva Unidad</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Create Unit Form -->
+    <div *ngIf="mostrarFormulario && tipoUsuario === 'empresa'" class="form-section">
+      <div class="form-container">
+        <div class="form-header">
+          <h3 class="form-title">📝 Nueva Unidad</h3>
+          <p class="form-subtitle">Completa la información para crear una nueva unidad</p>
+        </div>
+        
+        <form (ngSubmit)="guardarUnidad()" class="unit-form">
+          <div class="form-group">
+            <label for="nombre" class="form-label">📚 Nombre de la Unidad</label>
+            <input 
+              id="nombre" 
+              [(ngModel)]="nuevaUnidad.nombre" 
+              name="nombre" 
+              required 
+              class="form-input"
+              placeholder="Ej: Introducción a Angular"
+              [disabled]="creando">
+          </div>
+          
+          <div class="form-group">
+            <label for="descripcion" class="form-label">📝 Descripción</label>
+            <textarea 
+              id="descripcion" 
+              [(ngModel)]="nuevaUnidad.descripcion" 
+              name="descripcion" 
+              class="form-textarea"
+              placeholder="Describe el contenido y objetivos de la unidad..."
+              rows="3"
+              [disabled]="creando"></textarea>
+          </div>
+          
+          <div class="form-actions">
+            <button type="submit" [disabled]="creando || !nuevaUnidad.nombre.trim()" class="save-btn">
+              <span class="btn-icon">{{ creando ? '⏳' : '💾' }}</span>
+              <span class="btn-text">{{ creando ? 'Creando...' : 'Guardar Unidad' }}</span>
+            </button>
+            <button type="button" (click)="cancelarUnidad()" [disabled]="creando" class="cancel-btn">
+              <span class="btn-icon">❌</span>
+              <span class="btn-text">Cancelar</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Units Grid -->
+    <div class="units-section">
+      <div class="units-grid">
+        <div 
+          *ngFor="let unidad of unidades; let i = index; trackBy: trackByUnidad" 
+          class="unit-card"
+          [class.delivered]="tipoUsuario === 'estudiante' && privadas_entregadas.has(unidad.id!)"
+          (click)="irADetalleUnidad(unidad)">
+          
+          <!-- Unit Icon -->
+          <div class="unit-icon">
+            <span class="icon-emoji">📁</span>
+          </div>
+          
+          <!-- Unit Content -->
+          <div class="unit-content">
+            <h3 class="unit-title">{{ unidad.nombre }}</h3>
+            <p class="unit-description">{{ unidad.descripcion || 'Sin descripción disponible' }}</p>
+            
+            <!-- Unit Stats -->
+            <div class="unit-stats">
+              <div class="stat-item">
+                <span class="stat-icon">📂</span>
+                <span class="stat-text">{{ (unidad.subcarpetasCount ?? unidad.subcarpetas.length) }} subcarpetas</span>
+              </div>
+              <div class="stat-item" *ngIf="tipoUsuario === 'estudiante' && privadas_entregadas.has(unidad.id!)">
+                <span class="stat-icon">✅</span>
+                <span class="stat-text">Entregada</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Action Buttons -->
+          <div class="unit-actions" (click)="$event.stopPropagation()">
+            <!-- Delete Button (Empresa) -->
+            <button 
+              *ngIf="tipoUsuario === 'empresa'" 
+              (click)="eliminarUnidad(i, $event)" 
+              class="action-btn delete-btn"
+              title="Eliminar unidad">
+              <span class="btn-icon">🗑️</span>
+            </button>
+            
+            <!-- Deliver Button (Estudiante) -->
+            <button 
+              *ngIf="tipoUsuario === 'estudiante'"
+              (click)="entregarUnidad(i, $event)"
+              [disabled]="privadas_entregadas.has(unidad.id!)"
+              class="action-btn deliver-btn"
+              [class.delivered]="privadas_entregadas.has(unidad.id!)"
+              [title]="privadas_entregadas.has(unidad.id!) ? 'Unidad ya entregada' : 'Entregar unidad'">
+              <span class="btn-icon">{{ privadas_entregadas.has(unidad.id!) ? '✅' : '📤' }}</span>
+              <span class="btn-text">{{ privadas_entregadas.has(unidad.id!) ? 'Entregada' : 'Entregar' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Empty State -->
+      <div *ngIf="unidades.length === 0" class="empty-state">
+        <div class="empty-icon">📚</div>
+        <h3 class="empty-title">No hay unidades disponibles</h3>
+        <p class="empty-description" *ngIf="tipoUsuario === 'empresa'">
+          Crea tu primera unidad para comenzar a organizar el contenido
+        </p>
+        <p class="empty-description" *ngIf="tipoUsuario === 'estudiante'">
+          No tienes unidades habilitadas en este momento
+        </p>
+        <p class="empty-description" *ngIf="tipoUsuario === 'profesor'">
+          No hay unidades asignadas para gestionar
+        </p>
+      </div>
+    </div>
+  </div>
+  `,
+  styles: [`
+    /* Variables CSS del sistema */
+    :host {
+      --primary-color: #667eea;
+      --secondary-color: #764ba2;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --card-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      --border-radius: 20px;
+      --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      --success-color: #10b981;
+      --error-color: #ef4444;
+      --warning-color: #f59e0b;
+    }
+
+    .dashboard-container {
+      min-height: 100vh;
+      background: #f8f9fa;
+      padding: 5rem 2rem 2rem 2rem;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* Profesor specific styles */
+    .dashboard-container.profesor {
+      margin: 80px auto 0;
+      max-width: 1200px;
+    }
+
+    /* Header Section */
+    .dashboard-header {
+      margin-bottom: 2rem;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .title-section {
+      flex: 1;
+    }
+
+    .dashboard-title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.5rem 0;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+    }
+
+    .dashboard-subtitle {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin: 0;
+      font-weight: 400;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .stat-card {
+      background: rgba(102, 126, 234, 0.1);
+      border: 1px solid rgba(102, 126, 234, 0.2);
+      border-radius: 15px;
+      padding: 1rem 1.5rem;
+      text-align: center;
+      min-width: 100px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 0.3rem;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Create Section */
+    .create-section {
+      margin-bottom: 2rem;
+    }
+
+    .create-container {
+      display: flex;
+      justify-content: center;
+    }
+
+    .create-btn {
+      background: linear-gradient(135deg, var(--success-color), #059669);
+      color: white;
+      border: none;
+      border-radius: 15px;
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+
+    .create-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+    }
+
+    .create-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-icon {
+      font-size: 1.1rem;
+    }
+
+    .btn-text {
+      font-size: 0.9rem;
+    }
+
+    /* Form Section */
+    .form-section {
+      margin-bottom: 2rem;
+    }
+
+    .form-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .form-header {
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .form-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.5rem 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-subtitle {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    .unit-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .form-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .form-input, .form-textarea {
+      padding: 1rem;
+      border: 2px solid rgba(102, 126, 234, 0.2);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--text-primary);
+      font-size: 1rem;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .form-input:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-input:disabled, .form-textarea:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+
+    .save-btn {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .save-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .save-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .cancel-btn {
+      background: linear-gradient(135deg, var(--error-color), #dc2626);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .cancel-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+    }
+
+    .cancel-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Units Section */
+    .units-section {
+      margin-bottom: 2rem;
+    }
+
+    .units-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 2rem;
+      padding: 1rem 0;
+    }
+
+    .dashboard-container.profesor .units-grid {
+      justify-items: center;
+    }
+
+    .unit-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      box-shadow: var(--card-shadow);
+      border: 2px solid rgba(102, 126, 234, 0.2);
+      padding: 2rem;
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 200px;
+    }
+
+    .unit-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      border-color: var(--primary-color);
+      background: rgba(255, 255, 255, 0.98);
+    }
+
+    .unit-card.delivered {
+      border-color: var(--success-color);
+      background: rgba(16, 185, 129, 0.05);
+    }
+
+    .unit-card.delivered:hover {
+      border-color: var(--success-color);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .unit-icon {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .icon-emoji {
+      font-size: 3rem;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+    }
+
+    .unit-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .unit-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+
+    .unit-description {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      margin: 0;
+      text-align: center;
+      line-height: 1.5;
+      flex: 1;
+    }
+
+    .unit-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: rgba(102, 126, 234, 0.1);
+      border: 1px solid rgba(102, 126, 234, 0.2);
+      border-radius: 15px;
+    }
+
+    .stat-icon {
+      font-size: 1rem;
+    }
+
+    .stat-text {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--primary-color);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .unit-actions {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: var(--transition);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .delete-btn {
+      background: linear-gradient(135deg, var(--error-color), #dc2626);
+      color: white;
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+    }
+
+    .delete-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+    }
+
+    .deliver-btn {
+      background: linear-gradient(135deg, var(--success-color), #059669);
+      color: white;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+
+    .deliver-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+    }
+
+    .deliver-btn.delivered {
+      background: linear-gradient(135deg, #6b7280, #4b5563);
+      box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
+      cursor: default;
+    }
+
+    .deliver-btn:disabled {
+      opacity: 0.8;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .empty-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.6;
+    }
+
+    .empty-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 1rem 0;
+    }
+
+    .empty-description {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .dashboard-container {
+        padding: 2rem 1rem;
+      }
+
+      .dashboard-container.profesor {
+        margin: 60px auto 0;
+      }
+
+      .header-content {
+        flex-direction: column;
+        gap: 1.5rem;
+        text-align: center;
+      }
+
+      .units-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+
+      .unit-card {
+        min-height: auto;
+      }
+
+      .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .action-btn {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.8rem;
+      }
+
+      .unit-actions {
+        position: static;
+        justify-content: center;
+        margin-top: 1rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .dashboard-title {
+        font-size: 1.8rem;
+      }
+
+      .unit-title {
+        font-size: 1.1rem;
+      }
+
+      .unit-description {
+        font-size: 0.9rem;
+      }
+    }
+  `]
 })
 export class UnidadesComponent {
   unidades: { id?: number; nombre: string; descripcion: string; subcarpetas: { nombre: string }[]; subcarpetasCount?: number }[] = [];
@@ -413,5 +1113,9 @@ export class UnidadesComponent {
     } else {
       proceed();
     }
+  }
+
+  trackByUnidad(index: number, unidad: any): any {
+    return unidad.id || index;
   }
 }

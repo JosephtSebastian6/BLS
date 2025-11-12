@@ -16,8 +16,936 @@ interface Metrica {
   selector: 'app-analisis-estudiante',
   standalone: true,
   imports: [CommonModule, FormsModule, DashboardLayoutComponent],
-  templateUrl: './analisis-estudiante.component.html',
-  styleUrls: ['./analisis-estudiante.component.css']
+  template: `
+  <ng-container *ngIf="useStudentLayout; else plainContent">
+    <app-dashboard-layout>
+      <ng-container [ngTemplateOutlet]="coreContent"></ng-container>
+    </app-dashboard-layout>
+  </ng-container>
+
+  <ng-template #plainContent>
+    <ng-container [ngTemplateOutlet]="coreContent"></ng-container>
+  </ng-template>
+
+  <ng-template #coreContent>
+    <div class="dashboard-container">
+      <!-- Header Section -->
+      <div class="dashboard-header">
+        <div class="header-content">
+          <div class="title-section">
+            <h1 class="dashboard-title">📊 Análisis del Estudiante</h1>
+            <p class="dashboard-subtitle">Monitorea el progreso y rendimiento académico</p>
+          </div>
+          <div class="header-stats" *ngIf="!cargandoResumen">
+            <div class="stat-card">
+              <div class="stat-value">{{ progreso }}%</div>
+              <div class="stat-label">📈 Progreso</div>
+            </div>
+            <div class="stat-card" *ngIf="metricas.length > 0">
+              <div class="stat-value">{{ metricas[0]?.valor || 0 }}</div>
+              <div class="stat-label">📚 Completadas</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student Selector (Empresa/Profesor only) -->
+      <div *ngIf="tipoUsuario === 'empresa' || tipoUsuario === 'profesor'" class="selector-section">
+        <div class="selector-container">
+          <div class="selector-header">
+            <h3 class="selector-title">🔍 Buscar Estudiante</h3>
+            <p class="selector-subtitle">Selecciona un estudiante para ver su análisis detallado</p>
+          </div>
+          
+          <div class="selector-form">
+            <div class="form-group">
+              <label class="form-label">👤 Estudiante</label>
+              <select [(ngModel)]="selectedUsername" class="form-select">
+                <option value="">Selecciona un estudiante...</option>
+                <option *ngFor="let estudiante of estudiantes; trackBy: trackByEstudiante" [value]="estudiante.username">
+                  {{ estudiante.nombres }} {{ estudiante.apellidos }} ({{ estudiante.username }})
+                </option>
+              </select>
+            </div>
+            
+            <div class="form-actions">
+              <button class="search-btn" (click)="irAUsuario()" [disabled]="!selectedUsername">
+                <span class="btn-icon">🔍</span>
+                <span class="btn-text">Buscar Análisis</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading States -->
+      <div *ngIf="cargandoResumen || cargandoUnidades" class="loading-section">
+        <div class="loading-card">
+          <div class="loading-spinner"></div>
+          <h3 class="loading-title">Cargando análisis...</h3>
+          <p class="loading-subtitle">Procesando datos del estudiante</p>
+        </div>
+      </div>
+
+      <!-- Progress Overview -->
+      <div *ngIf="!cargandoResumen" class="progress-section">
+        <div class="progress-container">
+          <div class="progress-header">
+            <h3 class="progress-title">📈 Progreso General</h3>
+            <div class="progress-percentage">{{ progreso }}%</div>
+          </div>
+          
+          <div class="progress-bar-container">
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="progreso" [style.background]="getProgressColor(progreso)"></div>
+            </div>
+            <div class="progress-labels">
+              <span class="progress-start">0%</span>
+              <span class="progress-end">100%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div *ngIf="!cargandoResumen && metricas.length > 0" class="metrics-section">
+        <div class="section-header">
+          <h2 class="section-title">📊 Métricas Clave</h2>
+          <div class="section-subtitle">Indicadores de rendimiento y dedicación</div>
+        </div>
+
+        <div class="metrics-grid">
+          <div *ngFor="let metrica of metricas; trackBy: trackByMetrica" class="metric-card">
+            <div class="metric-icon">{{ getMetricIcon(metrica.titulo) }}</div>
+            <div class="metric-content">
+              <div class="metric-title">{{ metrica.titulo }}</div>
+              <div class="metric-value">{{ metrica.valor }}</div>
+              <div class="metric-description">{{ metrica.descripcion }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Units Progress -->
+      <div *ngIf="!cargandoUnidades" class="units-section">
+        <div class="section-header">
+          <h2 class="section-title">📚 Progreso por Unidad</h2>
+          <div class="section-subtitle">Análisis detallado del rendimiento en cada unidad</div>
+        </div>
+
+        <div class="units-grid" [class.profesor-layout]="tipoUsuario === 'profesor'">
+          <div 
+            *ngFor="let unidad of unidadesProgreso; let idx = index; trackBy: trackByUnidad" 
+            class="unit-card">
+            
+            <!-- Unit Header -->
+            <div class="unit-header">
+              <div class="unit-info">
+                <h3 class="unit-title">{{ unidad.nombre }}</h3>
+                <div class="unit-progress-badge" [style.background]="getProgressColor(unidad.progreso)">
+                  {{ unidad.progreso }}%
+                </div>
+              </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="unit-progress-container">
+              <div class="unit-progress-bar">
+                <div 
+                  class="unit-progress-fill" 
+                  [style.width.%]="unidad.progreso" 
+                  [style.background]="getProgressColor(unidad.progreso)"
+                  [title]="tooltipFor(unidad)">
+                </div>
+              </div>
+            </div>
+            
+            <!-- Unit Stats -->
+            <div class="unit-stats">
+              <div class="stat-item">
+                <div class="stat-icon">⏱️</div>
+                <div class="stat-content">
+                  <div class="stat-label">Tiempo</div>
+                  <div class="stat-value">{{ unidad.tiempo }}</div>
+                </div>
+              </div>
+              
+              <div class="stat-item">
+                <div class="stat-icon">📝</div>
+                <div class="stat-content">
+                  <div class="stat-label">Tareas</div>
+                  <div class="stat-value">{{ unidad.tareas_count || 0 }}</div>
+                </div>
+              </div>
+              
+              <div class="stat-item">
+                <div class="stat-icon">📊</div>
+                <div class="stat-content">
+                  <div class="stat-label">Promedio</div>
+                  <div class="stat-value">{{ unidad.promedio_tareas != null ? (unidad.promedio_tareas | number:'1.0-0') + '/100' : '—' }}</div>
+                </div>
+              </div>
+              
+              <div class="stat-item">
+                <div class="stat-icon">🎯</div>
+                <div class="stat-content">
+                  <div class="stat-label">Score Final</div>
+                  <div class="stat-value">{{ unidad.score_final != null ? (unidad.score_final | number:'1.0-0') + '/100' : '—' }}</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Last Activity -->
+            <div class="unit-activity" *ngIf="unidad.ultima_entrega">
+              <div class="activity-icon">📅</div>
+              <div class="activity-content">
+                <div class="activity-label">Última entrega</div>
+                <div class="activity-date">{{ unidad.ultima_entrega | date:'short' }}</div>
+              </div>
+            </div>
+            
+            <!-- Action Button -->
+            <div class="unit-actions">
+              <button class="view-tasks-btn" (click)="verTareas(idx)">
+                <span class="btn-icon">👁️</span>
+                <span class="btn-text">Ver Tareas</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Empty State -->
+        <div *ngIf="unidadesProgreso.length === 0" class="empty-state">
+          <div class="empty-icon">📚</div>
+          <h3 class="empty-title">No hay datos de unidades disponibles</h3>
+          <p class="empty-description" *ngIf="tipoUsuario === 'estudiante'">
+            Comienza a trabajar en las unidades para ver tu progreso aquí
+          </p>
+          <p class="empty-description" *ngIf="tipoUsuario === 'empresa' || tipoUsuario === 'profesor'">
+            {{ selectedUsername ? 'El estudiante seleccionado no tiene datos de progreso' : 'Selecciona un estudiante para ver su análisis' }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+  `,
+  styles: [`
+    /* Variables CSS del sistema */
+    :host {
+      --primary-color: #667eea;
+      --secondary-color: #764ba2;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --card-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      --border-radius: 20px;
+      --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      --success-color: #10b981;
+      --error-color: #ef4444;
+      --warning-color: #f59e0b;
+    }
+
+    .dashboard-container {
+      min-height: 100vh;
+      background: #f8f9fa;
+      padding: 5rem 2rem 2rem 2rem;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* Header Section */
+    .dashboard-header {
+      margin-bottom: 2rem;
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .title-section {
+      flex: 1;
+    }
+
+    .dashboard-title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.5rem 0;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+    }
+
+    .dashboard-subtitle {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin: 0;
+      font-weight: 400;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .stat-card {
+      background: rgba(102, 126, 234, 0.1);
+      border: 1px solid rgba(102, 126, 234, 0.2);
+      border-radius: 15px;
+      padding: 1rem 1.5rem;
+      text-align: center;
+      min-width: 100px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 0.3rem;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Selector Section */
+    .selector-section {
+      margin-bottom: 2rem;
+    }
+
+    .selector-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .selector-header {
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    .selector-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.5rem 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .selector-subtitle {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    .selector-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      align-items: center;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .form-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .form-select {
+      padding: 1rem;
+      border: 2px solid rgba(102, 126, 234, 0.2);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--text-primary);
+      font-size: 1rem;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .form-select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: center;
+    }
+
+    .search-btn {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .search-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .search-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-icon {
+      font-size: 1.1rem;
+    }
+
+    .btn-text {
+      font-size: 0.9rem;
+    }
+
+    /* Loading Section */
+    .loading-section {
+      margin-bottom: 2rem;
+    }
+
+    .loading-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      padding: 3rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      text-align: center;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(102, 126, 234, 0.2);
+      border-top: 4px solid var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1.5rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loading-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.5rem 0;
+    }
+
+    .loading-subtitle {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    /* Progress Section */
+    .progress-section {
+      margin-bottom: 2rem;
+    }
+
+    .progress-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .progress-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .progress-percentage {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    .progress-bar-container {
+      position: relative;
+    }
+
+    .progress-bar {
+      height: 20px;
+      background: rgba(203, 213, 225, 0.3);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 10px;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .progress-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    /* Metrics Section */
+    .metrics-section {
+      margin-bottom: 2rem;
+    }
+
+    .section-header {
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .section-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.5rem 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .section-subtitle {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+    }
+
+    .metric-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      box-shadow: var(--card-shadow);
+      border: 2px solid rgba(102, 126, 234, 0.2);
+      padding: 2rem;
+      transition: var(--transition);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      border-color: var(--primary-color);
+      background: rgba(255, 255, 255, 0.98);
+    }
+
+    .metric-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+    }
+
+    .metric-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .metric-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .metric-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    .metric-description {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Units Section */
+    .units-section {
+      margin-bottom: 2rem;
+    }
+
+    .units-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: 2rem;
+      padding: 1rem 0;
+    }
+
+    .units-grid.profesor-layout {
+      grid-template-columns: repeat(2, minmax(400px, 1fr));
+      justify-items: center;
+    }
+
+    .unit-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      box-shadow: var(--card-shadow);
+      border: 2px solid rgba(102, 126, 234, 0.2);
+      padding: 2rem;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .unit-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      border-color: var(--primary-color);
+      background: rgba(255, 255, 255, 0.98);
+    }
+
+    .unit-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .unit-card:hover::before {
+      opacity: 1;
+    }
+
+    .unit-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .unit-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+
+    .unit-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .unit-progress-badge {
+      padding: 0.5rem 1rem;
+      border-radius: 15px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 700;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    .unit-progress-container {
+      width: 100%;
+    }
+
+    .unit-progress-bar {
+      height: 16px;
+      background: rgba(203, 213, 225, 0.3);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .unit-progress-fill {
+      height: 100%;
+      border-radius: 8px;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .unit-progress-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+      animation: shimmer 2s infinite;
+    }
+
+    .unit-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 12px;
+      border: 1px solid rgba(102, 126, 234, 0.1);
+      transition: var(--transition);
+    }
+
+    .stat-item:hover {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: var(--primary-color);
+      transform: scale(1.02);
+    }
+
+    .stat-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .stat-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      flex: 1;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .unit-activity {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 1rem;
+      background: rgba(102, 126, 234, 0.1);
+      border-radius: 12px;
+      border: 1px solid rgba(102, 126, 234, 0.2);
+    }
+
+    .activity-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .activity-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      flex: 1;
+    }
+
+    .activity-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    .activity-date {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .unit-actions {
+      display: flex;
+      justify-content: center;
+    }
+
+    .view-tasks-btn {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 0.8rem 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .view-tasks-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .empty-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.6;
+    }
+
+    .empty-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 1rem 0;
+    }
+
+    .empty-description {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .units-grid.profesor-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-container {
+        padding: 2rem 1rem;
+      }
+
+      .header-content {
+        flex-direction: column;
+        gap: 1.5rem;
+        text-align: center;
+      }
+
+      .units-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+
+      .unit-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .dashboard-title {
+        font-size: 1.8rem;
+      }
+
+      .unit-title {
+        font-size: 1.1rem;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+      }
+    }
+  `]
 })
 export class AnalisisEstudianteComponent implements OnInit {
   tipoUsuario: string = '';
@@ -252,5 +1180,31 @@ export class AnalisisEstudianteComponent implements OnInit {
     const m = min % 60;
     if (h > 0) return `${h}h ${m}m`;
     return `${m}m`;
+  }
+
+  getProgressColor(progress: number): string {
+    if (progress >= 80) return 'linear-gradient(135deg, #10b981, #059669)';
+    if (progress >= 60) return 'linear-gradient(135deg, #f59e0b, #d97706)';
+    if (progress >= 40) return 'linear-gradient(135deg, #f97316, #ea580c)';
+    return 'linear-gradient(135deg, #ef4444, #dc2626)';
+  }
+
+  getMetricIcon(titulo: string): string {
+    if (titulo.toLowerCase().includes('unidades')) return '📚';
+    if (titulo.toLowerCase().includes('tiempo')) return '⏱️';
+    if (titulo.toLowerCase().includes('racha')) return '🔥';
+    return '📊';
+  }
+
+  trackByEstudiante(index: number, estudiante: any): any {
+    return estudiante.username || index;
+  }
+
+  trackByMetrica(index: number, metrica: any): any {
+    return metrica.titulo || index;
+  }
+
+  trackByUnidad(index: number, unidad: any): any {
+    return unidad.unidad_id || index;
   }
 }

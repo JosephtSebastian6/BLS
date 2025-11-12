@@ -88,7 +88,7 @@ html, body {
   overflow-y: auto;   /* mantiene scroll vertical */
   scroll-behavior: smooth;
   font-family: var(--font-family);
-  background-color: var(--gray-50);
+  background-color: #ffffff;
   color: var(--gray-900);
   line-height: 1.6;
 }

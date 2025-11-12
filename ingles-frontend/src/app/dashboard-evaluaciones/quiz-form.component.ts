@@ -9,152 +9,885 @@ import { QuizzesService, QuizCreate, QuizResponse } from '../services/quizzes.se
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-  <div class="card">
-    <div class="card-header">
-      <h2>{{ id ? 'Editar evaluación' : 'Nueva evaluación' }}</h2>
-      <div class="header-actions">
-        <button class="btn-outline-secondary" type="button" (click)="volver()">Volver</button>
-        <button class="btn" type="button" (click)="guardar()">{{ id ? 'Guardar' : 'Crear' }}</button>
+  <div class="dashboard-container">
+    <!-- Header Section -->
+    <div class="dashboard-header">
+      <div class="header-content">
+        <div class="title-section">
+          <h1 class="dashboard-title">{{ id ? '✏️ Editar Evaluación' : '➕ Nueva Evaluación' }}</h1>
+          <p class="dashboard-subtitle">{{ id ? 'Modifica los detalles y preguntas de la evaluación' : 'Crea una nueva evaluación para tus estudiantes' }}</p>
+        </div>
+        <button class="btn-secondary" (click)="volver()">
+          <span class="btn-icon">←</span>
+          Volver
+        </button>
       </div>
     </div>
-    <div class="card-body">
+
+    <!-- Main Form -->
+    <div class="form-container">
       <form (ngSubmit)="guardar()" #frm="ngForm">
-        <div class="grid">
-          <label>
-            Unidad ID
-            <input type="number" required [(ngModel)]="form.unidad_id" name="unidad_id" />
-          </label>
-          <label>
-            Título
-            <input type="text" required [(ngModel)]="form.titulo" name="titulo" />
-          </label>
-        </div>
-        <label>
-          Descripción
-          <textarea rows="3" [(ngModel)]="form.descripcion" name="descripcion"></textarea>
-        </label>
-        <div class="top-actions">
-          <button class="btn primary hard" type="button" (click)="guardar()">{{ id ? 'Guardar cambios' : 'Crear evaluación' }}</button>
-          <button class="btn-outline-secondary" type="button" (click)="volver()">Cancelar</button>
-        </div>
-        <div class="q-editor">
-          <div class="q-editor-header">
-            <h3>Preguntas</h3>
-            <div class="actions-row">
-              <select [(ngModel)]="nuevoTipo" name="nuevoTipo" (keyup.enter)="onAgregarClick($event)">
-                <option value="opcion_multiple">Opción múltiple</option>
-                <option value="vf">Verdadero/Falso</option>
-                <option value="respuesta_corta">Respuesta corta</option>
-              </select>
-              <button type="button" class="btn add-btn" (click)="onAgregarClick($event)">Agregar pregunta</button>
-              <button type="button" class="btn-outline-secondary" (click)="onAgregarClick($event)">Agregar</button>
-            </div>
+        <!-- Basic Info Card -->
+        <div class="info-card">
+          <div class="card-header">
+            <h3 class="card-title">📋 Información Básica</h3>
           </div>
-          <div *ngIf="!items.length" class="empty">
-            Sin preguntas.
-            <button type="button" class="btn-outline" (click)="onAgregarClick($event)">Agregar la primera</button>
-          </div>
-          <div class="q-item" *ngFor="let it of items; let i = index">
-            <div class="q-item-head">
-              <strong>#{{ i+1 }} • {{ etiquetaTipo(it.tipo) }}</strong>
-              <div class="q-item-actions">
-                <button type="button" class="link" (click)="mover(i,-1)" [disabled]="i===0">↑</button>
-                <button type="button" class="link" (click)="mover(i,1)" [disabled]="i===items.length-1">↓</button>
-                <button type="button" class="link danger" (click)="eliminarPregunta(i)">Eliminar</button>
+          <div class="card-content">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">
+                  <span class="label-text">🎯 Unidad ID</span>
+                  <div class="input-wrapper">
+                    <input 
+                      type="number" 
+                      required 
+                      [(ngModel)]="form.unidad_id" 
+                      name="unidad_id"
+                      class="form-input"
+                      placeholder="Ej: 1"
+                    />
+                    <span class="input-icon">🔢</span>
+                  </div>
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="form-label">
+                  <span class="label-text">📝 Título</span>
+                  <div class="input-wrapper">
+                    <input 
+                      type="text" 
+                      required 
+                      [(ngModel)]="form.titulo" 
+                      name="titulo"
+                      class="form-input"
+                      placeholder="Nombre de la evaluación"
+                    />
+                    <span class="input-icon">✏️</span>
+                  </div>
+                </label>
               </div>
             </div>
-            <label>
-              Enunciado
-              <input type="text" [(ngModel)]="it.enunciado" name="enunciado_{{i}}" required />
-            </label>
-            <div class="grid small">
-              <label>
-                Puntaje
-                <input type="number" min="0" step="1" [(ngModel)]="it.puntaje" name="puntaje_{{i}}" />
+            <div class="form-group">
+              <label class="form-label">
+                <span class="label-text">📄 Descripción</span>
+                <div class="textarea-wrapper">
+                  <textarea 
+                    rows="3" 
+                    [(ngModel)]="form.descripcion" 
+                    name="descripcion"
+                    class="form-textarea"
+                    placeholder="Describe el propósito y contenido de esta evaluación..."
+                  ></textarea>
+                </div>
               </label>
             </div>
-            <ng-container [ngSwitch]="it.tipo">
-              <div *ngSwitchCase="'opcion_multiple'" class="options">
-                <div class="opt-row" *ngFor="let op of it.opciones; let j = index">
-                  <input type="text" [(ngModel)]="op.texto" name="op_texto_{{i}}_{{j}}" placeholder="Opción" />
-                  <label class="chk">
-                    <input type="checkbox" [(ngModel)]="op.correcta" name="op_ok_{{i}}_{{j}}" /> Correcta
-                  </label>
-                  <button type="button" class="link" (click)="eliminarOpcion(i,j)">Quitar</button>
-                </div>
-                <button type="button" class="btn-outline" (click)="agregarOpcion(i)">Agregar opción</button>
-              </div>
-              <div *ngSwitchCase="'vf'" class="options">
-                <label>
-                  Respuesta correcta
-                  <select [(ngModel)]="it.respuesta" name="vf_resp_{{i}}">
-                    <option [ngValue]="true">Verdadero</option>
-                    <option [ngValue]="false">Falso</option>
-                  </select>
-                </label>
-              </div>
-              <div *ngSwitchCase="'respuesta_corta'" class="options">
-                <label>
-                  Respuesta esperada (opcional)
-                  <input type="text" [(ngModel)]="it.respuesta" name="rc_resp_{{i}}" placeholder="Texto de referencia" />
-                </label>
-              </div>
-            </ng-container>
           </div>
         </div>
-        <div class="actions center">
-          <button class="btn lg" type="submit">{{ id ? 'Guardar cambios' : 'Crear evaluación' }}</button>
+
+        <!-- Questions Section -->
+        <div class="questions-card">
+          <div class="card-header">
+            <h3 class="card-title">❓ Preguntas</h3>
+            <div class="header-actions">
+              <div class="question-type-selector">
+                <select [(ngModel)]="nuevoTipo" name="nuevoTipo" class="type-select">
+                  <option value="opcion_multiple">📊 Opción múltiple</option>
+                  <option value="vf">✅ Verdadero/Falso</option>
+                  <option value="respuesta_corta">📝 Respuesta corta</option>
+                </select>
+              </div>
+              <button type="button" class="btn-primary" (click)="onAgregarClick($event)">
+                <span class="btn-icon">➕</span>
+                Agregar Pregunta
+              </button>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div *ngIf="!items.length" class="empty-questions">
+            <div class="empty-icon">❓</div>
+            <h4 class="empty-title">Sin preguntas aún</h4>
+            <p class="empty-description">Comienza agregando la primera pregunta para tu evaluación</p>
+            <button type="button" class="btn-primary" (click)="onAgregarClick($event)">
+              <span class="btn-icon">➕</span>
+              Agregar Primera Pregunta
+            </button>
+          </div>
+
+          <!-- Questions List -->
+          <div class="questions-list" *ngIf="items.length > 0">
+            <div class="question-item" *ngFor="let it of items; let i = index">
+              <div class="question-header">
+                <div class="question-info">
+                  <span class="question-number">#{{ i+1 }}</span>
+                  <span class="question-type">{{ etiquetaTipo(it.tipo) }}</span>
+                </div>
+                <div class="question-actions">
+                  <button type="button" class="action-btn move-btn" (click)="mover(i,-1)" [disabled]="i===0" title="Mover arriba">
+                    <span class="action-icon">⬆️</span>
+                  </button>
+                  <button type="button" class="action-btn move-btn" (click)="mover(i,1)" [disabled]="i===items.length-1" title="Mover abajo">
+                    <span class="action-icon">⬇️</span>
+                  </button>
+                  <button type="button" class="action-btn delete-btn" (click)="eliminarPregunta(i)" title="Eliminar pregunta">
+                    <span class="action-icon">🗑️</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="question-content">
+                <div class="form-group">
+                  <label class="form-label">
+                    <span class="label-text">📝 Enunciado</span>
+                    <input 
+                      type="text" 
+                      [(ngModel)]="it.enunciado" 
+                      name="enunciado_{{i}}" 
+                      required 
+                      class="form-input"
+                      placeholder="Escribe la pregunta aquí..."
+                    />
+                  </label>
+                </div>
+
+                <div class="form-group small">
+                  <label class="form-label">
+                    <span class="label-text">🎯 Puntaje</span>
+                    <input 
+                      type="number" 
+                      min="0" 
+                      step="1" 
+                      [(ngModel)]="it.puntaje" 
+                      name="puntaje_{{i}}"
+                      class="form-input"
+                      placeholder="1"
+                    />
+                  </label>
+                </div>
+
+                <!-- Question Type Specific Content -->
+                <ng-container [ngSwitch]="it.tipo">
+                  <!-- Multiple Choice -->
+                  <div *ngSwitchCase="'opcion_multiple'" class="options-section">
+                    <h5 class="options-title">📊 Opciones de respuesta</h5>
+                    <div class="options-list">
+                      <div class="option-item" *ngFor="let op of it.opciones; let j = index">
+                        <div class="option-input">
+                          <input 
+                            type="text" 
+                            [(ngModel)]="op.texto" 
+                            name="op_texto_{{i}}_{{j}}" 
+                            placeholder="Texto de la opción"
+                            class="form-input"
+                          />
+                        </div>
+                        <label class="option-checkbox">
+                          <input 
+                            type="checkbox" 
+                            [(ngModel)]="op.correcta" 
+                            name="op_ok_{{i}}_{{j}}"
+                            class="checkbox-input"
+                          />
+                          <span class="checkbox-label">✅ Correcta</span>
+                        </label>
+                        <button type="button" class="remove-option-btn" (click)="eliminarOpcion(i,j)">
+                          <span class="btn-icon">🗑️</span>
+                        </button>
+                      </div>
+                    </div>
+                    <button type="button" class="add-option-btn" (click)="agregarOpcion(i)">
+                      <span class="btn-icon">➕</span>
+                      Agregar Opción
+                    </button>
+                  </div>
+
+                  <!-- True/False -->
+                  <div *ngSwitchCase="'vf'" class="options-section">
+                    <div class="form-group">
+                      <label class="form-label">
+                        <span class="label-text">✅ Respuesta correcta</span>
+                        <select [(ngModel)]="it.respuesta" name="vf_resp_{{i}}" class="form-select">
+                          <option [ngValue]="true">✅ Verdadero</option>
+                          <option [ngValue]="false">❌ Falso</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Short Answer -->
+                  <div *ngSwitchCase="'respuesta_corta'" class="options-section">
+                    <div class="form-group">
+                      <label class="form-label">
+                        <span class="label-text">📝 Respuesta esperada (opcional)</span>
+                        <input 
+                          type="text" 
+                          [(ngModel)]="it.respuesta" 
+                          name="rc_resp_{{i}}" 
+                          placeholder="Texto de referencia para la corrección"
+                          class="form-input"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </ng-container>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" (click)="volver()">
+            <span class="btn-icon">❌</span>
+            Cancelar
+          </button>
+          <button type="submit" class="btn-primary large">
+            <span class="btn-icon">{{ id ? '💾' : '✨' }}</span>
+            {{ id ? 'Guardar Cambios' : 'Crear Evaluación' }}
+          </button>
         </div>
       </form>
     </div>
-  </div>
-  <button type="button" class="fab" (click)="onAgregarClick($event)" title="Agregar pregunta">+</button>
-  <button type="button" class="fab-save" (click)="guardar()" title="Guardar evaluación">✓</button>
-  <div class="action-bar">
-    <div class="bar-inner">
-      <span>{{ id ? 'Editar evaluación' : 'Nueva evaluación' }}</span>
-      <div class="bar-actions">
-        <button class="btn-outline-secondary" type="button" (click)="volver()">Cancelar</button>
-        <button class="btn" type="button" (click)="guardar()">{{ id ? 'Guardar cambios' : 'Crear evaluación' }}</button>
-      </div>
-    </div>
+
+    <!-- Floating Action Buttons -->
+    <button type="button" class="fab" (click)="onAgregarClick($event)" title="Agregar pregunta">
+      <span class="fab-icon">➕</span>
+    </button>
+    <button type="button" class="fab-save" (click)="guardar()" title="Guardar evaluación">
+      <span class="fab-icon">💾</span>
+    </button>
   </div>
   `,
   styles: [`
-    .card{max-width:900px;margin:2rem auto;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.06)}
-    .card-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.06)}
-    .header-actions{display:flex;gap:8px;align-items:center}
-    .btn{background:linear-gradient(135deg,var(--primary),var(--secondary)) !important;color:#fff !important;border:none;border-radius:10px;padding:.6rem .9rem;cursor:pointer;text-decoration:none;display:inline-block}
-    .card-body{padding:1rem 1.25rem}
-    form label{display:block;margin-bottom:.9rem}
-    input,textarea{width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:.6rem .7rem;background:#fff}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .top-actions{display:flex;gap:10px;justify-content:flex-end;margin:.5rem 0 1rem}
-    .btn.primary{background:linear-gradient(135deg,var(--primary,#667eea),var(--secondary,#764ba2)) !important;border:2px solid rgba(102,126,234,.6) !important}
-    .btn.hard{background:#2563eb !important;border-color:#1d4ed8 !important;color:#fff !important}
-    .actions{margin-top:1rem}
-    .actions.center{display:flex;justify-content:center;padding:1rem 0}
-    .btn.lg{padding:.8rem 1.2rem;font-size:1rem;min-width:220px}
-    .q-editor{margin-top:1rem;padding-top:.5rem;border-top:1px dashed #e5e7eb}
-    .q-editor-header{display:flex;align-items:center;justify-content:space-between;margin:.5rem 0 1rem}
-    .actions-row{display:flex;gap:8px;align-items:center}
-    .q-item{border:1px solid #e5e7eb;border-radius:12px;padding:.8rem 1rem;margin-bottom:12px;background:#fafafa}
-    .q-item-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
-    .q-item-actions .link{margin-left:.5rem}
-    .link{background:transparent;border:none;color:var(--primary);cursor:pointer}
-    .link.danger{color:#dc2626}
-    .btn-outline{border:2px solid var(--primary);background:transparent;color:var(--primary);padding:.45rem .7rem;border-radius:10px;cursor:pointer}
-    .btn-outline-secondary{border:1px solid #cbd5e1;background:#fff;color:#1f2937;padding:.45rem .7rem;border-radius:10px;cursor:pointer}
-    .add-btn{min-width:180px;text-align:center}
-    .empty{display:flex;gap:8px;align-items:center;color:#6b7280;margin:.25rem 0 1rem}
-    .options .opt-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-    .options .chk{display:inline-flex;gap:6px;align-items:center}
-    .grid.small{grid-template-columns:200px 1fr}
-    .fab{position:fixed;right:28px;bottom:28px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--primary,#667eea),var(--secondary,#764ba2));color:#fff;border:none;box-shadow:0 10px 25px rgba(0,0,0,.2);font-size:28px;line-height:0;display:flex;align-items:center;justify-content:center;z-index:1150}
-    .fab-save{position:fixed;right:28px;bottom:92px;width:56px;height:56px;border-radius:14px;background:#16a34a;color:#fff;border:none;box-shadow:0 10px 25px rgba(0,0,0,.2);font-size:22px;display:flex;align-items:center;justify-content:center;font-weight:700;z-index:1150}
-    .action-bar{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.95);backdrop-filter:blur(8px);border-top:1px solid #e5e7eb;box-shadow:0 -6px 20px rgba(0,0,0,.06);z-index:1100}
-    .bar-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;color:#6b7280}
-    .bar-actions{display:flex;gap:8px;align-items:center}
+    /* Variables CSS del sistema */
+    :host {
+      --primary-color: #667eea;
+      --secondary-color: #764ba2;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --card-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      --border-radius: 20px;
+      --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      --success-color: #10b981;
+      --error-color: #ef4444;
+      --warning-color: #f59e0b;
+    }
+
+    .dashboard-container {
+      min-height: 100vh;
+      background: #f8f9fa;
+      padding: 5rem 2rem 2rem 2rem;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* Header Section */
+    .dashboard-header {
+      margin-bottom: 2rem;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .title-section {
+      flex: 1;
+    }
+
+    .dashboard-title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.5rem 0;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+    }
+
+    .dashboard-subtitle {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin: 0;
+      font-weight: 400;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--text-primary);
+      border: 2px solid rgba(102, 126, 234, 0.2);
+      border-radius: 15px;
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-secondary:hover {
+      background: var(--primary-color);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary.large {
+      padding: 1.2rem 2rem;
+      font-size: 1.1rem;
+      min-width: 200px;
+      justify-content: center;
+    }
+
+    .btn-icon {
+      font-size: 1.2rem;
+    }
+
+    /* Form Container */
+    .form-container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    /* Info Card */
+    .info-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      overflow: hidden;
+    }
+
+    .questions-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      margin-bottom: 2rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem 2rem;
+      background: rgba(248, 250, 252, 0.8);
+      border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+    }
+
+    .card-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .question-type-selector {
+      position: relative;
+    }
+
+    .type-select {
+      padding: 0.8rem 1rem;
+      border: 2px solid rgba(102, 126, 234, 0.1);
+      border-radius: 10px;
+      background: white;
+      color: var(--text-primary);
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .type-select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .card-content {
+      padding: 2rem;
+    }
+
+    /* Form Elements */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group.small {
+      max-width: 200px;
+    }
+
+    .form-label {
+      display: block;
+    }
+
+    .label-text {
+      display: block;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.9rem;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 1rem 3rem 1rem 1rem;
+      border: 2px solid rgba(102, 126, 234, 0.1);
+      border-radius: 12px;
+      font-size: 1rem;
+      background: white;
+      color: var(--text-primary);
+      transition: var(--transition);
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .input-icon {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-secondary);
+      font-size: 1.2rem;
+    }
+
+    .textarea-wrapper {
+      position: relative;
+    }
+
+    .form-textarea {
+      width: 100%;
+      padding: 1rem;
+      border: 2px solid rgba(102, 126, 234, 0.1);
+      border-radius: 12px;
+      font-size: 1rem;
+      background: white;
+      color: var(--text-primary);
+      transition: var(--transition);
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .form-textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-select {
+      width: 100%;
+      padding: 1rem;
+      border: 2px solid rgba(102, 126, 234, 0.1);
+      border-radius: 12px;
+      font-size: 1rem;
+      background: white;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .form-select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    /* Empty State */
+    .empty-questions {
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+
+    .empty-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+
+    .empty-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 1rem 0;
+    }
+
+    .empty-description {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin: 0 0 2rem 0;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Questions List */
+    .questions-list {
+      padding: 2rem;
+    }
+
+    .question-item {
+      background: rgba(248, 250, 252, 0.8);
+      border-radius: 15px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(226, 232, 240, 0.5);
+      transition: var(--transition);
+    }
+
+    .question-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .question-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px dashed rgba(226, 232, 240, 0.7);
+    }
+
+    .question-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .question-number {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .question-type {
+      background: rgba(102, 126, 234, 0.1);
+      color: var(--primary-color);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .question-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: var(--transition);
+      font-size: 1rem;
+    }
+
+    .move-btn {
+      background: rgba(59, 130, 246, 0.1);
+      color: #3b82f6;
+    }
+
+    .move-btn:hover:not(:disabled) {
+      background: #3b82f6;
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    .move-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .delete-btn {
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+    }
+
+    .delete-btn:hover {
+      background: #ef4444;
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    .action-icon {
+      font-size: 1rem;
+    }
+
+    .question-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Options Section */
+    .options-section {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 12px;
+      border: 1px solid rgba(226, 232, 240, 0.3);
+    }
+
+    .options-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 1rem 0;
+    }
+
+    .options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .option-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 10px;
+      border: 1px solid rgba(226, 232, 240, 0.5);
+    }
+
+    .option-input {
+      flex: 1;
+    }
+
+    .option-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .checkbox-input {
+      width: auto;
+      margin: 0;
+    }
+
+    .checkbox-label {
+      font-weight: 600;
+      color: var(--success-color);
+    }
+
+    .remove-option-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: rgba(239, 68, 68, 0.1);
+      color: #ef4444;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .remove-option-btn:hover {
+      background: #ef4444;
+      color: white;
+    }
+
+    .add-option-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 1rem;
+      background: rgba(102, 126, 234, 0.1);
+      color: var(--primary-color);
+      border: 2px dashed rgba(102, 126, 234, 0.3);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: var(--transition);
+      font-weight: 600;
+    }
+
+    .add-option-btn:hover {
+      background: var(--primary-color);
+      color: white;
+      border-style: solid;
+    }
+
+    /* Form Actions */
+    .form-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Floating Action Buttons */
+    .fab {
+      position: fixed;
+      right: 2rem;
+      bottom: 2rem;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      border: none;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .fab:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+    }
+
+    .fab-save {
+      position: fixed;
+      right: 2rem;
+      bottom: 8rem;
+      width: 60px;
+      height: 60px;
+      border-radius: 15px;
+      background: var(--success-color);
+      color: white;
+      border: none;
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .fab-save:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(16, 185, 129, 0.5);
+    }
+
+    .fab-icon {
+      font-size: 1.5rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .dashboard-container {
+        padding: 2rem 1rem;
+      }
+
+      .header-content {
+        flex-direction: column;
+        gap: 1.5rem;
+        text-align: center;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .question-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+      }
+
+      .option-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+      }
+
+      .form-actions {
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .fab {
+        right: 1rem;
+        bottom: 1.5rem;
+      }
+      
+      .fab-save {
+        right: 1rem;
+        bottom: 6rem;
+      }
+    }
   `]
 })
 export class QuizFormComponent implements OnInit {
