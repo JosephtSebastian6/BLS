@@ -39,6 +39,7 @@ import { QuizzesService, QuizResponse } from '../services/quizzes.service';
             <td class="actions">
               <a [routerLink]="[q.id, 'editar']">Editar</a>
               <a [routerLink]="[q.id, 'asignar']">Asignar</a>
+              <a [routerLink]="[q.id, 'permisos']" class="permisos">🔐 Permisos</a>
               <button (click)="del(q)">Eliminar</button>
             </td>
           </tr>

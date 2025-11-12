@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { QuizzesService, QuizResponse } from '../services/quizzes.service';
 
 @Component({
@@ -16,13 +16,13 @@ import { QuizzesService, QuizResponse } from '../services/quizzes.service';
       <div *ngIf="loading">Cargando…</div>
       <div *ngIf="!loading && !items.length" class="empty">No hay evaluaciones disponibles.</div>
       <div class="grid" *ngIf="items.length">
-        <div class="quiz" *ngFor="let q of items">
+        <div class="quiz clickable" *ngFor="let q of items" (click)="ver(q)" tabindex="0" role="button">
           <div class="quiz-head">
             <h3>{{ q.titulo }}</h3>
             <span class="tag">Unidad {{ q.unidad_id }}</span>
           </div>
           <p class="desc">{{ q.descripcion || 'Sin descripción' }}</p>
-          <a class="btn" [routerLink]="['/dashboard-estudiante/evaluaciones', q.id]">Ver</a>
+          <button type="button" class="btn" (click)="ver(q); $event.stopPropagation();">Ver</button>
         </div>
       </div>
     </div>
@@ -33,22 +33,28 @@ import { QuizzesService, QuizResponse } from '../services/quizzes.service';
     .card-header{padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.06)}
     .card-body{padding:1rem 1.25rem}
     .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-    .quiz{border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#fafafa}
+    .quiz{border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#fafafa;position:relative}
+    .quiz.clickable{cursor:pointer}
+    .quiz.clickable:hover{box-shadow:0 8px 24px rgba(0,0,0,.08)}
     .quiz-head{display:flex;align-items:center;justify-content:space-between}
     .tag{background:#eef2ff;color:#3730a3;border-radius:999px;padding:2px 8px;font-size:.8rem}
-    .btn{margin-top:8px;display:inline-block;background:linear-gradient(135deg,var(--primary,#667eea),var(--secondary,#764ba2));color:#fff;border:none;border-radius:10px;padding:.5rem .8rem;text-decoration:none}
+    .btn{margin-top:8px;display:inline-block;background:linear-gradient(135deg,var(--primary,#667eea),var(--secondary,#764ba2));color:#fff;border:none;border-radius:10px;padding:.5rem .8rem;text-decoration:none;cursor:pointer;position:relative;z-index:2;pointer-events:auto}
     .empty{color:#6b7280}
   `]
 })
 export class EvaluacionesListaEstudianteComponent implements OnInit {
   items: QuizResponse[] = [];
   loading = false;
-  constructor(private api: QuizzesService) {}
+  constructor(private api: QuizzesService, private route: ActivatedRoute, private router: Router) {}
   ngOnInit(){
     this.loading = true;
     this.api.listarDisponiblesEstudiante().subscribe({
       next: r => { this.items = r; this.loading = false; },
       error: _ => { this.loading = false; }
     });
+  }
+  ver(q: QuizResponse){
+    console.log('Ir a evaluación', q.id);
+    this.router.navigateByUrl(`/dashboard-estudiante/evaluaciones/${q.id}`);
   }
 }

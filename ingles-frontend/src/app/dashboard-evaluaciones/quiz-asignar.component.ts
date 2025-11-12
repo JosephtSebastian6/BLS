@@ -21,7 +21,8 @@ import { QuizzesService, QuizAsignacionCreate, QuizAsignacionResponse } from '..
       <form (ngSubmit)="guardar()" #frm="ngForm">
         <div class="grid">
           <label>Unidad ID
-            <input type="number" required [(ngModel)]="form.unidad_id" name="unidad_id" />
+            <input type="number" required [(ngModel)]="form.unidad_id" name="unidad_id" (ngModelChange)="onUnidadChange()"/>
+            <small *ngIf="form.unidad_id">Estudiantes habilitados: <strong>{{ estudiantesHabilitados ?? '—' }}</strong></small>
           </label>
           <label>Inicio (opcional)
             <input type="datetime-local" [(ngModel)]="start" name="start" />
@@ -65,12 +66,20 @@ export class QuizAsignarComponent implements OnInit {
   start: string | null = null;
   end: string | null = null;
   asignaciones: QuizAsignacionResponse[] = [];
+  estudiantesHabilitados: number | null = null;
   constructor(private api: QuizzesService, private route: ActivatedRoute, private router: Router) {}
   ngOnInit(){
     this.quizId = Number(this.route.snapshot.paramMap.get('id'));
     this.load();
   }
   load(){ this.api.listarAsignaciones(this.quizId).subscribe(r=> this.asignaciones = r); }
+  onUnidadChange(){
+    if (!this.form.unidad_id) { this.estudiantesHabilitados = null; return; }
+    this.api.getEstudiantesHabilitadosCount(this.form.unidad_id).subscribe({
+      next: r => this.estudiantesHabilitados = r.estudiantes_habilitados,
+      error: _ => this.estudiantesHabilitados = null
+    });
+  }
   guardar(){
     const payload: QuizAsignacionCreate = { unidad_id: this.form.unidad_id };
     if (this.start) payload.start_at = new Date(this.start).toISOString();
@@ -81,5 +90,9 @@ export class QuizAsignarComponent implements OnInit {
     if(confirm('Eliminar asignación?'))
       this.api.eliminarAsignacion(this.quizId, a.id).subscribe(()=> this.load());
   }
-  volver(){ this.router.navigate(['../'], { relativeTo: this.route }); }
+  volver(){ this.router.navigate([this._listUrl()]); }
+  private _listUrl(): string {
+    const seg = this.router.url.split('/')[1] || 'dashboard-profesor';
+    return `/${seg}/quizzes`;
+  }
 }

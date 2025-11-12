@@ -348,7 +348,8 @@ export class MisClasesComponent implements OnInit {
   }
 
   private keyEstudiante(est: any): string {
-    return est?.email || est?.username || `${est?.nombres || ''}.${est?.apellidos || ''}`.trim();
+    // Usar solo email o username, nunca el nombre (para evitar ambigüedades)
+    return est?.email || est?.username || String(est?.identificador || '');
   }
 
   isPresente(claseId: number, est: any): boolean {
@@ -366,6 +367,7 @@ export class MisClasesComponent implements OnInit {
   guardarAsistencia(clase: any) {
     if (this.esPasada(clase)) { this.mostrarToast('La clase ya finalizó. No se puede guardar asistencia.', 'error'); return; }
     const claseId = clase.id as number;
+    // Los presentes ya están guardados con email/username gracias a keyEstudiante
     const presentes = Array.from(this.presentesPorClase[claseId] || new Set<string>());
     const registro: AsistenciaRegistro = {
       claseId,
@@ -502,7 +504,9 @@ export class MisClasesComponent implements OnInit {
 
   esPasada(clase: any): boolean {
     const fh = this.fechaHoraDeClase(clase).getTime();
-    return fh < Date.now();
+    // Tolerancia: permitir tomar asistencia hasta 2 horas después del inicio
+    const toleranciaMs = 2 * 60 * 60 * 1000;
+    return (fh + toleranciaMs) < Date.now();
   }
 
   private aplicarLimpiezaAntiguas() {

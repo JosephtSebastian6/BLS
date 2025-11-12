@@ -180,10 +180,15 @@ export class QuizFormComponent implements OnInit {
     this.form.preguntas = { items: this.items };
     const req = this.id ? this.api.actualizar(this.id, this.form) : this.api.crear(this.form);
     req.subscribe((r)=>{
-      this.router.navigate(['../'], { relativeTo: this.route });
+      this.router.navigate([this._listUrl()]);
     });
   }
-  volver(){ this.router.navigate(['../'], { relativeTo: this.route }); }
+  volver(){ this.router.navigate([this._listUrl()]); }
+
+  private _listUrl(): string {
+    const seg = this.router.url.split('/')[1] || 'dashboard-profesor';
+    return `/${seg}/quizzes`;
+  }
 
   etiquetaTipo(t: string){
     return t === 'opcion_multiple' ? 'Opción múltiple' : t === 'vf' ? 'Verdadero/Falso' : 'Respuesta corta';

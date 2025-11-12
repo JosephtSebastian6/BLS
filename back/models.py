@@ -168,6 +168,16 @@ class EstudianteQuizCalificacion(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
+# Permisos individuales de quiz por estudiante
+class EstudianteQuizPermiso(Base):
+    __tablename__ = "estudiante_quiz_permiso"
+    id = Column(Integer, primary_key=True, index=True)
+    estudiante_username = Column(String(50), ForeignKey('estudiante.username'), nullable=False)
+    quiz_id = Column(Integer, ForeignKey('quiz.id'), nullable=False)
+    habilitado = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
 # ===== Notificaciones =====
 class Notificacion(Base):
     __tablename__ = "notificaciones"

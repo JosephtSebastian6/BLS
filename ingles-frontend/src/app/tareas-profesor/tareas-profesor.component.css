@@ -16,3 +16,7 @@
 .tabla{width:100%;border-collapse:collapse}
 .tabla th,.tabla td{border-bottom:1px solid #e5e7eb;padding:.45rem .5rem;text-align:left}
 .empty{padding:.5rem;color:#6b7280}
+
+/* Alinear acciones en una fila */
+.tabla td:last-child{display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.btn-sm{display:inline-flex;align-items:center;gap:6px;line-height:1}

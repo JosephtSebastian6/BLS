@@ -1477,3 +1477,72 @@ def desasignar_estudiante_profesor(db: Session, profesor_username: str, estudian
     )
     db.commit()
     return True
+
+# ===== Permisos de Quiz por Estudiante =====
+def toggle_quiz_permiso_estudiante(db: Session, estudiante_username: str, quiz_id: int):
+    """Habilita o deshabilita un quiz específico para un estudiante"""
+    from datetime import datetime
+    
+    # Verificar que el estudiante existe
+    estudiante = db.query(models.Registro).filter(
+        models.Registro.username == estudiante_username,
+        models.Registro.tipo_usuario == "estudiante"
+    ).first()
+    if not estudiante:
+        return None
+    
+    # Verificar que el quiz existe
+    quiz = db.query(models.Quiz).filter(models.Quiz.id == quiz_id).first()
+    if not quiz:
+        return None
+    
+    # Buscar permiso existente
+    permiso = db.query(models.EstudianteQuizPermiso).filter(
+        models.EstudianteQuizPermiso.estudiante_username == estudiante_username,
+        models.EstudianteQuizPermiso.quiz_id == quiz_id
+    ).first()
+    
+    if permiso:
+        # Toggle estado existente
+        permiso.habilitado = not permiso.habilitado
+        permiso.updated_at = datetime.utcnow()
+        db.add(permiso)
+        nuevo_estado = permiso.habilitado
+    else:
+        # Crear nuevo permiso deshabilitado (por defecto todos están habilitados implícitamente)
+        permiso = models.EstudianteQuizPermiso(
+            estudiante_username=estudiante_username,
+            quiz_id=quiz_id,
+            habilitado=False,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        db.add(permiso)
+        nuevo_estado = False
+    
+    db.commit()
+    db.refresh(permiso)
+    return {"habilitado": nuevo_estado, "permiso": permiso}
+
+def obtener_permisos_quiz_estudiante(db: Session, estudiante_username: str):
+    """Obtiene todos los permisos de quiz de un estudiante"""
+    permisos = db.query(models.EstudianteQuizPermiso).filter(
+        models.EstudianteQuizPermiso.estudiante_username == estudiante_username
+    ).all()
+    return permisos
+
+def verificar_permiso_quiz_estudiante(db: Session, estudiante_username: str, quiz_id: int) -> bool:
+    """Verifica si un estudiante tiene permiso para acceder a un quiz.
+    Retorna True si está habilitado (o no existe registro = habilitado por defecto)
+    Retorna False si existe registro y está deshabilitado
+    """
+    permiso = db.query(models.EstudianteQuizPermiso).filter(
+        models.EstudianteQuizPermiso.estudiante_username == estudiante_username,
+        models.EstudianteQuizPermiso.quiz_id == quiz_id
+    ).first()
+    
+    if permiso is None:
+        # No existe registro = habilitado por defecto
+        return True
+    
+    return permiso.habilitado

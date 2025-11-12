@@ -819,6 +819,7 @@ def quizzes_disponibles_estudiante(db: Session = Depends(get_db), who=Depends(re
     - Existe asignación en quiz_asignacion
     - Ventana vigente (start_at <= now <= end_at) o sin límites
     - La unidad está habilitada para el estudiante (según tabla estudiante_unidad)
+    - El quiz está habilitado individualmente para el estudiante (según tabla estudiante_quiz_permiso)
     """
     now = datetime.utcnow()
     user = db.query(models.Registro).filter(models.Registro.username == who["username"]).first()
@@ -826,7 +827,7 @@ def quizzes_disponibles_estudiante(db: Session = Depends(get_db), who=Depends(re
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
     # Join Quiz -> QuizAsignacion -> estudiante_unidad
-    q = (
+    quizzes = (
         db.query(models.Quiz)
         .join(models.QuizAsignacion, models.Quiz.id == models.QuizAsignacion.quiz_id)
         .join(models.estudiante_unidad, models.estudiante_unidad.c.unidad_id == models.QuizAsignacion.unidad_id)
@@ -836,8 +837,16 @@ def quizzes_disponibles_estudiante(db: Session = Depends(get_db), who=Depends(re
             (models.QuizAsignacion.end_at.is_(None) | (models.QuizAsignacion.end_at >= now)),
         )
         .order_by(models.Quiz.created_at.desc())
+        .all()
     )
-    return q.all()
+    
+    # Filtrar por permisos individuales de quiz
+    quizzes_habilitados = []
+    for quiz in quizzes:
+        if crud.verificar_permiso_quiz_estudiante(db, who["username"], quiz.id):
+            quizzes_habilitados.append(quiz)
+    
+    return quizzes_habilitados
 
 @authRouter.get("/estudiante/quizzes/{quiz_id}", response_model=QuizResponse)
 def obtener_quiz_estudiante(quiz_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["estudiante", "admin"]))):
@@ -845,6 +854,11 @@ def obtener_quiz_estudiante(quiz_id: int, db: Session = Depends(get_db), who=Dep
     user = db.query(models.Registro).filter(models.Registro.username == who["username"]).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    # Verificar permiso individual de quiz
+    if not crud.verificar_permiso_quiz_estudiante(db, who["username"], quiz_id):
+        raise HTTPException(status_code=403, detail="No tienes permiso para acceder a esta evaluación")
+    
     q = (
         db.query(models.Quiz)
         .join(models.QuizAsignacion, models.Quiz.id == models.QuizAsignacion.quiz_id)
@@ -921,6 +935,45 @@ def eliminar_asignacion(quiz_id: int, asig_id: int, db: Session = Depends(get_db
     db.delete(row)
     db.commit()
     return {"eliminada": True, "id": asig_id}
+
+# ===== Permisos de Quiz por Estudiante =====
+@authRouter.post("/estudiante/{username}/quiz/{quiz_id}/toggle-permiso")
+def toggle_permiso_quiz_estudiante(
+    username: str, 
+    quiz_id: int, 
+    db: Session = Depends(get_db), 
+    who=Depends(require_roles(["profesor", "empresa", "admin"]))
+):
+    """Habilita o deshabilita un quiz específico para un estudiante.
+    Por defecto todos los quizzes están habilitados. Al hacer toggle por primera vez, se deshabilita.
+    """
+    resultado = crud.toggle_quiz_permiso_estudiante(db, username, quiz_id)
+    if resultado is None:
+        raise HTTPException(status_code=404, detail="Estudiante o quiz no encontrado")
+    return {
+        "estudiante_username": username,
+        "quiz_id": quiz_id,
+        "habilitado": resultado["habilitado"],
+        "mensaje": f"Quiz {'habilitado' if resultado['habilitado'] else 'deshabilitado'} para el estudiante"
+    }
+
+@authRouter.get("/estudiante/{username}/quizzes-permisos")
+def listar_permisos_quiz_estudiante(
+    username: str,
+    db: Session = Depends(get_db),
+    who=Depends(require_roles(["profesor", "empresa", "admin"]))
+):
+    """Lista todos los permisos de quiz configurados para un estudiante.
+    Solo muestra los permisos explícitamente configurados (deshabilitados).
+    Los quizzes sin registro están habilitados por defecto.
+    """
+    permisos = crud.obtener_permisos_quiz_estudiante(db, username)
+    return [{
+        "quiz_id": p.quiz_id,
+        "habilitado": p.habilitado,
+        "created_at": p.created_at,
+        "updated_at": p.updated_at
+    } for p in permisos]
 
 @authRouter.post("/profesor/", response_model=schemas.UsuarioResponse)
 async def registrar_profesor(
@@ -2410,37 +2463,98 @@ def guardar_asistencia(clase_id: int, body: AsistenciaRegistroIn):
 # Consulta para rol empresa: ver asistencia de una clase
 @authRouter.get("/empresa/clases/{clase_id}/asistencia")
 def empresa_ver_asistencia_clase(clase_id: int, db: Session = Depends(get_db)):
-    # Opcionalmente podríamos validar tipo_usuario == 'empresa' si hay auth.
     data = _read_asistencia(clase_id)
     if not data:
-        # enriquecer con metadatos de clase aunque no haya asistencia
+        # Devolver metadatos y detalle de estudiantes con presente=False
         clase = db.query(models.Clase).filter(models.Clase.id == clase_id).first()
         if not clase:
             raise HTTPException(status_code=404, detail="Clase no encontrada")
+        detalle = []
+        for est in (clase.estudiantes or []):
+            nombre = f"{est.nombres or ''} {est.apellidos or ''}".strip()
+            ident = est.email or est.username or str(est.identificador)
+            detalle.append({
+                "nombre": nombre,
+                "id": ident,
+                "presente": False
+            })
+        total = len(detalle)
+        presentes_count = 0
         return {
             "claseId": clase_id,
             "tema": clase.tema,
             "fecha": clase.dia,
             "hora": clase.hora,
             "presentes": [],
-            "historial": []
+            "historial": [],
+            "detalle": detalle,
+            "total": total,
+            "presentes_count": presentes_count,
+            "ausentes_count": total - presentes_count
         }
-    # Adjuntar metadatos y construir detalle
+    # Adjuntar metadatos y construir detalle con matching estricto
     clase = db.query(models.Clase).filter(models.Clase.id == clase_id).first()
     if not clase:
         return data
     data.update({"tema": clase.tema, "fecha": clase.dia, "hora": clase.hora})
-    presentes_set = set(data.get("presentes") or [])
+    
+    # Obtener presentes, con fallback al último historial si fuese necesario
+    presentes_raw = data.get("presentes") or []
+    if (not presentes_raw) and isinstance(data.get("historial"), list) and data["historial"]:
+        try:
+            last = data["historial"][-1]
+            presentes_raw = last.get("presentes") or []
+        except Exception:
+            presentes_raw = []
+    presentes_norm = [str(x).strip().lower() for x in presentes_raw]
+    presentes_set = set(presentes_norm)
+    
+    # Derivar listas auxiliares para el front
+    presentes_emails = [p for p in presentes_norm if '@' in p]
+    presentes_usernames = [p.split('@')[0] if '@' in p else p for p in presentes_norm]
+    
     detalle = []
     for est in (clase.estudiantes or []):
         nombre = f"{est.nombres or ''} {est.apellidos or ''}".strip()
-        ident = est.email or est.username or str(est.identificador)
+        # Obtener email y username del estudiante
+        email_raw = getattr(est, 'email', None)
+        username_raw = getattr(est, 'username', None)
+        email_norm = email_raw.strip().lower() if email_raw else ''
+        username_norm = username_raw.strip().lower() if username_raw else ''
+        
+        # Matching estricto: priorizar igualdad exacta
+        match = False
+        # Prioridad 1: Igualdad EXACTA de username o email
+        for pr in presentes_set:
+            if username_norm and username_norm == pr:
+                match = True
+                break
+            if email_norm and email_norm == pr:
+                match = True
+                break
+        
+        # Prioridad 2: Inclusión solo en casos muy específicos
+        if not match:
+            for pr in presentes_set:
+                if len(pr) <= 15 and ' ' not in pr and '@' not in pr:
+                    # Coincidencia por inclusión en email válido
+                    if email_norm and '@' in email_norm and pr in email_norm:
+                        match = True
+                        break
+                    # Coincidencia por inclusión en username significativamente más largo
+                    if username_norm and len(username_norm) > len(pr) + 2 and pr in username_norm:
+                        match = True
+                        break
+        
         detalle.append({
             "nombre": nombre,
-            "id": ident,
-            "presente": ident in presentes_set
+            "id": email_raw or username_raw or str(est.identificador),
+            "presente": bool(match)
         })
+    
     data["detalle"] = detalle
+    data["presentes_emails"] = presentes_emails
+    data["presentes_usernames"] = presentes_usernames
     # Totales derivados
     data["total"] = len(detalle)
     data["presentes_count"] = sum(1 for d in detalle if d["presente"])
@@ -2448,6 +2562,43 @@ def empresa_ver_asistencia_clase(clase_id: int, db: Session = Depends(get_db)):
     return data
 
 # Listado de clases para empresa con estado de asistencia
+@authRouter.get("/empresa/clases")
+def empresa_listar_clases(
+    desde: str | None = None,
+    hasta: str | None = None,
+    db: Session = Depends(get_db),
+    who=Depends(require_roles(["empresa", "admin"]))
+):
+    try:
+        q = db.query(models.Clase)
+        # Clase.dia se maneja como texto YYYY-MM-DD; aplica filtros directos
+        if desde:
+            q = q.filter(models.Clase.dia >= desde)
+        if hasta:
+            q = q.filter(models.Clase.dia <= hasta)
+        clases = q.order_by(models.Clase.dia.desc(), models.Clase.hora.desc()).all()
+        resp = []
+        for c in clases:
+            raw = _read_asistencia(c.id)
+            data = raw or {}
+            presentes = len(data.get("presentes", []))
+            total = len(getattr(c, "estudiantes", []) or [])
+            ausentes = max(total - presentes, 0)
+            resp.append({
+                "id": c.id,
+                "dia": c.dia,
+                "hora": c.hora,
+                "tema": c.tema,
+                "profesor_username": c.profesor_username,
+                "total_inscritos": total,
+                "presentes": presentes,
+                "ausentes": ausentes,
+                "tiene_asistencia": raw is not None
+            })
+        return resp
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listando clases para empresa: {e}")
+
 def _estudiante_asignado_a_profesor(db: Session, profesor_username: str, estudiante_username: str) -> bool:
     """Verifica si un estudiante está asignado a un profesor."""
     profesor = db.query(models.Registro).filter(
@@ -2487,22 +2638,6 @@ def _ensure_profesor_credentials(profesor_username: str, credentials: HTTPAuthor
             raise HTTPException(status_code=403, detail="Solo profesores pueden calificar tareas")
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Token inválido")
-
-def _read_asistencia(clase_id: int) -> dict | None:
-    """Lee datos de asistencia desde filesystem (simplificado)."""
-    import json
-    from pathlib import Path
-
-    asistencias_dir = Path("/Users/sena/Desktop/Ingles/asistencias")
-    json_path = asistencias_dir / f"{clase_id}.json"
-
-    if json_path.exists():
-        try:
-            with open(json_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return None
 
 def _listar_tareas_estudiante(username: str, unidad_id: int | None) -> list:
     """Lista tareas de un estudiante (simplificado)."""

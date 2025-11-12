@@ -67,44 +67,23 @@ export class EmpresaAsistenciasComponent implements OnInit {
         ].filter(Boolean).flat();
         data.presentes = Array.isArray(posibles) ? posibles : [];
 
-        // Normalización: marcar como presente si su id/email/username aparece en 'presentes'
+        // El backend ya calcula correctamente el estado 'presente' para cada estudiante
+        // Solo necesitamos asegurar que el detalle tenga la estructura correcta
         try {
-          const normalize = (v: any): string => (v ?? '').toString().trim().toLowerCase();
-
-          const extractId = (obj: any): string => {
-            if (obj == null) return '';
-            if (typeof obj === 'string' || typeof obj === 'number') return normalize(obj);
-            // objetos: intentar campos conocidos
-            const cand = obj.id ?? obj.email ?? obj.username ?? obj.identificador ?? obj.usuario ?? obj.correo ?? obj.nombre ?? (obj.estudiante?.email) ?? (obj.estudiante?.username);
-            return normalize(cand);
-          };
-
-          const presentesNorm: string[] = (data.presentes || []).map((x: any) => extractId(x)).filter(Boolean);
-          const presentesSet = new Set<string>(presentesNorm);
-
-          const tokenMatches = (token: string, candidate: string) => {
-            if (!token || !candidate) return false;
-            if (token === candidate) return true;
-            // match por prefijo/sufijo o inclusión (ej: 'sebastian' dentro de 'sebastianxx@gmail.com')
-            return candidate.includes(token) || token.includes(candidate);
-          };
-
-          data.detalle = data.detalle.map((d: any) => {
-            const candIds = [d?.id, d?.email, d?.username, d?.identificador, d?.usuario, d?.correo, d?.nombre, d?.estudiante?.email, d?.estudiante?.username];
-            const normIds = candIds.map(extractId).filter(Boolean);
-            const anyMatch = normIds.some((id: string) => presentesSet.has(id) || presentesNorm.some(tok => tokenMatches(tok, id)));
-            // soportar valores 'PRESENTE'/'SI' en strings
-            const flagStr = (d?.presente || d?.estado || d?.asistencia || '').toString().toUpperCase();
-            const boolFromStr = ['PRESENTE','SI','1','TRUE','ASISTENTE','ASISTIO','ASISTIÓ','PRESENT','ATTENDED','ATTEND','OK']
-              .some(k => flagStr.includes(k));
-            const presentCalc = Boolean(d?.presente === true) || boolFromStr || anyMatch;
-            return { ...d, _presentCalc: presentCalc, presente: presentCalc };
-          });
-
-          // Ajustar resumen si existe
+          // Si el backend ya envió detalle con 'presente', confiar en ese valor
+          if (Array.isArray(data.detalle) && data.detalle.length > 0) {
+            // Asegurar que cada elemento tenga el campo 'presente' como boolean
+            data.detalle = data.detalle.map((d: any) => ({
+              ...d,
+              presente: Boolean(d?.presente)
+            }));
+          }
+          
+          // Recalcular contadores basados en el detalle
           const presentesCount = data.detalle.filter((x: any) => x.presente).length;
-          data.presentes = Array.from(presentesSet);
           data.presentes_count = presentesCount;
+          data.ausentes_count = data.detalle.length - presentesCount;
+          data.total = data.detalle.length;
         } catch {}
 
         this.asistencia = data;

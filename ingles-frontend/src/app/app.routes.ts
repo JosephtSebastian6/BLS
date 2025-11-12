@@ -42,6 +42,7 @@ import { TareasUnidadComponent } from './tareas-unidad/tareas-unidad.component';
 import { QuizzesListaComponent } from './dashboard-evaluaciones/quizzes-lista.component';
 import { QuizFormComponent } from './dashboard-evaluaciones/quiz-form.component';
 import { QuizAsignarComponent } from './dashboard-evaluaciones/quiz-asignar.component';
+import { QuizPermisosComponent } from './dashboard-evaluaciones/quiz-permisos.component';
 import { EvaluacionesListaEstudianteComponent } from './evaluaciones-estudiante/evaluaciones-lista-estudiante.component';
 import { EvaluacionRendirComponent } from './evaluaciones-estudiante/evaluacion-rendir.component';
 
@@ -83,6 +84,7 @@ export const routes: Routes = [
       { path: 'quizzes/nuevo', component: QuizFormComponent },
       { path: 'quizzes/:id/editar', component: QuizFormComponent },
       { path: 'quizzes/:id/asignar', component: QuizAsignarComponent },
+      { path: 'quizzes/:id/permisos', component: QuizPermisosComponent },
       { path: 'unidades', component: UnidadesComponent },
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
@@ -109,6 +111,7 @@ export const routes: Routes = [
       { path: 'quizzes/nuevo', component: QuizFormComponent },
       { path: 'quizzes/:id/editar', component: QuizFormComponent },
       { path: 'quizzes/:id/asignar', component: QuizAsignarComponent },
+      { path: 'quizzes/:id/permisos', component: QuizPermisosComponent },
       { path: 'mis-clases', component: MisClasesComponent },
       { path: 'planeador', component: PlaneadorComponent },
       { path: 'tareas', component: TareasProfesorComponent },

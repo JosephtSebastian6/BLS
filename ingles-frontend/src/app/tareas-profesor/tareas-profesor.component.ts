@@ -77,13 +77,4 @@ export class TareasProfesorComponent implements OnInit {
       }
     });
   }
-
-  bonus(estUsername: string, unidadId: number) {
-    const min = Number(prompt('Minutos de asistencia a sumar (opcional):', '15') || '0');
-    const addScore = Number(prompt('Puntos de score a sumar (opcional):', '0') || '0');
-    this.svc.attendanceBonus(this.profesorUsername, estUsername, unidadId, min, addScore).subscribe({
-      next: () => { alert('Bonus aplicado'); this.buscar(); },
-      error: (e) => { console.error(e); alert(e?.error?.detail || 'No se pudo aplicar el bonus'); }
-    });
-  }
 }

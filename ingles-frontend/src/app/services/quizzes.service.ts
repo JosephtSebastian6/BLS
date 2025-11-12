@@ -79,4 +79,25 @@ export class QuizzesService {
   obtenerPublico(quiz_id: number): Observable<QuizResponse> {
     return this.http.get<QuizResponse>(`${this.base}/estudiante/quizzes/${quiz_id}`, this.headers());
   }
+
+  // Checker: estudiantes habilitados por unidad
+  getEstudiantesHabilitadosCount(unidad_id: number): Observable<{ unidad_id: number; estudiantes_habilitados: number }> {
+    return this.http.get<{ unidad_id: number; estudiantes_habilitados: number }>(`${this.base}/unidades/${unidad_id}/estudiantes-habilitados-count`, this.headers());
+  }
+
+  // ===== Permisos de Quiz por Estudiante =====
+  togglePermisoQuizEstudiante(username: string, quiz_id: number): Observable<{ estudiante_username: string; quiz_id: number; habilitado: boolean; mensaje: string }> {
+    return this.http.post<{ estudiante_username: string; quiz_id: number; habilitado: boolean; mensaje: string }>(
+      `${this.base}/estudiante/${encodeURIComponent(username)}/quiz/${quiz_id}/toggle-permiso`, 
+      {}, 
+      this.headers()
+    );
+  }
+
+  listarPermisosQuizEstudiante(username: string): Observable<Array<{ quiz_id: number; habilitado: boolean; created_at: string; updated_at: string }>> {
+    return this.http.get<Array<{ quiz_id: number; habilitado: boolean; created_at: string; updated_at: string }>>(
+      `${this.base}/estudiante/${encodeURIComponent(username)}/quizzes-permisos`, 
+      this.headers()
+    );
+  }
 }

@@ -65,13 +65,6 @@ export class ProfesorTareasService {
     return this.http.post(url, body, { headers: this.headers() });
   }
 
-  // Bonus por asistencia: sumar minutos y/o puntos a la unidad
-  attendanceBonus(profesorUsername: string, estudianteUsername: string, unidadId: number, addMin?: number, addScore?: number) {
-    const url = `${this.baseUrl}/profesores/${encodeURIComponent(profesorUsername)}/estudiantes/${encodeURIComponent(estudianteUsername)}/unidades/${unidadId}/attendance-bonus`;
-    const body: any = { add_min: addMin ?? 0, add_score: addScore ?? 0 };
-    return this.http.post(url, body, { headers: this.headers() });
-  }
-
   // Obtener calificación de un archivo (puede ser null si no existe)
   getGrade(profesorUsername: string, estudianteUsername: string, unidadId: number, filename: string) {
     const url = `${this.baseUrl}/profesores/${encodeURIComponent(profesorUsername)}/estudiantes/${encodeURIComponent(estudianteUsername)}/unidades/${unidadId}/grade`;
