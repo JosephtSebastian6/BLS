@@ -60,14 +60,43 @@ export class CampanaNotificacionesComponent implements OnInit, OnDestroy {
 
   marcarTodasComoLeidas() {
     const usuarioId = this.obtenerIdUsuarioActual();
-    if (usuarioId && this.contadorNoLeidas > 0) {
-      this.subscripciones.add(
-        this.notificacionesService.marcarTodasComoLeidas(usuarioId).subscribe({
-          next: () => this.cargarNotificaciones(),
-          error: (error) => console.error('Error al marcar todas como leídas', error)
-        })
-      );
+    console.log('🔔 DEBUG: Intentando marcar todas como leídas - usuarioId:', usuarioId, 'noLeidas:', this.contadorNoLeidas);
+    
+    if (!usuarioId) {
+      console.error('❌ No se pudo obtener el ID del usuario');
+      alert('Error: No se pudo identificar al usuario. Por favor, vuelve a iniciar sesión.');
+      return;
     }
+    
+    if (this.contadorNoLeidas === 0) {
+      console.log('ℹ️ No hay notificaciones por marcar');
+      return;
+    }
+    
+    this.subscripciones.add(
+      this.notificacionesService.marcarTodasComoLeidas(usuarioId).subscribe({
+        next: (response) => {
+          console.log('✅ Notificaciones marcadas exitosamente:', response);
+          this.cargarNotificaciones();
+        },
+        error: (error) => {
+          console.error('❌ Error al marcar todas como leídas:', error);
+          
+          let mensaje = 'Error desconocido';
+          if (error.status === 401) {
+            mensaje = 'Sesión expirada. Por favor, vuelve a iniciar sesión.';
+          } else if (error.status === 403) {
+            mensaje = 'No tienes permisos para realizar esta acción.';
+          } else if (error.status === 404) {
+            mensaje = 'Usuario no encontrado.';
+          } else if (error.error?.detail) {
+            mensaje = error.error.detail;
+          }
+          
+          alert(`Error: ${mensaje}`);
+        }
+      })
+    );
   }
 
   private obtenerIdUsuarioActual(): number | null {

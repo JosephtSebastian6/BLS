@@ -154,4 +154,24 @@ export class AnalyticsService {
   getAnalyticsUnidades(): Observable<UnidadAnalytics[]> {
     return this.http.get<UnidadAnalytics[]>(`${this.base}/estudiantes/analytics/unidades`, this.headers());
   }
+
+  // Endpoints de debug para racha de estudio
+  debugActividad(username: string): Observable<any> {
+    return this.http.get(`${this.base}/debug/actividad/${encodeURIComponent(username)}`, this.headers());
+  }
+
+  debugRegistrarActividad(unidad_id: number): Observable<any> {
+    return this.http.post(`${this.base}/debug/registrar-actividad`, { unidad_id }, this.headers());
+  }
+
+  // Estadísticas del dashboard
+  getDashboardStats(): Observable<any> {
+    return this.http.get(`${this.base}/analytics/dashboard/stats`, this.headers());
+  }
+
+  // Eliminar archivo de estudiante
+  deleteStudentFile(unidadId: number, subcarpetaNombre: string, filename: string): Observable<any> {
+    const url = `${this.base}/estudiantes/subcarpetas/${unidadId}/${encodeURIComponent(subcarpetaNombre)}/files/${encodeURIComponent(filename)}`;
+    return this.http.delete(url, this.headers());
+  }
 }

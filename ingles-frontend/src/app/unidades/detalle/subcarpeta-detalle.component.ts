@@ -36,6 +36,7 @@ export class SubcarpetaDetalleComponent implements OnInit, OnDestroy {
   archivosEstudianteSubidos: any[] = [];
   uploadingEstudiante = false;
   isDragOverEstudiante = false;
+  deletingFiles: Set<string> = new Set(); // Para controlar qué archivos se están eliminando
   
   private heartbeatId: any;
   constructor(private route: ActivatedRoute, private router: Router, private sanitizer: DomSanitizer, private analytics: AnalyticsService, private empresaSvc: EmpresaGruposService) {
@@ -362,11 +363,65 @@ export class SubcarpetaDetalleComponent implements OnInit, OnDestroy {
 
   eliminarArchivoEstudiante(archivo: any) {
     const nombreArchivo = archivo.original_name || archivo.filename;
-    if (!confirm(`¿Seguro que deseas eliminar el archivo "${nombreArchivo}"?`)) return;
+    const filename = archivo.filename;
     
-    // TODO: Implementar endpoint para eliminar archivos específicos
-    console.log('Eliminar archivo:', archivo);
-    alert('Funcionalidad de eliminación pendiente de implementar');
+    // Verificar si ya se está eliminando este archivo
+    if (this.deletingFiles.has(filename)) {
+      return;
+    }
+    
+    if (!confirm(`¿Seguro que deseas eliminar el archivo "${nombreArchivo}"?\n\nEsta acción no se puede deshacer.`)) {
+      return;
+    }
+    
+    console.log('🗑️ Eliminando archivo:', archivo);
+    
+    // Marcar archivo como "eliminándose"
+    this.deletingFiles.add(filename);
+    
+    this.analytics.deleteStudentFile(
+      Number(this.unidadId), 
+      'SOLO TAREAS', 
+      filename
+    ).subscribe({
+      next: (response) => {
+        console.log('✅ Archivo eliminado exitosamente:', response);
+        
+        // Quitar del estado de eliminación
+        this.deletingFiles.delete(filename);
+        
+        // Mostrar mensaje de éxito
+        alert(`✅ Archivo "${nombreArchivo}" eliminado exitosamente`);
+        
+        // Recargar la lista de archivos para reflejar los cambios
+        this.cargarArchivosEstudiante();
+      },
+      error: (error) => {
+        console.error('❌ Error eliminando archivo:', error);
+        
+        // Quitar del estado de eliminación
+        this.deletingFiles.delete(filename);
+        
+        let errorMessage = 'Error eliminando el archivo';
+        
+        if (error.status === 404) {
+          errorMessage = 'El archivo ya no existe o no se encontró';
+        } else if (error.status === 403) {
+          errorMessage = 'No tienes permisos para eliminar este archivo';
+        } else if (error.status === 500) {
+          errorMessage = 'Error del servidor al eliminar el archivo';
+        } else if (error.error?.detail) {
+          errorMessage = error.error.detail;
+        }
+        
+        alert(`❌ ${errorMessage}`);
+      }
+    });
+  }
+
+  // Método helper para verificar si un archivo se está eliminando
+  isDeleting(filename: string): boolean {
+    return this.deletingFiles.has(filename);
   }
 
   formatearTamano(bytes: number): string {

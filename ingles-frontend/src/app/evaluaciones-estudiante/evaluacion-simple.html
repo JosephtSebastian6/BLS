@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test de Clicks</title>
+    <style>
+        .card { max-width: 600px; margin: 2rem auto; padding: 1rem; border: 1px solid #ccc; }
+        .row { display: flex; gap: 8px; align-items: center; margin: 0.5rem 0; cursor: pointer; }
+        .btn { padding: 0.5rem 1rem; background: #007bff; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Test de Funcionalidad</h2>
+        
+        <div class="row">
+            <input type="radio" name="test" value="1" onclick="console.log('Radio 1 clicked')" />
+            <span onclick="document.querySelector('input[value=1]').click()">Opción 1</span>
+        </div>
+        
+        <div class="row">
+            <input type="radio" name="test" value="2" onclick="console.log('Radio 2 clicked')" />
+            <span onclick="document.querySelector('input[value=2]').click()">Opción 2</span>
+        </div>
+        
+        <button class="btn" onclick="console.log('Botón clickeado'); alert('¡Funciona!')">
+            Test Button
+        </button>
+    </div>
+</body>
+</html>

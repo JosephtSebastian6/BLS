@@ -77,4 +77,71 @@ export class TareasProfesorComponent implements OnInit {
       }
     });
   }
+
+  // Métodos helper para el template
+  getTotalTareas(): number {
+    return this.data.reduce((total, estudiante) => {
+      return total + (estudiante.tareas?.filter(t => t.filename !== 'grades.json').length || 0);
+    }, 0);
+  }
+
+  getTareasCalificadas(): number {
+    return this.data.reduce((total, estudiante) => {
+      return total + (estudiante.tareas?.filter(t => 
+        t.filename !== 'grades.json' && (t as any)._grade !== null && (t as any)._grade !== undefined
+      ).length || 0);
+    }, 0);
+  }
+
+  getValidTareas(tareas: any[]): any[] {
+    return tareas?.filter(t => t.filename !== 'grades.json') || [];
+  }
+
+  getInitials(nombres: string, apellidos: string): string {
+    const n = nombres?.charAt(0)?.toUpperCase() || '?';
+    const a = apellidos?.charAt(0)?.toUpperCase() || '';
+    return n + a;
+  }
+
+  getGradeClass(grade: any): string {
+    if (grade === null || grade === undefined) return 'grade-none';
+    const numGrade = Number(grade);
+    if (numGrade >= 80) return 'grade-high';
+    if (numGrade >= 60) return 'grade-medium';
+    return 'grade-low';
+  }
+
+  getGradeDisplay(grade: any): string {
+    if (grade === null || grade === undefined) return 'Sin calificar';
+    return `${grade}/100`;
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  formatDate(dateString: string): string {
+    if (!dateString) return 'Sin fecha';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  // Métodos de tracking para optimización
+  trackByEstudiante(index: number, estudiante: any): string {
+    return estudiante.estudiante_username;
+  }
+
+  trackByTarea(index: number, tarea: any): string {
+    return `${tarea.unidad_id}-${tarea.filename}`;
+  }
 }

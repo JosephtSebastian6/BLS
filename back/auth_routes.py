@@ -51,7 +51,7 @@ import crud
 import models
 import schemas
 from schemas import ClaseCreate, ClaseResponse
-from schemas import QuizCreate, QuizResponse, QuizAsignacionCreate, QuizAsignacionResponse
+from schemas import QuizCreate, QuizResponse, QuizAsignacionCreate, QuizAsignacionResponse, QuizRespuestaCreate, QuizRespuestaResponse, QuizDetalleEstudiante
 from Clever_MySQL_conn import get_db, Base, engine
 from settings import settings
 
@@ -142,10 +142,10 @@ def grades_resumen_estudiante(
 
     for u in unidades:
         # Tiempo dedicado (si existe registro en progreso)
-        prog = db.query(models.Progreso).filter(
-            models.Progreso.username == username,
-            models.Progreso.unidad_id == u.id
-        ).first() if hasattr(models, 'Progreso') else None
+        prog = db.query(models.EstudianteProgresoUnidad).filter(
+            models.EstudianteProgresoUnidad.username == username,
+            models.EstudianteProgresoUnidad.unidad_id == u.id
+        ).first()
         tiempo_min = int(getattr(prog, 'tiempo_dedicado_min', 0) or 0)
         tiempo_score = min(100, int((tiempo_min or 0) * 100 / objetivo_min)) if objetivo_min > 0 else 0
 
@@ -848,6 +848,66 @@ def quizzes_disponibles_estudiante(db: Session = Depends(get_db), who=Depends(re
     
     return quizzes_habilitados
 
+@authRouter.get("/estudiante/mis-calificaciones-quizzes")
+def obtener_calificaciones_quizzes_estudiante(db: Session = Depends(get_db), who=Depends(require_roles(["estudiante", "admin"]))):
+    """Obtiene todas las calificaciones de quizzes del estudiante"""
+    calificaciones = db.query(models.EstudianteQuizCalificacion).filter(
+        models.EstudianteQuizCalificacion.estudiante_username == who["username"]
+    ).order_by(models.EstudianteQuizCalificacion.updated_at.desc()).all()
+    
+    # Obtener información adicional de quizzes y unidades
+    resultado = []
+    for cal in calificaciones:
+        quiz = db.query(models.Quiz).filter(models.Quiz.id == cal.quiz_id).first()
+        unidad = db.query(models.Unidad).filter(models.Unidad.id == cal.unidad_id).first()
+        
+        resultado.append({
+            "id": cal.id,
+            "quiz_id": cal.quiz_id,
+            "quiz_titulo": quiz.titulo if quiz else "Quiz eliminado",
+            "unidad_id": cal.unidad_id,
+            "unidad_nombre": unidad.nombre if unidad else "Unidad eliminada",
+            "score": cal.score,
+            "created_at": cal.created_at,
+            "updated_at": cal.updated_at
+        })
+    
+    return resultado
+
+@authRouter.get("/estudiante/unidades/{unidad_id}/resumen-calificaciones")
+def obtener_resumen_calificaciones_unidad(unidad_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["estudiante", "admin"]))):
+    """Obtiene el resumen completo de calificaciones para una unidad específica"""
+    # Usar la función existente del sistema de calificaciones
+    resumen = crud.get_unidad_grade_detalle(db, username=who["username"], unidad_id=unidad_id)
+    
+    # Agregar información adicional de la unidad
+    unidad = db.query(models.Unidad).filter(models.Unidad.id == unidad_id).first()
+    if not unidad:
+        raise HTTPException(status_code=404, detail="Unidad no encontrada")
+    
+    # Verificar acceso del estudiante a la unidad
+    user = db.query(models.Registro).filter(models.Registro.username == who["username"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    acceso = db.query(models.estudiante_unidad).filter(
+        models.estudiante_unidad.c.estudiante_id == user.identificador,
+        models.estudiante_unidad.c.unidad_id == unidad_id,
+        models.estudiante_unidad.c.habilitada == True
+    ).first()
+    
+    if not acceso:
+        raise HTTPException(status_code=403, detail="No tienes acceso a esta unidad")
+    
+    # Agregar información de la unidad al resumen
+    resumen["unidad"] = {
+        "id": unidad.id,
+        "nombre": unidad.nombre,
+        "descripcion": getattr(unidad, "descripcion", None)
+    }
+    
+    return resumen
+
 @authRouter.get("/estudiante/quizzes/{quiz_id}", response_model=QuizResponse)
 def obtener_quiz_estudiante(quiz_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["estudiante", "admin"]))):
     now = datetime.utcnow()
@@ -875,12 +935,280 @@ def obtener_quiz_estudiante(quiz_id: int, db: Session = Depends(get_db), who=Dep
         raise HTTPException(status_code=403, detail="No tienes acceso a esta evaluación o no está disponible")
     return q
 
+@authRouter.get("/estudiante/quizzes/{quiz_id}/detalle", response_model=QuizDetalleEstudiante)
+def obtener_quiz_detalle_estudiante(quiz_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["estudiante", "admin"]))):
+    """Obtiene los detalles completos de un quiz para el estudiante, incluyendo si ya fue respondido"""
+    now = datetime.utcnow()
+    user = db.query(models.Registro).filter(models.Registro.username == who["username"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    # Verificar permiso individual de quiz
+    if not crud.verificar_permiso_quiz_estudiante(db, who["username"], quiz_id):
+        raise HTTPException(status_code=403, detail="No tienes permiso para acceder a esta evaluación")
+    
+    # Obtener el quiz
+    q = (
+        db.query(models.Quiz)
+        .join(models.QuizAsignacion, models.Quiz.id == models.QuizAsignacion.quiz_id)
+        .join(models.estudiante_unidad, models.estudiante_unidad.c.unidad_id == models.QuizAsignacion.unidad_id)
+        .filter(
+            models.Quiz.id == quiz_id,
+            models.estudiante_unidad.c.estudiante_id == user.identificador,
+            (models.QuizAsignacion.start_at.is_(None) | (models.QuizAsignacion.start_at <= now)),
+            (models.QuizAsignacion.end_at.is_(None) | (models.QuizAsignacion.end_at >= now)),
+        )
+        .first()
+    )
+    if not q:
+        raise HTTPException(status_code=403, detail="No tienes acceso a esta evaluación o no está disponible")
+    
+    # Verificar si ya respondió
+    respuesta_existente = db.query(models.EstudianteQuizRespuesta).filter(
+        models.EstudianteQuizRespuesta.estudiante_username == who["username"],
+        models.EstudianteQuizRespuesta.quiz_id == quiz_id
+    ).first()
+    
+    # Obtener calificación si existe
+    calificacion_obj = db.query(models.EstudianteQuizCalificacion).filter(
+        models.EstudianteQuizCalificacion.estudiante_username == who["username"],
+        models.EstudianteQuizCalificacion.quiz_id == quiz_id
+    ).first()
+    
+    return QuizDetalleEstudiante(
+        id=q.id,
+        unidad_id=q.unidad_id,
+        titulo=q.titulo,
+        descripcion=q.descripcion,
+        preguntas=q.preguntas,
+        ya_respondido=respuesta_existente is not None,
+        calificacion=calificacion_obj.score if calificacion_obj else None,
+        fecha_respuesta=respuesta_existente.created_at if respuesta_existente else None
+    )
+
+@authRouter.post("/estudiante/quizzes/{quiz_id}/responder", response_model=QuizRespuestaResponse)
+def responder_quiz(quiz_id: int, body: QuizRespuestaCreate, db: Session = Depends(get_db), who=Depends(require_roles(["estudiante", "admin"]))):
+    """Permite al estudiante enviar sus respuestas a un quiz"""
+    now = datetime.utcnow()
+    user = db.query(models.Registro).filter(models.Registro.username == who["username"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    # Verificar que el quiz_id coincida
+    if body.quiz_id != quiz_id:
+        raise HTTPException(status_code=400, detail="El ID del quiz no coincide")
+    
+    # Verificar permiso individual de quiz
+    if not crud.verificar_permiso_quiz_estudiante(db, who["username"], quiz_id):
+        raise HTTPException(status_code=403, detail="No tienes permiso para responder esta evaluación")
+    
+    # Verificar que el quiz existe y está disponible
+    q = (
+        db.query(models.Quiz)
+        .join(models.QuizAsignacion, models.Quiz.id == models.QuizAsignacion.quiz_id)
+        .join(models.estudiante_unidad, models.estudiante_unidad.c.unidad_id == models.QuizAsignacion.unidad_id)
+        .filter(
+            models.Quiz.id == quiz_id,
+            models.estudiante_unidad.c.estudiante_id == user.identificador,
+            (models.QuizAsignacion.start_at.is_(None) | (models.QuizAsignacion.start_at <= now)),
+            (models.QuizAsignacion.end_at.is_(None) | (models.QuizAsignacion.end_at >= now)),
+        )
+        .first()
+    )
+    if not q:
+        raise HTTPException(status_code=403, detail="No tienes acceso a esta evaluación o no está disponible")
+    
+    # Verificar si ya respondió
+    respuesta_existente = db.query(models.EstudianteQuizRespuesta).filter(
+        models.EstudianteQuizRespuesta.estudiante_username == who["username"],
+        models.EstudianteQuizRespuesta.quiz_id == quiz_id
+    ).first()
+    
+    if respuesta_existente:
+        raise HTTPException(status_code=400, detail="Ya has respondido esta evaluación")
+    
+    try:
+        # Calcular puntaje (por ahora simple, se puede mejorar)
+        score = calcular_puntaje_quiz(q.preguntas, body.respuestas)
+        
+        # Crear respuesta
+        nueva_respuesta = models.EstudianteQuizRespuesta(
+            estudiante_username=who["username"],
+            quiz_id=quiz_id,
+            unidad_id=q.unidad_id,
+            respuestas=body.respuestas,
+            score=score
+        )
+        db.add(nueva_respuesta)
+        
+        db.commit()
+        db.refresh(nueva_respuesta)
+        
+        # Usar la función existente para actualizar calificaciones
+        crud.upsert_quiz_calificacion(
+            db,
+            estudiante_username=who["username"],
+            unidad_id=q.unidad_id,
+            quiz_id=quiz_id,
+            score=score
+        )
+        
+        # Crear notificación de evaluación completada
+        try:
+            user_record = db.query(models.Registro).filter(models.Registro.username == who["username"]).first()
+            if user_record:
+                mensaje = f"Has completado la evaluación '{q.titulo}' con una calificación de {score}/100."
+                crud.crear_notificacion(
+                    db,
+                    usuario_id=int(user_record.identificador),
+                    tipo="quiz_completado",
+                    mensaje=mensaje,
+                    unidad_id=q.unidad_id,
+                )
+        except Exception as e:
+            print(f"[WARN] Error creando notificación de quiz completado: {e}")
+        
+        return QuizRespuestaResponse(
+            id=nueva_respuesta.id,
+            estudiante_username=nueva_respuesta.estudiante_username,
+            quiz_id=nueva_respuesta.quiz_id,
+            unidad_id=nueva_respuesta.unidad_id,
+            respuestas=nueva_respuesta.respuestas,
+            score=nueva_respuesta.score,
+            created_at=nueva_respuesta.created_at,
+            updated_at=nueva_respuesta.updated_at
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al guardar respuestas: {str(e)}")
+
+def calcular_puntaje_quiz(preguntas: dict, respuestas: dict) -> int:
+    """Función auxiliar para calcular el puntaje de un quiz.
+
+    Soporta estructuras donde:
+      - Las preguntas vienen en `{"preguntas": [...]}` o `{"items": [...]}`
+      - En preguntas de opción múltiple, la opción correcta se marca con `correcta: true`
+      - El frontend envía como respuesta el **índice** de la opción seleccionada
+    """
+    print("🧮 DEBUG: calcular_puntaje_quiz iniciado")
+    print(f"🧮 DEBUG: preguntas recibidas: {preguntas}")
+    print(f"🧮 DEBUG: respuestas recibidas: {respuestas}")
+
+    if not preguntas or not respuestas:
+        print(f"❌ DEBUG: Datos vacíos - preguntas: {bool(preguntas)}, respuestas: {bool(respuestas)}")
+        return 0
+
+    # Normalizar estructura de preguntas
+    preguntas_lista: list = []
+    if isinstance(preguntas, dict):
+        if "preguntas" in preguntas:
+            preguntas_lista = preguntas.get("preguntas", [])
+        elif "items" in preguntas:
+            preguntas_lista = preguntas.get("items", [])
+        else:
+            preguntas_lista = list(preguntas.values()) if preguntas else []
+    elif isinstance(preguntas, list):
+        preguntas_lista = preguntas
+
+    print(f"🧮 DEBUG: preguntas_lista extraída: {preguntas_lista}")
+
+    total_preguntas = len(preguntas_lista)
+    if total_preguntas == 0:
+        print("❌ DEBUG: No hay preguntas en la lista")
+        return 0
+
+    print(f"🧮 DEBUG: Total de preguntas: {total_preguntas}")
+
+    respuestas_correctas = 0
+    total_evaluables = 0  # preguntas que realmente cuentan para el puntaje
+
+    for i, pregunta in enumerate(preguntas_lista):
+        pregunta_key = f"pregunta_{i}"
+        respuesta_estudiante = respuestas.get(pregunta_key)
+
+        respuesta_correcta = None
+        if isinstance(pregunta, dict):
+            # 1) Si viene un campo directo (compatibilidad hacia adelante)
+            #    Soporta: respuesta_correcta, correct_answer, answer, correcta (para casos simples)
+            if any(k in pregunta for k in ("respuesta_correcta", "correct_answer", "answer", "correcta", "respuesta")):
+                # Para vf y respuesta_corta, el cambio que te afecta es el campo 'respuesta'
+                respuesta_correcta = (
+                    pregunta.get("respuesta_correcta")
+                    or pregunta.get("correct_answer")
+                    or pregunta.get("answer")
+                    or pregunta.get("respuesta")
+                    or pregunta.get("correcta")
+                )
+            # 2) Caso actual: opción múltiple con flag `correcta` en la lista de opciones
+            elif "opciones" in pregunta and isinstance(pregunta["opciones"], list):
+                for idx, op in enumerate(pregunta["opciones"]):
+                    try:
+                        if isinstance(op, dict) and op.get("correcta") is True:
+                            respuesta_correcta = idx  # usamos el índice como respuesta correcta
+                            break
+                    except Exception:
+                        continue
+
+        print(f"🧮 DEBUG: Pregunta {i}:")
+        print(f"  - Estructura: {pregunta}")
+        print(f"  - Respuesta estudiante ({pregunta_key}): {respuesta_estudiante}")
+        print(f"  - Respuesta correcta (normalizada): {respuesta_correcta}")
+
+        es_correcta = False
+
+        # Solo contamos la pregunta si hay respuesta correcta definida
+        # y el estudiante envió algo para esa pregunta.
+        if respuesta_correcta is not None and respuesta_estudiante is not None:
+            total_evaluables += 1
+
+            # Comparación flexible: primero como string
+            try:
+                resp_est_str = str(respuesta_estudiante).strip().lower()
+                resp_cor_str = str(respuesta_correcta).strip().lower()
+                es_correcta = resp_est_str == resp_cor_str
+            except Exception:
+                es_correcta = False
+
+            # Si no coincidió por string, intentar comparación directa
+            if not es_correcta:
+                es_correcta = respuesta_estudiante == respuesta_correcta
+
+        print(f"  - ¿Es correcta?: {es_correcta}")
+
+        if es_correcta:
+            respuestas_correctas += 1
+
+    # Si por alguna razón no hay preguntas evaluables (p.ej. solo tipos aún no soportados)
+    # devolvemos 0 para evitar división por cero.
+    if total_evaluables == 0:
+        print("❌ DEBUG: No hay preguntas evaluables (todas ignoradas temporalmente)")
+        return 0
+
+    puntaje = int((respuestas_correctas / total_evaluables) * 100)
+
+    print("🧮 DEBUG: Resultado final:")
+    print(f"  - Respuestas correctas: {respuestas_correctas}/{total_evaluables}")
+    print(f"  - Puntaje calculado: {puntaje}/100")
+
+    return puntaje
+
 @authRouter.get("/quizzes/{quiz_id}", response_model=QuizResponse)
 def obtener_quiz(quiz_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
     q = db.query(models.Quiz).filter(models.Quiz.id == quiz_id).first()
     if not q:
         raise HTTPException(status_code=404, detail="Quiz no encontrado")
     return q
+
+@authRouter.post("/admin/create-tables")
+def create_tables_endpoint(db: Session = Depends(get_db)):
+    """Endpoint temporal para crear las tablas necesarias"""
+    try:
+        from Clever_MySQL_conn import Base, engine
+        Base.metadata.create_all(bind=engine)
+        return {"message": "Tablas creadas exitosamente"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al crear tablas: {str(e)}")
 
 @authRouter.put("/quizzes/{quiz_id}", response_model=QuizResponse)
 def actualizar_quiz(quiz_id: int, body: QuizCreate, db: Session = Depends(get_db), who=Depends(require_roles(["profesor", "empresa", "admin"]))):
@@ -901,9 +1229,30 @@ def eliminar_quiz(quiz_id: int, db: Session = Depends(get_db), who=Depends(requi
     q = db.query(models.Quiz).filter(models.Quiz.id == quiz_id).first()
     if not q:
         raise HTTPException(status_code=404, detail="Quiz no encontrado")
-    db.delete(q)
-    db.commit()
-    return {"eliminado": True, "id": quiz_id}
+    
+    try:
+        # Eliminar usando delete() en masa para mejor rendimiento
+        print(f"Eliminando asignaciones para quiz_id: {quiz_id}")
+        db.query(models.QuizAsignacion).filter(models.QuizAsignacion.quiz_id == quiz_id).delete()
+        
+        print(f"Eliminando calificaciones para quiz_id: {quiz_id}")
+        db.query(models.EstudianteQuizCalificacion).filter(models.EstudianteQuizCalificacion.quiz_id == quiz_id).delete()
+        
+        print(f"Eliminando permisos para quiz_id: {quiz_id}")
+        db.query(models.EstudianteQuizPermiso).filter(models.EstudianteQuizPermiso.quiz_id == quiz_id).delete()
+        
+        print(f"Eliminando quiz con id: {quiz_id}")
+        # Finalmente eliminar el quiz
+        db.delete(q)
+        
+        print("Haciendo commit...")
+        db.commit()
+        print("Quiz eliminado exitosamente")
+        return {"eliminado": True, "id": quiz_id}
+    except Exception as e:
+        print(f"Error al eliminar quiz: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"No se pudo eliminar el quiz: {str(e)}")
 
 # ===== Asignaciones =====
 @authRouter.post("/quizzes/{quiz_id}/assignments", response_model=QuizAsignacionResponse)
@@ -1251,9 +1600,46 @@ def marcar_notificacion_leida(notificacion_id: int, db: Session = Depends(get_db
     return res
 
 @authRouter.put("/notificaciones/usuario/{usuario_id}/marcar-todas-leidas", response_model=dict)
-def marcar_todas_leidas(usuario_id: int, db: Session = Depends(get_db), who=Depends(require_roles(["admin", "empresa", "profesor", "estudiante"]))):
-    count = crud.marcar_todas_notificaciones_leidas(db, usuario_id)
-    return {"actualizadas": count}
+def marcar_todas_leidas(
+    usuario_id: int, 
+    db: Session = Depends(get_db), 
+    who=Depends(require_roles(["admin", "empresa", "profesor", "estudiante"]))
+):
+    """Marcar todas las notificaciones como leídas para un usuario específico"""
+    
+    # Obtener información del usuario autenticado
+    username_autenticado = who.get("username")
+    tipo_usuario = who.get("tipo_usuario")
+    
+    print(f"🔔 DEBUG: marcar_todas_leidas - usuario_id={usuario_id}, auth_user={username_autenticado}, tipo={tipo_usuario}")
+    
+    # Validar permisos: solo admins pueden modificar notificaciones de otros usuarios
+    if tipo_usuario != "admin":
+        # Obtener el usuario autenticado desde la BD
+        usuario_autenticado = db.query(models.Registro).filter(
+            models.Registro.username == username_autenticado
+        ).first()
+        
+        if not usuario_autenticado:
+            print(f"❌ DEBUG: Usuario autenticado no encontrado: {username_autenticado}")
+            raise HTTPException(status_code=404, detail="Usuario autenticado no encontrado")
+        
+        # Verificar que el usuario_id coincida con el usuario autenticado
+        if usuario_autenticado.identificador != usuario_id:
+            print(f"❌ DEBUG: Intento de modificar notificaciones ajenas - auth_id={usuario_autenticado.identificador}, target_id={usuario_id}")
+            raise HTTPException(
+                status_code=403, 
+                detail="Solo puedes modificar tus propias notificaciones"
+            )
+    
+    # Proceder con la actualización
+    try:
+        count = crud.marcar_todas_notificaciones_leidas(db, usuario_id)
+        print(f"✅ DEBUG: Marcadas {count} notificaciones como leídas para usuario_id={usuario_id}")
+        return {"actualizadas": count}
+    except Exception as e:
+        print(f"❌ DEBUG: Error marcando notificaciones: {e}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 @authRouter.get("/estudiantes/me/unidades-habilitadas")
 def obtener_unidades_habilitadas_estudiante(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
@@ -1453,17 +1839,33 @@ def listar_quizzes_unidad(unidad_id: int, db: Session = Depends(get_db)):
     return [QuizResponse.from_orm(q) for q in quizzes]
 
 @authRouter.delete("/unidades/quizzes/{quiz_id}")
-def eliminar_quiz(quiz_id: int, db: Session = Depends(get_db)):
+def eliminar_quiz_unidad(quiz_id: int, db: Session = Depends(get_db)):
     quiz = db.query(models.Quiz).filter(models.Quiz.id == quiz_id).first()
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz no encontrado")
     try:
+        # Eliminar usando delete() en masa para mejor rendimiento
+        print(f"[UNIDAD] Eliminando asignaciones para quiz_id: {quiz_id}")
+        db.query(models.QuizAsignacion).filter(models.QuizAsignacion.quiz_id == quiz_id).delete()
+        
+        print(f"[UNIDAD] Eliminando calificaciones para quiz_id: {quiz_id}")
+        db.query(models.EstudianteQuizCalificacion).filter(models.EstudianteQuizCalificacion.quiz_id == quiz_id).delete()
+        
+        print(f"[UNIDAD] Eliminando permisos para quiz_id: {quiz_id}")
+        db.query(models.EstudianteQuizPermiso).filter(models.EstudianteQuizPermiso.quiz_id == quiz_id).delete()
+        
+        print(f"[UNIDAD] Eliminando quiz con id: {quiz_id}")
+        # Finalmente eliminar el quiz
         db.delete(quiz)
+        
+        print("[UNIDAD] Haciendo commit...")
         db.commit()
+        print("[UNIDAD] Quiz eliminado exitosamente")
         return {"eliminado": True, "id": quiz_id}
     except Exception as e:
+        print(f"[UNIDAD] Error al eliminar quiz: {str(e)}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"No se pudo eliminar el quiz: {e}")
+        raise HTTPException(status_code=500, detail=f"No se pudo eliminar el quiz: {str(e)}")
 
 @authRouter.get("/unidades/quizzes/{quiz_id}", response_model=QuizResponse)
 def obtener_quiz(quiz_id: int, db: Session = Depends(get_db)):
@@ -1510,10 +1912,31 @@ def resumen_asignaciones_profesor(profesor_username: str, db: Session = Depends(
     }
 
 @authRouter.get("/estudiantes")
-def obtener_todos_estudiantes(db: Session = Depends(get_db)):
-    """Obtiene todos los estudiantes registrados"""
-    estudiantes = crud.obtener_estudiantes(db)
-    return [schemas.UsuarioResponse.from_orm(est) for est in estudiantes]
+def obtener_todos_estudiantes(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Obtiene todos los estudiantes registrados (solo empresa/profesor)"""
+    # Verificar autenticación
+    current_username, tipo_usuario = _username_from_token(credentials)
+    if not current_username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    
+    # Solo empresa y profesor pueden ver lista de estudiantes
+    if tipo_usuario not in ['empresa', 'profesor']:
+        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a esta información")
+    
+    try:
+        # Si es profesor, solo devolver estudiantes asignados
+        if tipo_usuario == 'profesor':
+            estudiantes = crud.obtener_estudiantes_asignados(db, current_username)
+        else:
+            # Si es empresa, devolver todos los estudiantes
+            estudiantes = crud.obtener_estudiantes(db)
+        
+        return [schemas.UsuarioResponse.from_orm(est) for est in estudiantes]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error obteniendo estudiantes: {e}")
 
 # ==========================
 # Tracking & Analytics (Nuevos)
@@ -1607,20 +2030,222 @@ def upsert_progreso(
     }
 
 @authRouter.get("/analytics/estudiantes/{username}/resumen")
-def analytics_resumen(username: str, desde: str | None = None, hasta: str | None = None, db: Session = Depends(get_db)):
-    from datetime import datetime
-    d_from = datetime.fromisoformat(desde) if desde else None
-    d_to = datetime.fromisoformat(hasta) if hasta else None
-    return crud.get_analytics_resumen(db, username=username, desde=d_from, hasta=d_to)
+def analytics_resumen(
+    username: str, 
+    desde: str | None = None, 
+    hasta: str | None = None, 
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Analytics de resumen para un usuario específico (uso empresa/profesor)."""
+    # Verificar autenticación
+    current_username, tipo_usuario = _username_from_token(credentials)
+    if not current_username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    
+    # Verificar permisos: solo empresa/profesor pueden ver datos de otros usuarios
+    if tipo_usuario not in ['empresa', 'profesor'] and current_username != username:
+        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a estos datos")
+    
+    # Si es profesor, verificar que el estudiante esté asignado
+    if tipo_usuario == 'profesor':
+        if not _estudiante_asignado_a_profesor(db, current_username, username):
+            raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+    
+    try:
+        from datetime import datetime
+        d_from = datetime.fromisoformat(desde) if desde else None
+        d_to = datetime.fromisoformat(hasta) if hasta else None
+        return crud.get_analytics_resumen(db, username=username, desde=d_from, hasta=d_to)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Formato de fecha inválido: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {e}")
 
 
 @authRouter.get("/analytics/estudiantes/{username}/unidades")
-def analytics_unidades(username: str, desde: str | None = None, hasta: str | None = None, db: Session = Depends(get_db)):
+def analytics_unidades(
+    username: str, 
+    desde: str | None = None, 
+    hasta: str | None = None, 
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
     """Analytics de unidades para un usuario específico (uso empresa/profesor)."""
-    from datetime import datetime
-    d_from = datetime.fromisoformat(desde) if desde else None
-    d_to = datetime.fromisoformat(hasta) if hasta else None
-    return crud.get_analytics_unidades(db, username=username, desde=d_from, hasta=d_to)
+    # Verificar autenticación
+    current_username, tipo_usuario = _username_from_token(credentials)
+    if not current_username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    
+    # Verificar permisos: solo empresa/profesor pueden ver datos de otros usuarios
+    if tipo_usuario not in ['empresa', 'profesor'] and current_username != username:
+        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a estos datos")
+    
+    # Si es profesor, verificar que el estudiante esté asignado
+    if tipo_usuario == 'profesor':
+        if not _estudiante_asignado_a_profesor(db, current_username, username):
+            raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+    
+    try:
+        from datetime import datetime
+        d_from = datetime.fromisoformat(desde) if desde else None
+        d_to = datetime.fromisoformat(hasta) if hasta else None
+        return crud.get_analytics_unidades(db, username=username, desde=d_from, hasta=d_to)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Formato de fecha inválido: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {e}")
+
+@authRouter.get("/analytics/dashboard/stats")
+def analytics_dashboard_stats(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Estadísticas generales del dashboard de analytics (empresa/profesor)"""
+    # Verificar autenticación
+    current_username, tipo_usuario = _username_from_token(credentials)
+    if not current_username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    
+    # Solo empresa y profesor pueden acceder
+    if tipo_usuario not in ['empresa', 'profesor']:
+        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a esta información")
+    
+    try:
+        # Obtener estudiantes según el tipo de usuario
+        if tipo_usuario == 'profesor':
+            estudiantes = crud.obtener_estudiantes_asignados(db, current_username)
+        else:
+            estudiantes = crud.obtener_estudiantes(db)
+        
+        total_estudiantes = len(estudiantes)
+        total_unidades = db.query(models.Unidad).count()
+        
+        # Calcular estadísticas agregadas
+        estudiantes_activos = 0
+        progreso_total = 0
+        unidades_completadas_total = 0
+        
+        for est in estudiantes:
+            resumen = crud.get_analytics_resumen(db, est.username)
+            if resumen['tiempo_dedicado_min'] > 0:
+                estudiantes_activos += 1
+            progreso_total += resumen['progreso_general']
+            unidades_completadas_total += resumen['unidades_completadas']
+        
+        progreso_promedio = (progreso_total / total_estudiantes) if total_estudiantes > 0 else 0
+        
+        return {
+            "total_estudiantes": total_estudiantes,
+            "estudiantes_activos": estudiantes_activos,
+            "total_unidades": total_unidades,
+            "progreso_promedio": round(progreso_promedio, 2),
+            "unidades_completadas_total": unidades_completadas_total,
+            "tipo_usuario": tipo_usuario
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error obteniendo estadísticas: {e}")
+
+@authRouter.get("/debug/actividad/{username}")
+def debug_actividad_estudiante(
+    username: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Debug: Ver actividades registradas de un estudiante"""
+    # Verificar autenticación
+    current_username, tipo_usuario = _username_from_token(credentials)
+    if not current_username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    
+    # Solo empresa/profesor o el mismo estudiante pueden ver
+    if tipo_usuario not in ['empresa', 'profesor'] and current_username != username:
+        raise HTTPException(status_code=403, detail="No tienes permisos")
+    
+    try:
+        # Obtener últimas 20 actividades
+        actividades = db.query(models.ActividadEstudiante).filter(
+            models.ActividadEstudiante.username == username
+        ).order_by(models.ActividadEstudiante.creado_at.desc()).limit(20).all()
+        
+        # Obtener días únicos
+        dias_unicos = sorted({a.creado_at.date() for a in actividades}, reverse=True)
+        
+        # Calcular racha manualmente para debug
+        from datetime import datetime, timedelta
+        hoy = datetime.utcnow().date()
+        racha_debug = 0
+        
+        if dias_unicos:
+            ultimo_dia = dias_unicos[0]
+            diferencia = (hoy - ultimo_dia).days
+            
+            if diferencia <= 1:
+                cursor = ultimo_dia
+                for dia in dias_unicos:
+                    if dia == cursor:
+                        racha_debug += 1
+                        cursor = cursor - timedelta(days=1)
+                    elif (cursor - dia).days == 1:
+                        racha_debug += 1
+                        cursor = dia - timedelta(days=1)
+                    else:
+                        break
+        
+        return {
+            "username": username,
+            "total_actividades": len(actividades),
+            "dias_unicos_actividad": len(dias_unicos),
+            "ultimo_dia_actividad": str(dias_unicos[0]) if dias_unicos else None,
+            "dias_desde_ultima_actividad": (hoy - dias_unicos[0]).days if dias_unicos else None,
+            "racha_calculada": racha_debug,
+            "actividades_recientes": [
+                {
+                    "fecha": a.creado_at.isoformat(),
+                    "tipo": a.tipo_evento,
+                    "unidad_id": a.unidad_id,
+                    "duracion_min": a.duracion_min
+                } for a in actividades[:10]
+            ],
+            "dias_unicos_str": [str(d) for d in dias_unicos[:10]]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en debug: {e}")
+
+@authRouter.post("/debug/registrar-actividad")
+def debug_registrar_actividad(
+    unidad_id: int = Body(..., embed=True),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Debug: Registrar actividad manualmente para testing"""
+    username, _ = _username_from_token(credentials)
+    if not username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    
+    try:
+        # Registrar actividad de estudio
+        result = crud.track_activity(
+            db, 
+            username=username, 
+            unidad_id=unidad_id, 
+            tipo_evento="estudio_manual", 
+            duracion_min=5
+        )
+        
+        # Obtener racha actualizada
+        resumen = crud.get_analytics_resumen(db, username)
+        
+        return {
+            "mensaje": "Actividad registrada exitosamente",
+            "username": username,
+            "unidad_id": unidad_id,
+            "racha_actual": resumen['racha_dias'],
+            "progreso_general": resumen['progreso_general'],
+            "tiempo_total": resumen['tiempo_dedicado_min']
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error registrando actividad: {e}")
 
 # Sistema de archivos para estudiantes - FUERA del backend
 UPLOAD_DIR = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes")
@@ -1766,18 +2391,9 @@ async def upload_student_file(
                 "file_size": file_path.stat().st_size,
             })
             print(f"✅ DEBUG: Archivo guardado: {safe_filename}")
-            # Sidecar de metadata con fecha de subida estable
-            try:
-                meta_path = file_path.with_name(file_path.name + ".meta.json")
-                meta = {
-                    "upload_date": datetime.now().isoformat(),
-                    "original_name": file.filename,
-                    "size": file_path.stat().st_size,
-                }
-                with open(meta_path, 'w', encoding='utf-8') as mf:
-                    json.dump(meta, mf, ensure_ascii=False)
-            except Exception as me:
-                print(f"[WARN] No se pudo escribir metadata de subida para {safe_filename}: {me}")
+            # Metadata se maneja ahora en el sistema de calificaciones V2
+            # No necesitamos archivos .meta.json adicionales
+            print(f"✅ DEBUG: Archivo guardado sin metadata JSON: {safe_filename}")
             
         except Exception as e:
             print(f"❌ DEBUG: Error guardando {file.filename}: {e}")
@@ -1886,6 +2502,122 @@ def get_student_files(
             })
     
     return {"files": files}
+
+@authRouter.delete("/estudiantes/subcarpetas/{unidad_id}/{subcarpeta_nombre}/files/{filename}")
+def delete_student_file(
+    unidad_id: int,
+    subcarpeta_nombre: str,
+    filename: str,
+    current_user: str = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Endpoint para que estudiantes eliminen sus propias tareas"""
+    
+    # RESTRICCIÓN: Solo subcarpeta "SOLO TAREAS"
+    if subcarpeta_nombre != "SOLO TAREAS":
+        raise HTTPException(
+            status_code=403, 
+            detail="Los estudiantes solo pueden eliminar archivos de 'SOLO TAREAS'"
+        )
+    
+    # Verificar acceso del estudiante a la unidad
+    print(f"🗑️ DEBUG: Eliminando archivo - user={current_user}, unidad_id={unidad_id}, filename={filename}")
+    
+    # Obtener el ID del estudiante
+    estudiante = db.query(models.Registro).filter(models.Registro.username == current_user).first()
+    if not estudiante:
+        print(f"❌ DEBUG: Usuario {current_user} no encontrado")
+        raise HTTPException(status_code=403, detail="Usuario no encontrado")
+    
+    # Verificar relación en tabla estudiante_unidad (con auto-reparación)
+    acceso = db.query(models.estudiante_unidad).filter(
+        models.estudiante_unidad.c.estudiante_id == estudiante.identificador,
+        models.estudiante_unidad.c.unidad_id == unidad_id,
+        models.estudiante_unidad.c.habilitada == True
+    ).first()
+    
+    if not acceso:
+        print(f"⚠️ WARN: Sin acceso directo - permitiendo eliminación en SOLO TAREAS")
+    
+    # Directorio específico del estudiante
+    student_dir = UPLOAD_DIR / "estudiantes" / current_user / f"unidad_{unidad_id}" / "SOLO_TAREAS"
+    file_path = student_dir / filename
+    
+    print(f"🔍 DEBUG: Buscando archivo en: {file_path}")
+    
+    # Verificar que el archivo existe
+    if not file_path.exists():
+        print(f"❌ DEBUG: Archivo no encontrado: {file_path}")
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    
+    # Verificar que es un archivo (no directorio)
+    if not file_path.is_file():
+        print(f"❌ DEBUG: No es un archivo válido: {file_path}")
+        raise HTTPException(status_code=400, detail="No es un archivo válido")
+    
+    try:
+        # Obtener información del archivo antes de eliminarlo
+        file_size = file_path.stat().st_size
+        original_name = filename
+        
+        # Eliminar el archivo
+        file_path.unlink()
+        print(f"✅ DEBUG: Archivo eliminado exitosamente: {filename}")
+        
+        # Eliminar archivo .meta.json si existe (limpieza)
+        meta_path = file_path.with_name(file_path.name + ".meta.json")
+        if meta_path.exists():
+            try:
+                meta_path.unlink()
+                print(f"🧹 DEBUG: Archivo metadata eliminado: {meta_path.name}")
+            except Exception as me:
+                print(f"⚠️ WARN: No se pudo eliminar metadata: {me}")
+        
+        # Notificar a profesores asignados sobre la eliminación
+        try:
+            msg = f"El estudiante {current_user} eliminó el archivo '{original_name}' de SOLO TAREAS en la unidad #{unidad_id}."
+            notifications_created = _notify_profesores_asignados(
+                db, 
+                estudiante_username=current_user, 
+                mensaje=msg, 
+                unidad_id=unidad_id, 
+                tipo="eliminacion_tarea"
+            )
+            print(f"[NOTIFY] eliminacion_tarea -> profesores_notificados={notifications_created}")
+        except Exception as e:
+            print(f"[WARN] Notificación eliminación fallida: {e}")
+        
+        # Registrar actividad de eliminación
+        try:
+            crud.track_activity(
+                db, 
+                username=current_user, 
+                unidad_id=unidad_id, 
+                tipo_evento="eliminacion_tarea"
+            )
+        except Exception as e:
+            print(f"[WARN] track_activity eliminacion_tarea fallido: {e}")
+        
+        return {
+            "message": "Archivo eliminado exitosamente",
+            "filename": filename,
+            "original_name": original_name,
+            "file_size": file_size,
+            "unidad_id": unidad_id,
+            "subcarpeta": subcarpeta_nombre,
+            "deleted_by": current_user,
+            "deleted_at": datetime.now().isoformat()
+        }
+        
+    except FileNotFoundError:
+        print(f"❌ DEBUG: Archivo ya no existe: {filename}")
+        raise HTTPException(status_code=404, detail="El archivo ya no existe")
+    except PermissionError:
+        print(f"❌ DEBUG: Sin permisos para eliminar: {filename}")
+        raise HTTPException(status_code=403, detail="Sin permisos para eliminar el archivo")
+    except Exception as e:
+        print(f"❌ DEBUG: Error eliminando archivo {filename}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error eliminando archivo: {str(e)}")
 
 
 # Solo lectura para EMPRESA/PROFESOR: listar tareas de un estudiante por unidad

@@ -1,137 +1,457 @@
-<div class="calificar-layout">
-  <div class="card">
-    <div class="card-header">
-      <h2>Calificar Estudiante</h2>
-    </div>
-    <div class="card-body">
-      <div class="grid">
-        <div class="field">
-          <label>Estudiante</label>
-          <select [(ngModel)]="form.estudiante_username" (ngModelChange)="onEstudianteChange($event)">
-            <option *ngFor="let e of estudiantesAsignados" [value]="e.username">{{ e.nombres }} {{ e.apellidos }} ({{ e.username }})</option>
-          </select>
+<div class="dashboard-container">
+  <!-- Header con gradiente -->
+  <div class="page-header">
+    <div class="header-content">
+      <div class="header-info">
+        <h1 class="header-title">✏️ Calificar Estudiante</h1>
+        <p class="header-subtitle">Gestiona las calificaciones individuales de tareas y quizzes</p>
+        <div class="header-stats">
+          <div class="stat-item">
+            <span class="stat-icon">👥</span>
+            <span class="stat-value">{{ estudiantesAsignados.length }}</span>
+            <span class="stat-label">Estudiantes</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-icon">📚</span>
+            <span class="stat-value">{{ unidades.length }}</span>
+            <span class="stat-label">Unidades</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-icon">📊</span>
+            <span class="stat-value">{{ getTotalCalificaciones() }}</span>
+            <span class="stat-label">Calificaciones</span>
+          </div>
         </div>
-        <div class="field">
-          <label>Unidad</label>
-          <select name="unidadSimple" [ngModelOptions]="{standalone: true}" [(ngModel)]="form.unidad_id" (ngModelChange)="onUnidadChange($event)">
-            <option *ngFor="let u of unidades" [ngValue]="u.id">{{ u.nombre }}</option>
-          </select>
-        </div>
-        <div class="field tipo">
-          <label>Tipo</label>
-          <label><input type="radio" name="tipo" value="tarea" [(ngModel)]="form.tipo"> Tarea</label>
-          <label><input type="radio" name="tipo" value="quiz" [(ngModel)]="form.tipo"> Quiz</label>
-        </div>
-        <div class="field" *ngIf="form.tipo==='tarea'">
-          <label>Archivo (filename)</label>
-          <input type="text" [(ngModel)]="form.filename" placeholder="ensayo.docx" />
-        </div>
-        <div class="field" *ngIf="form.tipo==='quiz'">
-          <label>Quiz</label>
-          <select [(ngModel)]="form.quiz_id">
-            <option *ngFor="let q of quizzes" [ngValue]="q.id">{{ q.titulo }}</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Score (0-100)</label>
-          <input type="number" [(ngModel)]="form.score" min="0" max="100" />
-        </div>
-      </div>
-      <button class="btn" [disabled]="cargando" (click)="guardar()">{{ cargando ? 'Guardando...' : 'Guardar' }}</button>
-      <div class="msg" *ngIf="msg">{{ msg }}</div>
-    </div>
-  </div>
-</div>
-
-<div class="card" style="margin-top:16px">
-  <div class="card-header"><h2>Historial de calificaciones</h2></div>
-  <div class="card-body">
-    <div class="hist-grid">
-      <div class="hist-col">
-        <div class="section-title">Tareas <span class="badge">{{ historial.tareas?.length || 0 }}</span></div>
-        <table class="tabla">
-          <thead><tr><th>Unidad</th><th>Archivo</th><th>Score</th><th>Fecha</th></tr></thead>
-          <tbody>
-            <tr *ngFor="let t of historial.tareas">
-              <td>{{ t.unidad_nombre || t.unidad_id }}</td>
-              <td class="mono ellipsis" title="{{ t.filename }}">{{ t.filename }}</td>
-              <td><span class="chip score">{{ t.score }}</span></td>
-              <td>{{ t.updated_at | date:'short' }}</td>
-            </tr>
-            <tr *ngIf="!historial.tareas?.length"><td colspan="4" class="empty">Sin registros</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="hist-col">
-        <div class="section-title">Quizzes <span class="badge">{{ historial.quizzes?.length || 0 }}</span></div>
-        <table class="tabla">
-          <thead><tr><th>Unidad</th><th>Quiz</th><th>Score</th><th>Fecha</th></tr></thead>
-          <tbody>
-            <tr *ngFor="let q of historial.quizzes">
-              <td>{{ q.unidad_nombre || q.unidad_id }}</td>
-              <td class="ellipsis" title="{{ q.quiz_titulo || q.quiz_id }}">{{ q.quiz_titulo || q.quiz_id }}</td>
-              <td><span class="chip score">{{ q.score }}</span></td>
-              <td>{{ q.updated_at | date:'short' }}</td>
-            </tr>
-            <tr *ngIf="!historial.quizzes?.length"><td colspan="4" class="empty">Sin registros</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="hist-col">
-        <div class="section-title">Unidades (final) <span class="badge">{{ historial.unidades?.length || 0 }}</span></div>
-        <table class="tabla">
-          <thead><tr><th>Unidad</th><th>Score</th><th>Aprobado</th><th>Fecha</th></tr></thead>
-          <tbody>
-            <tr *ngFor="let f of historial.unidades">
-              <td>{{ f.unidad_nombre || f.unidad_id }}</td>
-              <td><span class="chip score" *ngIf="f.score !== null && f.score !== undefined; else dash">{{ f.score }}</span><ng-template #dash>-</ng-template></td>
-              <td>
-                <span *ngIf="f.aprobado === true" class="chip ok">Sí</span>
-                <span *ngIf="f.aprobado === false" class="chip no">No</span>
-                <span *ngIf="f.aprobado === null || f.aprobado === undefined" class="chip muted">-</span>
-              </td>
-              <td>{{ f.updated_at | date:'short' }}</td>
-            </tr>
-            <tr *ngIf="!historial.unidades?.length"><td colspan="4" class="empty">Sin registros</td></tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </div>
-</div>
 
-<div class="card" style="margin-top:16px">
-  <div class="card-header">
-    <h2>Calificación global de la unidad</h2>
-  </div>
-  <div class="card-body">
-    <div class="final-grid">
-      <div class="field fullheight">
-        <label>Unidades a calificar <span class="hint">(puede seleccionar varias)</span></label>
-        <select name="unidadesMultiples" [ngModelOptions]="{standalone: true}" multiple size="8" [(ngModel)]="finalUnidadesSeleccionadas">
-          <option *ngFor="let u of unidades" [ngValue]="u.id">{{ u.nombre }}</option>
-        </select>
-        <div class="help" *ngIf="!unidades?.length">No hay unidades habilitadas para este estudiante.</div>
-      </div>
-
-      <div class="right-pane">
-        <div class="field">
-          <label>Score final (0-100) <span class="hint">(opcional)</span></label>
-          <input type="number" [(ngModel)]="formFinal.score" min="0" max="100" placeholder="Ej: 85" />
-          <div class="help">Si lo dejas vacío, solo se marcará Aprobado/No aprobado.</div>
-        </div>
-
-        <div class="field toggle-inline">
-          <label>Aprobación</label>
-          <label class="switchline">
-            <input type="checkbox" [(ngModel)]="formFinal.aprobado" />
-            <span>Marcar aprobado</span>
+  <!-- Formulario de calificación -->
+  <div class="grading-section">
+    <div class="section-header">
+      <h3 class="section-title">📝 Nueva Calificación</h3>
+      <p class="section-subtitle">Asigna calificaciones individuales por tarea o quiz</p>
+    </div>
+    
+    <div class="grading-form">
+      <div class="form-grid">
+        <!-- Selector de estudiante -->
+        <div class="form-group">
+          <label class="form-label">
+            <span class="label-icon">👤</span>
+            <span class="label-text">Estudiante</span>
           </label>
+          <div class="select-wrapper">
+            <select 
+              [(ngModel)]="form.estudiante_username" 
+              (ngModelChange)="onEstudianteChange($event)"
+              class="form-select"
+            >
+              <option *ngFor="let e of estudiantesAsignados; trackBy: trackByEstudiante" [value]="e.username">
+                {{ e.nombres }} {{ e.apellidos }} (@{{ e.username }})
+              </option>
+            </select>
+            <span class="select-icon">📋</span>
+          </div>
         </div>
 
-        <div class="final-actions">
-          <button class="btn" [disabled]="cargandoFinal" (click)="guardarFinal()">{{ cargandoFinal ? 'Guardando...' : 'Guardar final' }}</button>
-          <div class="msg" *ngIf="msgFinal">{{ msgFinal }}</div>
+        <!-- Selector de unidad -->
+        <div class="form-group">
+          <label class="form-label">
+            <span class="label-icon">📚</span>
+            <span class="label-text">Unidad</span>
+          </label>
+          <div class="select-wrapper">
+            <select 
+              name="unidadSimple" 
+              [ngModelOptions]="{standalone: true}" 
+              [(ngModel)]="form.unidad_id" 
+              (ngModelChange)="onUnidadChange($event)"
+              class="form-select"
+            >
+              <option *ngFor="let u of unidades; trackBy: trackByUnidad" [ngValue]="u.id">
+                {{ u.nombre }}
+              </option>
+            </select>
+            <span class="select-icon">📖</span>
+          </div>
+        </div>
+
+        <!-- Tipo de calificación -->
+        <div class="form-group type-group">
+          <label class="form-label">
+            <span class="label-icon">🎯</span>
+            <span class="label-text">Tipo de Calificación</span>
+          </label>
+          <div class="radio-group">
+            <label class="radio-option" [class.active]="form.tipo === 'tarea'">
+              <input type="radio" name="tipo" value="tarea" [(ngModel)]="form.tipo">
+              <span class="radio-custom"></span>
+              <span class="radio-icon">📝</span>
+              <span class="radio-text">Tarea</span>
+            </label>
+            <label class="radio-option" [class.active]="form.tipo === 'quiz'">
+              <input type="radio" name="tipo" value="quiz" [(ngModel)]="form.tipo">
+              <span class="radio-custom"></span>
+              <span class="radio-icon">🧠</span>
+              <span class="radio-text">Quiz</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Campo condicional para tarea -->
+        <div class="form-group" *ngIf="form.tipo === 'tarea'">
+          <label class="form-label">
+            <span class="label-icon">📄</span>
+            <span class="label-text">Nombre del Archivo</span>
+          </label>
+          <input 
+            type="text" 
+            [(ngModel)]="form.filename" 
+            placeholder="ensayo.docx"
+            class="form-input"
+          />
+        </div>
+
+        <!-- Campo condicional para quiz -->
+        <div class="form-group" *ngIf="form.tipo === 'quiz'">
+          <label class="form-label">
+            <span class="label-icon">🧠</span>
+            <span class="label-text">Seleccionar Quiz</span>
+          </label>
+          <div class="select-wrapper">
+            <select [(ngModel)]="form.quiz_id" class="form-select">
+              <option *ngFor="let q of quizzes; trackBy: trackByQuiz" [ngValue]="q.id">
+                {{ q.titulo }}
+              </option>
+            </select>
+            <span class="select-icon">📝</span>
+          </div>
+        </div>
+
+        <!-- Score -->
+        <div class="form-group score-group">
+          <label class="form-label">
+            <span class="label-icon">🎯</span>
+            <span class="label-text">Puntuación (0-100)</span>
+          </label>
+          <div class="score-input-wrapper">
+            <input 
+              type="number" 
+              [(ngModel)]="form.score" 
+              min="0" 
+              max="100" 
+              placeholder="85"
+              class="form-input score-input"
+            />
+            <span class="score-suffix">/100</span>
+          </div>
+          <div class="score-indicator" [class]="getScoreClass(form.score)">
+            {{ getScoreLabel(form.score) }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Botón de guardar -->
+      <div class="form-actions">
+        <button 
+          class="save-btn" 
+          [disabled]="cargando || !isFormValid()" 
+          (click)="guardar()"
+        >
+          <span class="btn-icon">{{ cargando ? '⏳' : '💾' }}</span>
+          <span class="btn-text">{{ cargando ? 'Guardando...' : 'Guardar Calificación' }}</span>
+        </button>
+        
+        <div class="form-message" *ngIf="msg" [class]="getMessageClass(msg)">
+          <span class="message-icon">{{ getMessageIcon(msg) }}</span>
+          <span class="message-text">{{ msg }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Historial de calificaciones -->
+  <div class="history-section">
+    <div class="section-header">
+      <h3 class="section-title">📊 Historial de Calificaciones</h3>
+      <p class="section-subtitle">Revisa todas las calificaciones registradas para el estudiante seleccionado</p>
+    </div>
+
+    <div class="history-grid">
+      <!-- Tareas -->
+      <div class="history-card">
+        <div class="card-header">
+          <div class="header-info">
+            <span class="header-icon">📝</span>
+            <h4 class="header-title">Tareas</h4>
+          </div>
+          <div class="header-badge">
+            <span class="badge-count">{{ historial.tareas?.length || 0 }}</span>
+            <span class="badge-label">registros</span>
+          </div>
+        </div>
+        
+        <div class="card-content">
+          <div *ngIf="hasTareas(); else emptyTareas" class="records-list">
+            <div class="record-item" *ngFor="let tarea of historial.tareas; trackBy: trackByTarea">
+              <div class="record-header">
+                <span class="record-unit">📚 {{ tarea.unidad_nombre || 'Unidad ' + tarea.unidad_id }}</span>
+                <span class="record-score" [class]="getScoreClass(tarea.score)">
+                  {{ tarea.score }}/100
+                </span>
+              </div>
+              <div class="record-details">
+                <div class="record-filename">
+                  <span class="filename-icon">📄</span>
+                  <span class="filename-text" [title]="tarea.filename">{{ tarea.filename }}</span>
+                </div>
+                <div class="record-date">
+                  <span class="date-icon">📅</span>
+                  <span class="date-text">{{ formatDate(tarea.updated_at) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <ng-template #emptyTareas>
+            <div class="empty-state">
+              <div class="empty-icon">📝</div>
+              <p class="empty-message">No hay tareas calificadas</p>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+
+      <!-- Quizzes -->
+      <div class="history-card">
+        <div class="card-header">
+          <div class="header-info">
+            <span class="header-icon">🧠</span>
+            <h4 class="header-title">Quizzes</h4>
+          </div>
+          <div class="header-badge">
+            <span class="badge-count">{{ historial.quizzes?.length || 0 }}</span>
+            <span class="badge-label">registros</span>
+          </div>
+        </div>
+        
+        <div class="card-content">
+          <div *ngIf="hasQuizzes(); else emptyQuizzes" class="records-list">
+            <div class="record-item" *ngFor="let quiz of historial.quizzes; trackBy: trackByQuiz">
+              <div class="record-header">
+                <span class="record-unit">📚 {{ quiz.unidad_nombre || 'Unidad ' + quiz.unidad_id }}</span>
+                <span class="record-score" [class]="getScoreClass(quiz.score)">
+                  {{ quiz.score }}/100
+                </span>
+              </div>
+              <div class="record-details">
+                <div class="record-filename">
+                  <span class="filename-icon">🧠</span>
+                  <span class="filename-text" [title]="quiz.quiz_titulo || quiz.quiz_id">
+                    {{ quiz.quiz_titulo || 'Quiz ' + quiz.quiz_id }}
+                  </span>
+                </div>
+                <div class="record-date">
+                  <span class="date-icon">📅</span>
+                  <span class="date-text">{{ formatDate(quiz.updated_at) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <ng-template #emptyQuizzes>
+            <div class="empty-state">
+              <div class="empty-icon">🧠</div>
+              <p class="empty-message">No hay quizzes calificados</p>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+
+      <!-- Unidades Finales -->
+      <div class="history-card">
+        <div class="card-header">
+          <div class="header-info">
+            <span class="header-icon">🎯</span>
+            <h4 class="header-title">Calificaciones Finales</h4>
+          </div>
+          <div class="header-badge">
+            <span class="badge-count">{{ historial.unidades?.length || 0 }}</span>
+            <span class="badge-label">unidades</span>
+          </div>
+        </div>
+        
+        <div class="card-content">
+          <div *ngIf="hasUnidades(); else emptyUnidades" class="records-list">
+            <div class="record-item" *ngFor="let unidad of historial.unidades; trackBy: trackByUnidadFinal">
+              <div class="record-header">
+                <span class="record-unit">📚 {{ unidad.unidad_nombre || 'Unidad ' + unidad.unidad_id }}</span>
+                <span class="record-score" [class]="getScoreClass(unidad.score)" *ngIf="unidad.score !== null && unidad.score !== undefined; else noScore">
+                  {{ unidad.score }}/100
+                </span>
+                <ng-template #noScore>
+                  <span class="record-score no-score">Sin nota</span>
+                </ng-template>
+              </div>
+              <div class="record-details">
+                <div class="record-approval">
+                  <span class="approval-icon">{{ getApprovalIcon(unidad.aprobado) }}</span>
+                  <span class="approval-text" [class]="getApprovalClass(unidad.aprobado)">
+                    {{ getApprovalText(unidad.aprobado) }}
+                  </span>
+                </div>
+                <div class="record-date">
+                  <span class="date-icon">📅</span>
+                  <span class="date-text">{{ formatDate(unidad.updated_at) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <ng-template #emptyUnidades>
+            <div class="empty-state">
+              <div class="empty-icon">🎯</div>
+              <p class="empty-message">No hay calificaciones finales</p>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calificación Global -->
+  <div class="global-grading-section">
+    <div class="section-header">
+      <h3 class="section-title">🎯 Calificación Global de Unidad</h3>
+      <p class="section-subtitle">Asigna una calificación final que sobrescribe las calificaciones individuales</p>
+    </div>
+
+    <div class="global-form">
+      <div class="global-grid">
+        <!-- Selector de unidades múltiples -->
+        <div class="units-selector">
+          <div class="selector-header">
+            <h4 class="selector-title">
+              <span class="title-icon">📚</span>
+              <span class="title-text">Unidades a Calificar</span>
+            </h4>
+            <p class="selector-subtitle">Selecciona una o varias unidades para aplicar la calificación global</p>
+          </div>
+          
+          <div class="units-list" *ngIf="hasUnidadesDisponibles(); else noUnits">
+            <div 
+              class="unit-option" 
+              *ngFor="let unidad of unidades; trackBy: trackByUnidad"
+              [class.selected]="isUnitSelected(unidad.id)"
+              (click)="toggleUnit(unidad.id)"
+            >
+              <div class="unit-checkbox">
+                <input 
+                  type="checkbox" 
+                  [checked]="isUnitSelected(unidad.id)"
+                  (change)="toggleUnit(unidad.id)"
+                  class="checkbox-input"
+                />
+                <span class="checkbox-custom"></span>
+              </div>
+              <div class="unit-info">
+                <span class="unit-icon">📖</span>
+                <span class="unit-name">{{ unidad.nombre }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <ng-template #noUnits>
+            <div class="empty-units">
+              <div class="empty-icon">📚</div>
+              <p class="empty-message">No hay unidades habilitadas para este estudiante</p>
+            </div>
+          </ng-template>
+        </div>
+
+        <!-- Formulario de calificación global -->
+        <div class="global-form-panel">
+          <div class="form-section">
+            <h4 class="form-section-title">
+              <span class="title-icon">🎯</span>
+              <span class="title-text">Configuración de Calificación</span>
+            </h4>
+            
+            <!-- Score final -->
+            <div class="form-group">
+              <label class="form-label">
+                <span class="label-icon">📊</span>
+                <span class="label-text">Puntuación Final</span>
+                <span class="label-optional">(opcional)</span>
+              </label>
+              <div class="score-input-wrapper">
+                <input 
+                  type="number" 
+                  [(ngModel)]="formFinal.score" 
+                  min="0" 
+                  max="100" 
+                  placeholder="85"
+                  class="form-input score-input"
+                />
+                <span class="score-suffix">/100</span>
+              </div>
+              <p class="form-help">
+                Si no asignas una puntuación, solo se aplicará el estado de aprobación
+              </p>
+              <div class="score-indicator" [class]="getScoreClass(formFinal.score)" *ngIf="formFinal.score">
+                {{ getScoreLabel(formFinal.score) }}
+              </div>
+            </div>
+
+            <!-- Toggle de aprobación -->
+            <div class="form-group approval-group">
+              <label class="form-label">
+                <span class="label-icon">✅</span>
+                <span class="label-text">Estado de Aprobación</span>
+              </label>
+              <div class="approval-toggle">
+                <label class="toggle-switch" [class.active]="formFinal.aprobado">
+                  <input 
+                    type="checkbox" 
+                    [(ngModel)]="formFinal.aprobado"
+                    class="toggle-input"
+                  />
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">
+                    {{ formFinal.aprobado ? 'Aprobado' : 'No Aprobado' }}
+                  </span>
+                </label>
+              </div>
+              <p class="form-help">
+                Marca si el estudiante aprueba o no las unidades seleccionadas
+              </p>
+            </div>
+          </div>
+
+          <!-- Acciones -->
+          <div class="global-actions">
+            <div class="action-info">
+              <span class="info-icon">ℹ️</span>
+              <span class="info-text">
+                Se aplicará a {{ getSelectedUnitsCount() }} unidad(es) seleccionada(s)
+              </span>
+            </div>
+            
+            <button 
+              class="global-save-btn" 
+              [disabled]="cargandoFinal || !canSaveGlobal()" 
+              (click)="guardarFinal()"
+            >
+              <span class="btn-icon">{{ cargandoFinal ? '⏳' : '🎯' }}</span>
+              <span class="btn-text">{{ cargandoFinal ? 'Guardando...' : 'Guardar Calificación Global' }}</span>
+            </button>
+            
+            <div class="form-message" *ngIf="msgFinal" [class]="getMessageClass(msgFinal)">
+              <span class="message-icon">{{ getMessageIcon(msgFinal) }}</span>
+              <span class="message-text">{{ msgFinal }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

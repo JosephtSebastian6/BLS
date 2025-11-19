@@ -123,3 +123,35 @@ class QuizAsignacionResponse(BaseModel):
         from_attributes = True
 
 
+# ===== Respuestas de Quiz =====
+class QuizRespuestaCreate(BaseModel):
+    quiz_id: int
+    respuestas: dict  # {"pregunta_1": "respuesta_a", "pregunta_2": "respuesta_b", ...}
+
+class QuizRespuestaResponse(BaseModel):
+    id: int
+    estudiante_username: str
+    quiz_id: int
+    unidad_id: int
+    respuestas: dict
+    score: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# ===== Quiz Detallado para Estudiante =====
+class QuizDetalleEstudiante(BaseModel):
+    id: int
+    unidad_id: int
+    titulo: str
+    descripcion: Optional[str] = None
+    preguntas: Optional[dict] = None
+    ya_respondido: bool = False
+    calificacion: Optional[int] = None
+    fecha_respuesta: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+

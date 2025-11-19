@@ -124,6 +124,26 @@ interface Metrica {
             </div>
           </div>
         </div>
+
+        <!-- Botones de Debug (temporal) -->
+        <div class="debug-section" style="margin-top: 2rem; text-align: center; padding: 1rem; background: rgba(255,255,255,0.9); border-radius: 12px; border: 2px dashed #667eea;">
+          <h4 style="color: #667eea; margin-bottom: 1rem;">🔧 Debug Racha de Estudio</h4>
+          <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <button 
+              (click)="debugActividad()" 
+              style="padding: 0.5rem 1rem; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">
+              🔍 Ver Actividades
+            </button>
+            <button 
+              (click)="registrarActividadTest()" 
+              style="padding: 0.5rem 1rem; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem;">
+              ✅ Registrar Actividad Test
+            </button>
+          </div>
+          <p style="font-size: 0.8rem; color: #6b7280; margin-top: 0.5rem; margin-bottom: 0;">
+            Estos botones son temporales para diagnosticar el problema de la racha
+          </p>
+        </div>
       </div>
 
       <!-- Units Progress -->
@@ -1206,5 +1226,46 @@ export class AnalisisEstudianteComponent implements OnInit {
 
   trackByUnidad(index: number, unidad: any): any {
     return unidad.unidad_id || index;
+  }
+
+  // Métodos de debug para racha
+  debugActividad() {
+    const username = this.selectedUsername || (JSON.parse(localStorage.getItem('user') || '{}').username);
+    if (!username) {
+      alert('No hay usuario seleccionado');
+      return;
+    }
+
+    this.analytics.debugActividad(username).subscribe({
+      next: (data) => {
+        console.log('🔍 Debug Actividad:', data);
+        alert(`Debug Actividad:\n\nTotal actividades: ${data.total_actividades}\nDías únicos: ${data.dias_unicos_actividad}\nÚltimo día: ${data.ultimo_dia_actividad}\nDías desde última: ${data.dias_desde_ultima_actividad}\nRacha calculada: ${data.racha_calculada}`);
+      },
+      error: (error) => {
+        console.error('Error en debug:', error);
+        alert('Error obteniendo debug de actividad');
+      }
+    });
+  }
+
+  registrarActividadTest() {
+    if (this.unidadesProgreso.length === 0) {
+      alert('No hay unidades disponibles');
+      return;
+    }
+
+    const unidadId = this.unidadesProgreso[0].unidad_id || 1;
+    this.analytics.debugRegistrarActividad(unidadId).subscribe({
+      next: (data) => {
+        console.log('✅ Actividad registrada:', data);
+        alert(`Actividad registrada!\n\nRacha actual: ${data.racha_actual} días\nProgreso: ${data.progreso_general}%\nTiempo total: ${data.tiempo_total} min`);
+        // Recargar datos
+        this.cargarDatosEstudiante(this.selectedUsername);
+      },
+      error: (error) => {
+        console.error('Error registrando actividad:', error);
+        alert('Error registrando actividad de prueba');
+      }
+    });
   }
 }

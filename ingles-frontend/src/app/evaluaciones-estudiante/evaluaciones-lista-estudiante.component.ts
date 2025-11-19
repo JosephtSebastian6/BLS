@@ -11,6 +11,9 @@ import { QuizzesService, QuizResponse } from '../services/quizzes.service';
   <div class="card">
     <div class="card-header">
       <h2>Evaluaciones disponibles</h2>
+      <button type="button" class="btn-outline" (click)="verCalificaciones()">
+        Ver Mis Calificaciones
+      </button>
     </div>
     <div class="card-body">
       <div *ngIf="loading">Cargando…</div>
@@ -30,8 +33,9 @@ import { QuizzesService, QuizResponse } from '../services/quizzes.service';
   `,
   styles: [`
     .card{max-width:1100px;margin:2rem auto;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.06)}
-    .card-header{padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.06)}
+    .card-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.06)}
     .card-body{padding:1rem 1.25rem}
+    .btn-outline{border:1px solid #cbd5e1;background:#fff;color:#1f2937;border-radius:10px;padding:.5rem .8rem;text-decoration:none;cursor:pointer}
     .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
     .quiz{border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#fafafa;position:relative}
     .quiz.clickable{cursor:pointer}
@@ -56,5 +60,9 @@ export class EvaluacionesListaEstudianteComponent implements OnInit {
   ver(q: QuizResponse){
     console.log('Ir a evaluación', q.id);
     this.router.navigateByUrl(`/dashboard-estudiante/evaluaciones/${q.id}`);
+  }
+  
+  verCalificaciones(){
+    this.router.navigateByUrl('/dashboard-estudiante/evaluaciones/calificaciones');
   }
 }

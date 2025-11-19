@@ -189,4 +189,140 @@ export class ProfesorCalificarComponent implements OnInit {
       }).subscribe({ next: () => { done(); this.cargarHistorial(this.form.estudiante_username); }, error: fail });
     }
   }
+
+  // Métodos helper para el template moderno
+  getTotalCalificaciones(): number {
+    return (this.historial.tareas?.length || 0) + 
+           (this.historial.quizzes?.length || 0) + 
+           (this.historial.unidades?.length || 0);
+  }
+
+  getScoreClass(score: any): string {
+    if (score === null || score === undefined || score === '') return 'score-none';
+    const numScore = Number(score);
+    if (numScore >= 80) return 'score-high';
+    if (numScore >= 60) return 'score-medium';
+    return 'score-low';
+  }
+
+  getScoreLabel(score: any): string {
+    if (score === null || score === undefined || score === '') return '';
+    const numScore = Number(score);
+    if (numScore >= 80) return '🟢 Excelente';
+    if (numScore >= 60) return '🟡 Bueno';
+    return '🔴 Necesita mejorar';
+  }
+
+  isFormValid(): boolean {
+    return !!(this.form.estudiante_username && 
+              this.form.unidad_id && 
+              this.form.score !== null && 
+              this.form.score !== undefined &&
+              ((this.form.tipo === 'tarea' && this.form.filename?.trim()) ||
+               (this.form.tipo === 'quiz' && this.form.quiz_id)));
+  }
+
+  getMessageClass(message: string): string {
+    if (message.toLowerCase().includes('guardad') || message.toLowerCase().includes('éxito')) {
+      return 'message-success';
+    }
+    return 'message-error';
+  }
+
+  getMessageIcon(message: string): string {
+    if (message.toLowerCase().includes('guardad') || message.toLowerCase().includes('éxito')) {
+      return '✅';
+    }
+    return '❌';
+  }
+
+  formatDate(dateString: string): string {
+    if (!dateString) return 'Sin fecha';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  getApprovalIcon(aprobado: any): string {
+    if (aprobado === true) return '✅';
+    if (aprobado === false) return '❌';
+    return '⚪';
+  }
+
+  getApprovalText(aprobado: any): string {
+    if (aprobado === true) return 'Aprobado';
+    if (aprobado === false) return 'No Aprobado';
+    return 'Sin definir';
+  }
+
+  getApprovalClass(aprobado: any): string {
+    if (aprobado === true) return 'approval-yes';
+    if (aprobado === false) return 'approval-no';
+    return 'approval-none';
+  }
+
+  // Métodos para calificación global
+  isUnitSelected(unitId: number): boolean {
+    return this.finalUnidadesSeleccionadas.includes(unitId);
+  }
+
+  toggleUnit(unitId: number): void {
+    const index = this.finalUnidadesSeleccionadas.indexOf(unitId);
+    if (index > -1) {
+      this.finalUnidadesSeleccionadas.splice(index, 1);
+    } else {
+      this.finalUnidadesSeleccionadas.push(unitId);
+    }
+  }
+
+  getSelectedUnitsCount(): number {
+    return this.finalUnidadesSeleccionadas.length;
+  }
+
+  canSaveGlobal(): boolean {
+    return this.finalUnidadesSeleccionadas.length > 0;
+  }
+
+  // Métodos de tracking para optimización
+  trackByEstudiante(index: number, estudiante: any): string {
+    return estudiante.username;
+  }
+
+  trackByUnidad(index: number, unidad: any): number {
+    return unidad.id;
+  }
+
+  trackByQuiz(index: number, quiz: any): number {
+    return quiz.id;
+  }
+
+  trackByTarea(index: number, tarea: any): string {
+    return `${tarea.unidad_id}-${tarea.filename}`;
+  }
+
+  trackByUnidadFinal(index: number, unidad: any): string {
+    return `${unidad.unidad_id}-final`;
+  }
+
+  // Métodos helper para evitar errores de undefined
+  hasTareas(): boolean {
+    return !!(this.historial?.tareas && this.historial.tareas.length > 0);
+  }
+
+  hasQuizzes(): boolean {
+    return !!(this.historial?.quizzes && this.historial.quizzes.length > 0);
+  }
+
+  hasUnidades(): boolean {
+    return !!(this.historial?.unidades && this.historial.unidades.length > 0);
+  }
+
+  hasUnidadesDisponibles(): boolean {
+    return !!(this.unidades && this.unidades.length > 0);
+  }
 }

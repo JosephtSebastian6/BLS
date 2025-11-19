@@ -2,6 +2,7 @@ from typing import Union
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from auth_routes import authRouter
+from grading_routes import grading_router
 from config import conf
 from settings import settings
 #from fastapi_mail import FastMail
@@ -17,6 +18,8 @@ print(f"DEBUG: Type of conf = {type(conf)}")
 AcademyEnApp = FastAPI()
 # Registra el router de autenticación
 AcademyEnApp.include_router(authRouter, prefix="/auth", tags=["Auth"]) # <--- DEBE SER ASÍ
+# Registra el router de calificaciones V2 (sistema unificado)
+AcademyEnApp.include_router(grading_router, tags=["Calificaciones V2"])
 
 # Elimina esta línea si ya load_dotenv() se llama en config.py
 # load_dotenv() # Carga las variables de entorno de .env

@@ -29,9 +29,13 @@ export class NotificacionesService {
   constructor(private http: HttpClient) {}
 
   private headers() {
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
     let headers: any = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    } else {
+      console.warn('🔑 No se encontró token para notificaciones');
+    }
     return { headers: new HttpHeaders(headers) };
   }
 

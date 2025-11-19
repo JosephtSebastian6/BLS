@@ -1,63 +1,183 @@
-<div class="tareas-profesor">
-  <h2>Tareas de mis estudiantes</h2>
-  <div class="filtros">
-    <label>Unidad ID
-      <input type="number" [(ngModel)]="unidadId" placeholder="Opcional" />
-    </label>
-    <label>Desde
-      <input type="date" [(ngModel)]="desde" />
-    </label>
-    <label>Hasta
-      <input type="date" [(ngModel)]="hasta" />
-    </label>
-    <button class="btn" (click)="buscar()">Buscar</button>
+<div class="dashboard-container">
+  <!-- Header con gradiente -->
+  <div class="page-header">
+    <div class="header-content">
+      <div class="header-info">
+        <h1 class="header-title">📝 Tareas de Estudiantes</h1>
+        <p class="header-subtitle">Gestiona y califica las tareas enviadas por tus estudiantes</p>
+        <div class="header-stats">
+          <div class="stat-item">
+            <span class="stat-icon">👥</span>
+            <span class="stat-value">{{ data.length }}</span>
+            <span class="stat-label">Estudiantes</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-icon">📋</span>
+            <span class="stat-value">{{ getTotalTareas() }}</span>
+            <span class="stat-label">Total Tareas</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-icon">✅</span>
+            <span class="stat-value">{{ getTareasCalificadas() }}</span>
+            <span class="stat-label">Calificadas</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div *ngIf="loading" class="loading">Cargando...</div>
-  <div *ngIf="error" class="error">{{ error }}</div>
-
-  <div class="cards" *ngIf="!loading">
-    <div class="card" *ngFor="let e of data">
-      <div class="card-header">
-        <div class="avatar">{{ (e.nombres || '?')[0] | uppercase }}</div>
-        <div class="title">
-          <div class="name">{{ e.nombres }} {{ e.apellidos }}</div>
-          <div class="sub">@{{ e.estudiante_username }}</div>
-        </div>
-        <div class="chip">{{ e.tareas?.length || 0 }} tareas</div>
+  <!-- Filtros modernos -->
+  <div class="filters-section">
+    <div class="filters-header">
+      <h3 class="filters-title">🔍 Filtros de Búsqueda</h3>
+      <p class="filters-subtitle">Refina tu búsqueda por unidad y rango de fechas</p>
+    </div>
+    
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label class="filter-label">
+          <span class="label-text">📚 Unidad ID</span>
+          <input 
+            type="number" 
+            [(ngModel)]="unidadId" 
+            placeholder="Todas las unidades"
+            class="filter-input"
+          />
+        </label>
       </div>
-      <div class="scroll">
-        <table class="tabla" *ngIf="e.tareas?.length; else empty">
-          <thead>
-          <tr>
-            <th>Unidad</th>
-            <th>Archivo</th>
-            <th>Tamaño</th>
-            <th>Fecha</th>
-            <th>Nota</th>
-            <th></th>
-          </tr>
-          </thead>
-          <tbody>
-          <ng-container *ngFor="let t of e.tareas">
-          <tr *ngIf="t.filename !== 'grades.json'">
-            <td>{{ t.unidad_id }}</td>
-            <td>{{ t.filename }}</td>
-            <td>{{ t.size | number }} bytes</td>
-            <td>{{ t.upload_date | date: 'yyyy-MM-dd HH:mm' }}</td>
-            <td>{{ t._grade ?? '—' }}</td>
-            <td>
-              <button class="btn-sm" (click)="descargar(e.estudiante_username, t.unidad_id, t.filename)">Descargar</button>
-              <button class="btn-sm secondary" (click)="calificar(e.estudiante_username, t.unidad_id, t.filename)">Calificar</button>
-            </td>
-          </tr>
-          </ng-container>
-          </tbody>
-        </table>
-        <ng-template #empty>
-          <div class="empty">Sin tareas en el rango seleccionado.</div>
+      
+      <div class="filter-group">
+        <label class="filter-label">
+          <span class="label-text">📅 Fecha Desde</span>
+          <input 
+            type="date" 
+            [(ngModel)]="desde"
+            class="filter-input"
+          />
+        </label>
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">
+          <span class="label-text">📅 Fecha Hasta</span>
+          <input 
+            type="date" 
+            [(ngModel)]="hasta"
+            class="filter-input"
+          />
+        </label>
+      </div>
+      
+      <div class="filter-group">
+        <button class="search-btn" (click)="buscar()" [disabled]="loading">
+          <span class="btn-icon">🔍</span>
+          <span class="btn-text">{{ loading ? 'Buscando...' : 'Buscar Tareas' }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estados de carga y error -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Cargando tareas de estudiantes...</p>
+  </div>
+
+  <div *ngIf="error && !loading" class="error-state">
+    <div class="error-icon">⚠️</div>
+    <h3 class="error-title">Error al cargar tareas</h3>
+    <p class="error-message">{{ error }}</p>
+    <button class="retry-btn" (click)="buscar()">
+      <span class="btn-icon">🔄</span>
+      <span class="btn-text">Reintentar</span>
+    </button>
+  </div>
+
+  <!-- Grid de estudiantes -->
+  <div class="students-grid" *ngIf="!loading && !error">
+    <div class="student-card" *ngFor="let estudiante of data; trackBy: trackByEstudiante">
+      <!-- Header del estudiante -->
+      <div class="student-header">
+        <div class="student-avatar">
+          <span class="avatar-text">{{ getInitials(estudiante.nombres, estudiante.apellidos) }}</span>
+        </div>
+        <div class="student-info">
+          <h4 class="student-name">{{ estudiante.nombres }} {{ estudiante.apellidos }}</h4>
+          <p class="student-username">@{{ estudiante.estudiante_username }}</p>
+        </div>
+        <div class="student-badge">
+          <span class="badge-icon">📋</span>
+          <span class="badge-text">{{ estudiante.tareas?.length || 0 }} tareas</span>
+        </div>
+      </div>
+
+      <!-- Lista de tareas -->
+      <div class="tasks-container">
+        <div *ngIf="getValidTareas(estudiante.tareas).length > 0; else noTasks" class="tasks-list">
+          <div class="task-item" *ngFor="let tarea of getValidTareas(estudiante.tareas); trackBy: trackByTarea">
+            <div class="task-info">
+              <div class="task-header">
+                <span class="task-unit">📚 Unidad {{ tarea.unidad_id }}</span>
+                <span class="task-grade" [class]="getGradeClass(tarea._grade)">
+                  {{ getGradeDisplay(tarea._grade) }}
+                </span>
+              </div>
+              <h5 class="task-filename">{{ tarea.filename }}</h5>
+              <div class="task-details">
+                <span class="task-detail">
+                  <span class="detail-icon">📏</span>
+                  <span class="detail-text">{{ formatFileSize(tarea.size) }}</span>
+                </span>
+                <span class="task-detail">
+                  <span class="detail-icon">📅</span>
+                  <span class="detail-text">{{ formatDate(tarea.upload_date) }}</span>
+                </span>
+              </div>
+            </div>
+            
+            <div class="task-actions">
+              <button 
+                class="action-btn download-btn" 
+                (click)="descargar(estudiante.estudiante_username, tarea.unidad_id, tarea.filename)"
+                title="Descargar archivo"
+              >
+                <span class="btn-icon">⬇️</span>
+                <span class="btn-text">Descargar</span>
+              </button>
+              <button 
+                class="action-btn grade-btn" 
+                (click)="calificar(estudiante.estudiante_username, tarea.unidad_id, tarea.filename)"
+                title="Calificar tarea"
+              >
+                <span class="btn-icon">✏️</span>
+                <span class="btn-text">Calificar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #noTasks>
+          <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <h4 class="empty-title">Sin tareas</h4>
+            <p class="empty-message">No hay tareas en el rango seleccionado</p>
+          </div>
         </ng-template>
       </div>
+    </div>
+
+    <!-- Estado vacío general -->
+    <div *ngIf="data.length === 0" class="global-empty-state">
+      <div class="empty-illustration">📚</div>
+      <h3 class="empty-title">No se encontraron tareas</h3>
+      <p class="empty-message">
+        No hay tareas de estudiantes en el rango de fechas seleccionado.
+        <br>Intenta ajustar los filtros de búsqueda.
+      </p>
+      <button class="empty-action-btn" (click)="buscar()">
+        <span class="btn-icon">🔍</span>
+        <span class="btn-text">Buscar Nuevamente</span>
+      </button>
     </div>
   </div>
 </div>

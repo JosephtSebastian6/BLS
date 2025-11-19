@@ -93,7 +93,6 @@ import { QuizzesService, QuizCreate, QuizResponse } from '../services/quizzes.se
                 <select [(ngModel)]="nuevoTipo" name="nuevoTipo" class="type-select">
                   <option value="opcion_multiple">📊 Opción múltiple</option>
                   <option value="vf">✅ Verdadero/Falso</option>
-                  <option value="respuesta_corta">📝 Respuesta corta</option>
                 </select>
               </div>
               <button type="button" class="btn-primary" (click)="onAgregarClick($event)">
@@ -893,8 +892,8 @@ import { QuizzesService, QuizCreate, QuizResponse } from '../services/quizzes.se
 export class QuizFormComponent implements OnInit {
   id: number | null = null;
   form: QuizCreate = { unidad_id: 0, titulo: '', descripcion: '', preguntas: null };
-  // Editor visual
-  nuevoTipo: 'opcion_multiple' | 'vf' | 'respuesta_corta' = 'opcion_multiple';
+  // Editor visual: por ahora solo permitimos crear opcion_multiple y vf
+  nuevoTipo: 'opcion_multiple' | 'vf' = 'opcion_multiple';
   items: any[] = [];
   constructor(private api: QuizzesService, private route: ActivatedRoute, private router: Router) {}
   ngOnInit(){
@@ -924,15 +923,17 @@ export class QuizFormComponent implements OnInit {
   }
 
   etiquetaTipo(t: string){
-    return t === 'opcion_multiple' ? 'Opción múltiple' : t === 'vf' ? 'Verdadero/Falso' : 'Respuesta corta';
+    if (t === 'opcion_multiple') return 'Opción múltiple';
+    if (t === 'vf') return 'Verdadero/Falso';
+    // Para quizzes antiguos que tengan respuesta_corta, seguimos mostrando la etiqueta
+    return 'Respuesta corta (no disponible para nuevos quizzes)';
   }
+
   agregarPregunta(){
     if(this.nuevoTipo === 'opcion_multiple'){
       this.items.push({ tipo: 'opcion_multiple', enunciado: '', puntaje: 1, opciones: [ { texto: '', correcta: false }, { texto: '', correcta: false } ] });
     } else if(this.nuevoTipo === 'vf'){
       this.items.push({ tipo: 'vf', enunciado: '', puntaje: 1, respuesta: true });
-    } else {
-      this.items.push({ tipo: 'respuesta_corta', enunciado: '', puntaje: 1, respuesta: '' });
     }
     // Forzar CD en algunos entornos
     this.items = [...this.items];

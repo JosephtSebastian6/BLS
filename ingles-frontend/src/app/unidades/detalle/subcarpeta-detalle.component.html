@@ -173,9 +173,15 @@
               <span class="material-icons" style="font-size:1.2em;">visibility</span>
             </button>
             <button (click)="eliminarArchivoEstudiante(archivo)" 
-                    style="background:#ef4444;color:#fff;border:none;padding:0.4em;border-radius:4px;cursor:pointer;display:flex;align-items:center;" 
-                    title="Eliminar archivo">
-              <span class="material-icons" style="font-size:1.2em;">delete</span>
+                    [disabled]="isDeleting(archivo.filename)"
+                    [style]="isDeleting(archivo.filename) ? 
+                      'background:#9ca3af;color:#fff;border:none;padding:0.4em;border-radius:4px;cursor:not-allowed;display:flex;align-items:center;' :
+                      'background:#ef4444;color:#fff;border:none;padding:0.4em;border-radius:4px;cursor:pointer;display:flex;align-items:center;'"
+                    [title]="isDeleting(archivo.filename) ? 'Eliminando archivo...' : 'Eliminar archivo'">
+              <span class="material-icons" style="font-size:1.2em;" 
+                    [class.animate-spin]="isDeleting(archivo.filename)">
+                {{ isDeleting(archivo.filename) ? 'hourglass_empty' : 'delete' }}
+              </span>
             </button>
           </div>
         </div>

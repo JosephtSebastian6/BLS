@@ -26,6 +26,33 @@ export interface QuizAsignacionResponse extends QuizAsignacionCreate {
   created_at: string;
 }
 
+export interface QuizRespuestaCreate {
+  quiz_id: number;
+  respuestas: { [key: string]: any };
+}
+
+export interface QuizRespuestaResponse {
+  id: number;
+  estudiante_username: string;
+  quiz_id: number;
+  unidad_id: number;
+  respuestas: { [key: string]: any };
+  score: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuizDetalleEstudiante {
+  id: number;
+  unidad_id: number;
+  titulo: string;
+  descripcion?: string | null;
+  preguntas?: any | null;
+  ya_respondido: boolean;
+  calificacion?: number | null;
+  fecha_respuesta?: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class QuizzesService {
   private base = 'http://localhost:8000/auth';
@@ -78,6 +105,38 @@ export class QuizzesService {
   }
   obtenerPublico(quiz_id: number): Observable<QuizResponse> {
     return this.http.get<QuizResponse>(`${this.base}/estudiante/quizzes/${quiz_id}`, this.headers());
+  }
+
+  obtenerDetalleEstudiante(quiz_id: number): Observable<QuizDetalleEstudiante> {
+    return this.http.get<QuizDetalleEstudiante>(`${this.base}/estudiante/quizzes/${quiz_id}/detalle`, this.headers());
+  }
+
+  responderQuiz(quiz_id: number, respuestas: { [key: string]: any }): Observable<QuizRespuestaResponse> {
+    const payload: QuizRespuestaCreate = { quiz_id, respuestas };
+    return this.http.post<QuizRespuestaResponse>(`${this.base}/estudiante/quizzes/${quiz_id}/responder`, payload, this.headers());
+  }
+
+  obtenerMisCalificacionesQuizzes(): Observable<Array<{
+    id: number;
+    quiz_id: number;
+    quiz_titulo: string;
+    unidad_id: number;
+    unidad_nombre: string;
+    score: number;
+    created_at: string;
+    updated_at: string;
+  }>> {
+    return this.http.get<Array<any>>(`${this.base}/estudiante/mis-calificaciones-quizzes`, this.headers());
+  }
+
+  obtenerResumenCalificacionesUnidad(unidad_id: number): Observable<{
+    tareas: Array<{id: number; filename: string; score: number; updated_at: string}>;
+    quizzes: Array<{id: number; quiz_id: number; score: number; updated_at: string}>;
+    progreso: {porcentaje_completado: number; score: number; tiempo_dedicado_min: number};
+    resumen: {tareas_promedio: number | null; quiz_promedio: number | null; tiempo_min: number; tiempo_score: number; nota: number; aprobado: boolean};
+    unidad: {id: number; nombre: string; descripcion?: string};
+  }> {
+    return this.http.get<any>(`${this.base}/estudiante/unidades/${unidad_id}/resumen-calificaciones`, this.headers());
   }
 
   // Checker: estudiantes habilitados por unidad

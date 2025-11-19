@@ -178,6 +178,18 @@ class EstudianteQuizPermiso(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
+# Respuestas de quizzes por estudiante
+class EstudianteQuizRespuesta(Base):
+    __tablename__ = "estudiante_quiz_respuesta"
+    id = Column(Integer, primary_key=True, index=True)
+    estudiante_username = Column(String(50), ForeignKey('estudiante.username'), nullable=False)
+    quiz_id = Column(Integer, ForeignKey('quiz.id'), nullable=False)
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=False)
+    respuestas = Column(JSON, nullable=False)  # {"pregunta_1": "respuesta_a", "pregunta_2": "respuesta_b"}
+    score = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
 # ===== Notificaciones =====
 class Notificacion(Base):
     __tablename__ = "notificaciones"

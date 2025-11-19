@@ -1162,25 +1162,42 @@ def get_analytics_resumen(db: Session, username: str, desde: datetime | None = N
         models.EstudianteProgresoUnidad.porcentaje_completado == 100
     ).count()
 
-    # Racha de días: contar días consecutivos con eventos (aplicar rango si se pasa)
+    # Racha de días: contar días consecutivos con eventos (mejorado)
     q_ev_racha = db.query(models.ActividadEstudiante).filter(models.ActividadEstudiante.username == username)
     if desde:
         q_ev_racha = q_ev_racha.filter(models.ActividadEstudiante.creado_at >= desde)
     if hasta:
         q_ev_racha = q_ev_racha.filter(models.ActividadEstudiante.creado_at <= hasta)
     eventos = q_ev_racha.order_by(models.ActividadEstudiante.creado_at.desc()).all()
-    dias = sorted({e.creado_at.date() for e in eventos}, reverse=True)
+    
+    # Obtener días únicos con actividad
+    dias_unicos = sorted({e.creado_at.date() for e in eventos}, reverse=True)
     racha = 0
-    if dias:
+    
+    if dias_unicos:
         hoy = datetime.utcnow().date()
-        cursor = hoy
-        for d in dias:
-            if d == cursor:
-                racha += 1
-                cursor = cursor - timedelta(days=1)
-            elif d < cursor:
-                # hueco
-                break
+        
+        # Verificar si hay actividad hoy o ayer (para mantener racha activa)
+        ultimo_dia_actividad = dias_unicos[0]
+        diferencia_dias = (hoy - ultimo_dia_actividad).days
+        
+        # Si la última actividad fue hace más de 1 día, la racha se rompe
+        if diferencia_dias > 1:
+            racha = 0
+        else:
+            # Calcular racha hacia atrás desde el último día de actividad
+            cursor = ultimo_dia_actividad
+            for dia in dias_unicos:
+                if dia == cursor:
+                    racha += 1
+                    cursor = cursor - timedelta(days=1)
+                elif (cursor - dia).days == 1:
+                    # Permitir un día de diferencia (salto de 1 día)
+                    racha += 1
+                    cursor = dia - timedelta(days=1)
+                else:
+                    # Hueco mayor a 1 día, romper racha
+                    break
 
     return {
         "progreso_general": round(progreso_general, 2),
@@ -1215,11 +1232,11 @@ def get_analytics_unidades(db: Session, username: str, desde: datetime | None = 
     resultados = []
 
     for u in unidades:
-        # Progreso y tiempo (si existe tabla Progreso)
-        prog = db.query(models.Progreso).filter(
-            models.Progreso.username == username,
-            models.Progreso.unidad_id == u.id
-        ).first() if hasattr(models, 'Progreso') else None
+        # Progreso y tiempo desde EstudianteProgresoUnidad
+        prog = db.query(models.EstudianteProgresoUnidad).filter(
+            models.EstudianteProgresoUnidad.username == username,
+            models.EstudianteProgresoUnidad.unidad_id == u.id
+        ).first()
         progreso = int(getattr(prog, 'porcentaje_completado', 0) or 0)
         tiempo_min = int(getattr(prog, 'tiempo_dedicado_min', 0) or 0)
 

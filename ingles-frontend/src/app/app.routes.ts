@@ -45,6 +45,7 @@ import { QuizAsignarComponent } from './dashboard-evaluaciones/quiz-asignar.comp
 import { QuizPermisosComponent } from './dashboard-evaluaciones/quiz-permisos.component';
 import { EvaluacionesListaEstudianteComponent } from './evaluaciones-estudiante/evaluaciones-lista-estudiante.component';
 import { EvaluacionRendirComponent } from './evaluaciones-estudiante/evaluacion-rendir.component';
+import { GradingTestComponent } from './grading-test/grading-test.component';
 
 
 export const routes: Routes = [
@@ -95,6 +96,7 @@ export const routes: Routes = [
       { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },
       { path: 'analisis-estudiante/:username', component: AnalisisEstudianteComponent },
       { path: 'asistencias', component: EmpresaAsistenciasComponent },
+      { path: 'grading-test', component: GradingTestComponent },
       { path: 'unidades/:id', component: UnidadDetalleComponent },
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
       
@@ -122,6 +124,7 @@ export const routes: Routes = [
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
       { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },
       { path: 'analisis-estudiante/:username', component: AnalisisEstudianteComponent },
+      { path: 'grading-test', component: GradingTestComponent },
     ]
   },
   { path: 'home', component: HomeComponent },
