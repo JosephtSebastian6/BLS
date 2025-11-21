@@ -140,8 +140,8 @@ export class EmpresaGruposService {
   // ===== Grupos por profesor =====
   listarGruposPorProfesor(profesorUsername: string): Observable<Array<{ id: number; tema: string; dia: string; hora: string; meet_link?: string; estudiantes: any[]; profesor_username: string; profesor_nombres?: string; profesor_apellidos?: string }>> {
     const headers = this.headers();
-    console.log('[Svc] GET /clases/' + profesorUsername);
-    return this.http.get<Array<{ id: number; tema: string; dia: string; hora: string; meet_link?: string; estudiantes: any[]; profesor_username: string; profesor_nombres?: string; profesor_apellidos?: string }>>(`${this.base}/clases/${encodeURIComponent(profesorUsername)}`, { headers }).pipe(
+    console.log('[Svc] GET /grupos-profesor/' + profesorUsername);
+    return this.http.get<Array<{ id: number; tema: string; dia: string; hora: string; meet_link?: string; estudiantes: any[]; profesor_username: string; profesor_nombres?: string; profesor_apellidos?: string }>>(`${this.base}/grupos-profesor/${encodeURIComponent(profesorUsername)}`, { headers }).pipe(
       catchError((err) => {
         console.error('[Svc] GET clases profesor ERROR ->', err);
         throw err;

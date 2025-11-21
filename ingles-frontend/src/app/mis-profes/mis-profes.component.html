@@ -140,7 +140,7 @@
           </label>
           <label>
             Unidad
-            <select [(ngModel)]="formGrupo.unidad_id">
+            <select [(ngModel)]="formGrupo.unidad_id" (ngModelChange)="onUnidadChange()">
               <ng-container *ngIf="(unidadesOrDefault?.length || 0) > 0; else _fallbackUnidadOpts">
                 <option *ngFor="let u of unidadesOrDefault" [value]="u.id">{{ u.nombre }}</option>
               </ng-container>
@@ -160,16 +160,28 @@
           </label>
         </div>
         <label style="display:flex;align-items:center;gap:8px;margin:8px 0 0 0;">
-          <input type="checkbox" [(ngModel)]="soloEstudiantesDeUnidad" />
+          <input type="checkbox" [(ngModel)]="soloEstudiantesDeUnidad" (ngModelChange)="onFiltroChange()" />
           <span>Mostrar solo estudiantes de la unidad seleccionada</span>
         </label>
         <div class="estudiantes-select">
-          <h4>Selecciona estudiantes</h4>
+          <div class="estudiantes-header">
+            <h4>Selecciona estudiantes</h4>
+            <div class="contador-estudiantes" [class.limite-alcanzado]="formGrupo.estudiantes.length >= 10">
+              {{ formGrupo.estudiantes.length }}/10
+            </div>
+          </div>
           <div class="estudiantes-list">
-            <label class="est-item" *ngFor="let est of estudiantesParaCrearGrupo">
-              <input type="checkbox" [checked]="formGrupo.estudiantes.includes(est.username)" (change)="toggleSeleccionEstudiante(est.username)" />
+            <label class="est-item" *ngFor="let est of estudiantesParaCrearGrupo" 
+                   [class.disabled]="!formGrupo.estudiantes.includes(est.username) && formGrupo.estudiantes.length >= 10">
+              <input type="checkbox" 
+                     [checked]="formGrupo.estudiantes.includes(est.username)" 
+                     [disabled]="!formGrupo.estudiantes.includes(est.username) && formGrupo.estudiantes.length >= 10"
+                     (change)="toggleSeleccionEstudiante(est.username)" />
               <span>{{ est.nombres }} {{ est.apellidos }} (@{{ est.username }})</span>
             </label>
+          </div>
+          <div class="limite-info" *ngIf="formGrupo.estudiantes.length >= 10">
+            <small>⚠️ Límite máximo de 10 estudiantes por grupo alcanzado</small>
           </div>
         </div>
       </div>

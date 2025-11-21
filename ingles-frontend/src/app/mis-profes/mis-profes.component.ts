@@ -270,7 +270,7 @@ const DEFAULT_UNIDADES: Array<{ id: number; nombre: string }> = [
               <div class="form-group">
                 <label class="form-label">
                   <span class="label-text">📚 Unidad</span>
-                  <select [(ngModel)]="formGrupo.unidad_id" class="form-select">
+                  <select [(ngModel)]="formGrupo.unidad_id" (ngModelChange)="onUnidadChange($event)" class="form-select">
                     <ng-container *ngIf="(unidadesOrDefault?.length || 0) > 0; else fallbackUnits">
                       <option *ngFor="let u of unidadesOrDefault" [value]="u.id">{{ u.nombre }}</option>
                     </ng-container>
@@ -288,7 +288,7 @@ const DEFAULT_UNIDADES: Array<{ id: number; nombre: string }> = [
 
             <div class="filter-option">
               <label class="checkbox-label">
-                <input type="checkbox" [(ngModel)]="soloEstudiantesDeUnidad" class="checkbox-input" />
+                <input type="checkbox" [(ngModel)]="soloEstudiantesDeUnidad" (ngModelChange)="onFiltroChange($event)" class="checkbox-input" />
                 <span class="checkbox-text">🎯 Mostrar solo estudiantes de la unidad seleccionada</span>
               </label>
             </div>
@@ -1301,6 +1301,7 @@ export class MisProfesComponent implements OnInit {
   resumenMap: Record<string, { grupos_creados: number; grupos_estimados?: number; estudiantes_asignados: number }> = {};
   todosEstudiantes: Estudiante[] = [];
   estudiantesAsignados: Estudiante[] = [];
+  estudiantesFiltradosPorUnidad: Estudiante[] = [];
   profesorSeleccionado: Profesor | null = null;
   mostrarModal = false;
   // Crear grupo
@@ -1370,6 +1371,11 @@ export class MisProfesComponent implements OnInit {
         error: () => { this.unidades = DEFAULT_UNIDADES.slice(); this.cargandoUnidades = false; }
       });
     }
+    // Asegurar que los estudiantes estén cargados
+    if (!this.todosEstudiantes.length) {
+      console.log('Cargando estudiantes para el modal...');
+      this.cargarTodosEstudiantes();
+    }
     // Asegurar datos inmediatos en el selector y una opción preseleccionada
     if (!this.unidades?.length) {
       this.unidades = DEFAULT_UNIDADES.slice();
@@ -1391,12 +1397,38 @@ export class MisProfesComponent implements OnInit {
     else this.formGrupo.estudiantes.push(username);
   }
 
+  onUnidadChange(nuevaUnidadId: any): void {
+    // Actualizar el id de unidad asegurando que sea numérico
+    this.formGrupo.unidad_id = nuevaUnidadId != null ? Number(nuevaUnidadId) : null;
+    // Limpiar estudiantes seleccionados al cambiar unidad
+    this.formGrupo.estudiantes = [];
+    // Filtrar estudiantes si está activado el filtro
+    if (this.soloEstudiantesDeUnidad && this.formGrupo.unidad_id) {
+      this.filtrarEstudiantesPorUnidad();
+    }
+  }
+
+  onFiltroChange(nuevoValor: boolean): void {
+    // Actualizar el valor del filtro con el valor real del checkbox
+    this.soloEstudiantesDeUnidad = nuevoValor;
+    // Filtrar estudiantes cuando se activa/desactiva el filtro
+    if (nuevoValor && this.formGrupo.unidad_id) {
+      this.filtrarEstudiantesPorUnidad();
+    } else {
+      this.estudiantesFiltradosPorUnidad = [];
+    }
+    // Limpiar selección al cambiar filtro
+    this.formGrupo.estudiantes = [];
+  }
+
   // Lista de estudiantes filtrada por unidad seleccionada en el modal (si la opción está activa)
   get estudiantesParaCrearGrupo(): Estudiante[] {
-    if (!this.soloEstudiantesDeUnidad || !this.formGrupo.unidad_id) return this.todosEstudiantes;
-    // Si no tenemos un endpoint batch, simplificamos: confiamos en que el backend valide al crear el grupo.
-    // Aquí podríamos filtrar por una caché local (si existiera). Por ahora devolvemos todos para no hacer N requests.
-    return this.todosEstudiantes;
+    if (!this.soloEstudiantesDeUnidad || !this.formGrupo.unidad_id) {
+      return this.todosEstudiantes;
+    }
+    
+    // Filtrar estudiantes que tienen la unidad habilitada
+    return this.estudiantesFiltradosPorUnidad;
   }
 
   crearGrupo(): void {
@@ -1404,6 +1436,17 @@ export class MisProfesComponent implements OnInit {
       alert('Selecciona profesor y unidad');
       return;
     }
+    
+    if (this.formGrupo.estudiantes.length === 0) {
+      alert('Debes seleccionar al menos un estudiante para crear el grupo');
+      return;
+    }
+    
+    if (this.formGrupo.estudiantes.length > 10) {
+      alert('No puedes seleccionar más de 10 estudiantes por grupo');
+      return;
+    }
+    
     this.creandoGrupo = true;
     // Consumir endpoint simplificado de grupos por unidad
     this.gruposSvc.crearGrupoUnidad({
@@ -1411,16 +1454,34 @@ export class MisProfesComponent implements OnInit {
       unidad_id: this.formGrupo.unidad_id!,
       estudiantes: this.formGrupo.estudiantes,
     }).subscribe({
-      next: () => {
+      next: (response) => {
         this.creandoGrupo = false;
         this.mostrarModalGrupo = false;
-        alert('Grupo creado');
+        
+        const totalEstudiantes = response?.estudiantes?.length || this.formGrupo.estudiantes.length;
+        const mensaje = totalEstudiantes === 1 
+          ? `Grupo creado con ${totalEstudiantes} estudiante`
+          : `Grupo creado con ${totalEstudiantes} estudiantes`;
+        
+        alert(mensaje);
         this.cargarResumenes();
+        
+        // Limpiar formulario
+        this.formGrupo.estudiantes = [];
       },
       error: (e) => {
-        console.error(e);
+        console.error('Error creando grupo:', e);
         this.creandoGrupo = false;
-        alert(e?.error?.detail || 'No se pudo crear el grupo');
+        
+        // Manejar errores específicos del backend
+        let mensaje = 'No se pudo crear el grupo';
+        if (e?.error?.detail) {
+          mensaje = e.error.detail;
+        } else if (e?.status === 400) {
+          mensaje = 'Error: Límite de estudiantes excedido o grupo ya completo';
+        }
+        
+        alert(mensaje);
       }
     });
   }
@@ -1442,7 +1503,7 @@ export class MisProfesComponent implements OnInit {
   }
 
   cargarTodosEstudiantes(): void {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${token}`
     });
@@ -1451,11 +1512,53 @@ export class MisProfesComponent implements OnInit {
       .subscribe({
         next: (estudiantes) => {
           this.todosEstudiantes = estudiantes;
+          console.log('Estudiantes cargados:', estudiantes.length);
+          // Filtrar por unidad si está activado el filtro
+          if (this.soloEstudiantesDeUnidad && this.formGrupo.unidad_id) {
+            this.filtrarEstudiantesPorUnidad();
+          }
         },
         error: (error) => {
           console.error('Error cargando estudiantes:', error);
+          this.todosEstudiantes = [];
+          this.estudiantesFiltradosPorUnidad = [];
         }
       });
+  }
+
+  filtrarEstudiantesPorUnidad(): void {
+    if (!this.formGrupo.unidad_id || !this.todosEstudiantes.length) {
+      this.estudiantesFiltradosPorUnidad = [];
+      return;
+    }
+
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    const headers = new HttpHeaders({ 'Authorization': `Bearer ${token}` });
+    
+    // Obtener estado de unidades para cada estudiante
+    const requests = this.todosEstudiantes.map(estudiante =>
+      this.http.get<any[]>(`${this.apiUrl}/estudiantes/${encodeURIComponent(estudiante.username)}/unidades/estado`, { headers })
+        .pipe(
+          map(unidades => ({
+            estudiante,
+            tieneUnidadHabilitada: unidades.some(u => Number(u.id) === Number(this.formGrupo.unidad_id) && u.habilitada)
+          })),
+          catchError(() => of({ estudiante, tieneUnidadHabilitada: false }))
+        )
+    );
+
+    forkJoin(requests).subscribe({
+      next: (resultados) => {
+        this.estudiantesFiltradosPorUnidad = resultados
+          .filter(r => r.tieneUnidadHabilitada)
+          .map(r => r.estudiante);
+        console.log(`Estudiantes con unidad ${this.formGrupo.unidad_id} habilitada:`, this.estudiantesFiltradosPorUnidad.length);
+      },
+      error: (error) => {
+        console.error('Error filtrando estudiantes por unidad:', error);
+        this.estudiantesFiltradosPorUnidad = [];
+      }
+    });
   }
 
   abrirModalEstudiantes(profesor: Profesor): void {

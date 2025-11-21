@@ -202,6 +202,26 @@
   padding-right: 6px;
 }
 
+.estudiantes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.contador-estudiantes {
+  background: #3b82f6;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.contador-estudiantes.limite-alcanzado {
+  background: #ef4444;
+}
+
 .estudiantes-list .est-item {
   display: flex;
   align-items: center;
@@ -210,6 +230,26 @@
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.estudiantes-list .est-item.disabled {
+  opacity: 0.5;
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.estudiantes-list .est-item.disabled input {
+  cursor: not-allowed;
+}
+
+.limite-info {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  color: #92400e;
 }
 
 .modal-footer {

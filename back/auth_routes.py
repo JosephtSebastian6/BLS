@@ -685,9 +685,50 @@ def crear_clase(clase: ClaseCreate, db: Session = Depends(get_db)):
 # GET: Ver clases de un profesor
 @authRouter.get("/clases/{profesor_username}", response_model=list[ClaseResponse])
 def ver_clases_profesor(profesor_username: str, db: Session = Depends(get_db)):
+    """Devuelve solo las *clases programadas* de un profesor.
+
+    Se excluyen los "grupos por unidad" creados desde el rol empresa,
+    que se representan internamente como Clase con tema "Grupo Unidad X".
+    """
     clases = crud.obtener_clases_profesor(db, profesor_username)
-    respuesta = []
-    for clase in clases:
+    clases_filtradas = [
+        c for c in clases
+        if not (getattr(c, "tema", "") or "").startswith("Grupo Unidad")
+    ]
+
+    respuesta: list[ClaseResponse] = []
+    for clase in clases_filtradas:
+        estudiantes = [
+            schemas.EstudianteEnClase.from_orm(est)
+            for est in clase.estudiantes
+        ]
+        respuesta.append(schemas.ClaseResponse(
+            id=clase.id,
+            dia=clase.dia,
+            hora=clase.hora,
+            tema=clase.tema,
+            meet_link=clase.meet_link,
+            profesor_username=clase.profesor_username,
+            estudiantes=estudiantes
+        ))
+    return respuesta
+
+
+@authRouter.get("/grupos-profesor/{profesor_username}", response_model=list[ClaseResponse])
+def ver_grupos_profesor(profesor_username: str, db: Session = Depends(get_db)):
+    """Devuelve los *grupos por unidad* de un profesor.
+
+    Un grupo es una Clase cuyo tema comienza con "Grupo Unidad" y que
+    se creó desde el panel de empresa para gestionar grupos de estudiantes.
+    """
+    clases = crud.obtener_clases_profesor(db, profesor_username)
+    grupos = [
+        c for c in clases
+        if (getattr(c, "tema", "") or "").startswith("Grupo Unidad")
+    ]
+
+    respuesta: list[ClaseResponse] = []
+    for clase in grupos:
         estudiantes = [
             schemas.EstudianteEnClase.from_orm(est)
             for est in clase.estudiantes
@@ -731,30 +772,97 @@ class GrupoUnidadCreate(BaseModel):
 
 @authRouter.post("/grupos")
 def crear_grupo_por_unidad(body: GrupoUnidadCreate, db: Session = Depends(get_db)):
-    """Crea un grupo para una unidad específica, asignando estudiantes a un profesor.
-    Mantiene la lógica existente de clases rellenando campos neutrales.
+    """Crea o actualiza un grupo único por (profesor, unidad) con límite de 10 estudiantes.
+    Si el grupo ya existe, agrega solo estudiantes nuevos sin exceder el límite.
     """
-    # Valores por defecto para compatibilidad con Clase
-    hoy = datetime.utcnow().strftime("%Y-%m-%d")
-    clase_payload = ClaseCreate(
-        dia=hoy,
-        hora="00:00",
-        tema=f"Grupo Unidad {body.unidad_id}",
-        meet_link=None,
-        profesor_username=body.profesor_username,
-        estudiantes=body.estudiantes or []
-    )
-    nueva = crud.crear_clase(db, clase_payload)
-    estudiantes_resp = [schemas.EstudianteEnClase.from_orm(est) for est in nueva.clases if hasattr(nueva, 'clases')] if hasattr(nueva, 'clases') else []
-    return schemas.ClaseResponse(
-        id=nueva.id,
-        dia=nueva.dia,
-        hora=nueva.hora,
-        tema=nueva.tema,
-        meet_link=nueva.meet_link,
-        profesor_username=nueva.profesor_username,
-        estudiantes=estudiantes_resp
-    )
+    # Buscar grupo existente por profesor y unidad
+    tema_grupo = f"Grupo Unidad {body.unidad_id}"
+    grupo_existente = db.query(models.Clase).filter(
+        models.Clase.profesor_username == body.profesor_username,
+        models.Clase.tema == tema_grupo
+    ).first()
+    
+    estudiantes_nuevos = body.estudiantes or []
+    
+    if grupo_existente:
+        # Grupo ya existe - agregar solo estudiantes nuevos
+        estudiantes_actuales = [est.username for est in grupo_existente.estudiantes]
+        estudiantes_a_agregar = [est for est in estudiantes_nuevos if est not in estudiantes_actuales]
+        
+        # Validar límite de 10 estudiantes
+        total_estudiantes = len(estudiantes_actuales) + len(estudiantes_a_agregar)
+        if total_estudiantes > 10:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Este grupo ya tiene {len(estudiantes_actuales)} estudiantes. "
+                       f"Solo se pueden agregar {10 - len(estudiantes_actuales)} más. "
+                       f"Máximo 10 estudiantes por grupo."
+            )
+        
+        # Agregar nuevos estudiantes al grupo existente
+        if estudiantes_a_agregar:
+            nuevos_estudiantes_objs = db.query(models.Registro).filter(
+                models.Registro.username.in_(estudiantes_a_agregar)
+            ).all()
+            grupo_existente.estudiantes.extend(nuevos_estudiantes_objs)
+            db.commit()
+            db.refresh(grupo_existente)
+        
+        # Preparar respuesta
+        estudiantes_resp = [
+            schemas.EstudianteEnClase.from_orm(est) 
+            for est in grupo_existente.estudiantes
+        ]
+        return schemas.ClaseResponse(
+            id=grupo_existente.id,
+            dia=grupo_existente.dia,
+            hora=grupo_existente.hora,
+            tema=grupo_existente.tema,
+            meet_link=grupo_existente.meet_link,
+            profesor_username=grupo_existente.profesor_username,
+            estudiantes=estudiantes_resp
+        )
+    
+    else:
+        # Crear nuevo grupo
+        if len(estudiantes_nuevos) > 10:
+            raise HTTPException(
+                status_code=400,
+                detail="No se pueden asignar más de 10 estudiantes a un grupo."
+            )
+        
+        # Valores por defecto para compatibilidad con Clase
+        hoy = datetime.utcnow().strftime("%Y-%m-%d")
+        clase_payload = ClaseCreate(
+            dia=hoy,
+            hora="00:00",
+            tema=tema_grupo,
+            meet_link=None,
+            profesor_username=body.profesor_username,
+            estudiantes=estudiantes_nuevos
+        )
+        nueva = crud.crear_clase(db, clase_payload)
+        estudiantes_resp = [
+            schemas.EstudianteEnClase.from_orm(est) 
+            for est in nueva.estudiantes
+        ]
+        return schemas.ClaseResponse(
+            id=nueva.id,
+            dia=nueva.dia,
+            hora=nueva.hora,
+            tema=nueva.tema,
+            meet_link=nueva.meet_link,
+            profesor_username=nueva.profesor_username,
+            estudiantes=estudiantes_resp
+        )
+
+@authRouter.delete("/grupos/{grupo_id}")
+def eliminar_grupo(grupo_id: int, db: Session = Depends(get_db)):
+    """Elimina un grupo (clase) por su ID."""
+    ok = crud.eliminar_clase(db, grupo_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado o no se pudo eliminar")
+    return {"eliminado": True, "id": grupo_id}
 
 # POST: Agendar estudiante a clase
 from pydantic import BaseModel
@@ -1357,8 +1465,15 @@ def ver_clases_estudiante(estudiante_username: str, db: Session = Depends(get_db
     Devuelve todas las clases a las que está inscrito un estudiante.
     """
     clases = crud.obtener_clases_estudiante(db, estudiante_username)
+    # Excluir grupos de unidad (tema "Grupo Unidad X") para que el estudiante
+    # solo vea clases reales en su calendario.
+    clases_filtradas = [
+        c for c in clases
+        if not (getattr(c, "tema", "") or "").startswith("Grupo Unidad")
+    ]
+
     respuesta = []
-    for clase in clases:
+    for clase in clases_filtradas:
         estudiantes = [
             schemas.EstudianteEnClase.from_orm(est)
             for est in clase.estudiantes
@@ -1899,8 +2014,12 @@ def resumen_asignaciones_profesor(profesor_username: str, db: Session = Depends(
     if not profesor:
         raise HTTPException(status_code=404, detail="Profesor no encontrado")
     estudiantes_asignados = db.query(models.profesor_estudiante).filter(models.profesor_estudiante.c.profesor_id == profesor.identificador).count()
-    # Conteo real de grupos creados (clases)
-    grupos_creados = db.query(models.Clase).filter(models.Clase.profesor_username == profesor_username).count()
+    # Conteo de grupos creados: solo clases usadas como "grupo de unidad"
+    # Se consideran grupos aquellas clases cuyo tema sigue el patrón "Grupo Unidad X"
+    grupos_creados = db.query(models.Clase).filter(
+        models.Clase.profesor_username == profesor_username,
+        models.Clase.tema.like("Grupo Unidad%")
+    ).count()
     # KPI estimado: 1 grupo por cada 10 estudiantes asignados
     import math
     grupos_estimados = math.ceil(estudiantes_asignados / 10) if estudiantes_asignados > 0 else 0
@@ -1911,29 +2030,30 @@ def resumen_asignaciones_profesor(profesor_username: str, db: Session = Depends(
         "estudiantes_asignados": int(estudiantes_asignados)
     }
 
+
 @authRouter.get("/estudiantes")
 def obtener_todos_estudiantes(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
-    """Obtiene todos los estudiantes registrados (solo empresa/profesor)"""
+    """Obtiene todos los estudiantes registrados (solo empresa/profesor)."""
     # Verificar autenticación
     current_username, tipo_usuario = _username_from_token(credentials)
     if not current_username:
         raise HTTPException(status_code=401, detail="Token inválido")
-    
+
     # Solo empresa y profesor pueden ver lista de estudiantes
-    if tipo_usuario not in ['empresa', 'profesor']:
+    if tipo_usuario not in ["empresa", "profesor"]:
         raise HTTPException(status_code=403, detail="No tienes permisos para acceder a esta información")
-    
+
     try:
         # Si es profesor, solo devolver estudiantes asignados
-        if tipo_usuario == 'profesor':
+        if tipo_usuario == "profesor":
             estudiantes = crud.obtener_estudiantes_asignados(db, current_username)
         else:
-            # Si es empresa, devolver todos los estudiantes
+            # Si es empresa (u otro rol autorizado), devolver todos los estudiantes
             estudiantes = crud.obtener_estudiantes(db)
-        
+
         return [schemas.UsuarioResponse.from_orm(est) for est in estudiantes]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error obteniendo estudiantes: {e}")
