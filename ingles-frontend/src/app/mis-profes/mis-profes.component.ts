@@ -105,7 +105,6 @@ const DEFAULT_UNIDADES: Array<{ id: number; nombre: string }> = [
           <div class="groups-header">
             <h4 class="groups-title">📋 Grupos Asignados</h4>
           </div>
-          
           <div class="groups-list" *ngIf="(gruposMap[profe.username] || []).length > 0; else noGroups">
             <div class="group-item" *ngFor="let g of (gruposMap[profe.username] || [])">
               <div class="group-header">
@@ -115,9 +114,15 @@ const DEFAULT_UNIDADES: Array<{ id: number; nombre: string }> = [
                   <span class="group-badge" *ngIf="g.unidad">📚 Unidad</span>
                   <span class="group-badge auto" *ngIf="g.synthetic">🤖 Auto</span>
                 </div>
-                <button class="delete-group-btn" *ngIf="!g.synthetic" (click)="deleteGrupo(profe, g.id)">
-                  <span class="btn-icon">🗑️</span>
-                </button>
+                <div class="group-actions" *ngIf="!g.synthetic" style="display:flex;gap:0.5rem;align-items:center;">
+                  <button class="manage-btn action-btn" style="padding:0.4rem 0.7rem;font-size:0.8rem;" (click)="abrirModalAgregarEstudiantes(profe, g)">
+                    <span class="action-icon">➕</span>
+                    Agregar
+                  </button>
+                  <button class="delete-group-btn" (click)="deleteGrupo(profe, g.id)">
+                    <span class="btn-icon">🗑️</span>
+                  </button>
+                </div>
               </div>
               <div class="students-list">
                 <div class="student-item" *ngFor="let est of g.estudiantes">
@@ -132,7 +137,6 @@ const DEFAULT_UNIDADES: Array<{ id: number; nombre: string }> = [
               </div>
             </div>
           </div>
-          
           <ng-template #noGroups>
             <div class="empty-groups">
               <div class="empty-icon">📭</div>
@@ -295,11 +299,20 @@ const DEFAULT_UNIDADES: Array<{ id: number; nombre: string }> = [
 
             <div class="students-selection">
               <h4 class="selection-title">👥 Selecciona Estudiantes</h4>
+              <div class="students-search-bar">
+                <input
+                  type="text"
+                  class="students-search-input"
+                  [(ngModel)]="busquedaEstudiante"
+                  placeholder="🔍 Buscar por nombre o @usuario"
+                />
+              </div>
               <div class="students-selection-list">
-                <label class="student-selection-item" *ngFor="let est of estudiantesParaCrearGrupo">
+                <label class="student-selection-item" *ngFor="let est of estudiantesParaCrearGrupo" [class.already-in-group]="estudiantesYaEnGrupo.includes(est.username)">
                   <input 
                     type="checkbox" 
-                    [checked]="formGrupo.estudiantes.includes(est.username)" 
+                    [checked]="estudiantesYaEnGrupo.includes(est.username) || formGrupo.estudiantes.includes(est.username)" 
+                    [disabled]="estudiantesYaEnGrupo.includes(est.username)"
                     (change)="toggleSeleccionEstudiante(est.username)"
                     class="selection-checkbox"
                   />
@@ -1190,6 +1203,26 @@ const DEFAULT_UNIDADES: Array<{ id: number; nombre: string }> = [
       margin: 0 0 1rem 0;
     }
 
+    .students-search-bar {
+      margin-bottom: 0.8rem;
+    }
+
+    .students-search-input {
+      width: 100%;
+      padding: 0.55rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid rgba(209, 213, 219, 0.9);
+      font-size: 0.9rem;
+      outline: none;
+      transition: var(--transition);
+      background: rgba(255, 255, 255, 0.95);
+    }
+
+    .students-search-input:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.25);
+    }
+
     .students-selection-list {
       display: flex;
       flex-direction: column;
@@ -1213,6 +1246,17 @@ const DEFAULT_UNIDADES: Array<{ id: number; nombre: string }> = [
     .student-selection-item:hover {
       background: rgba(102, 126, 234, 0.05);
       border-color: rgba(102, 126, 234, 0.2);
+    }
+
+    .student-selection-item.already-in-group {
+      border-color: rgba(16, 185, 129, 0.6);
+      background: rgba(16, 185, 129, 0.06);
+    }
+
+    .student-selection-item.already-in-group .selection-name,
+    .student-selection-item.already-in-group .selection-username {
+      color: var(--success-color);
+      font-weight: 600;
     }
 
     .selection-checkbox {
@@ -1328,6 +1372,9 @@ export class MisProfesComponent implements OnInit {
     return (this.unidades && this.unidades.length) ? this.unidades : this.defaultUnidades;
   }
 
+  estudiantesYaEnGrupo: string[] = [];
+  busquedaEstudiante: string = '';
+
   constructor(
     private misProfesService: MisProfesService,
     private http: HttpClient,
@@ -1382,6 +1429,8 @@ export class MisProfesComponent implements OnInit {
     }
     this.formGrupo.estudiantes = [];
     this.formGrupo.unidad_id = this.unidades?.[0]?.id ?? 101;
+    this.estudiantesYaEnGrupo = [];
+    this.busquedaEstudiante = '';
     this.mostrarModalGrupo = true;
   }
 
@@ -1392,6 +1441,9 @@ export class MisProfesComponent implements OnInit {
   }
 
   toggleSeleccionEstudiante(username: string): void {
+    if (this.estudiantesYaEnGrupo.includes(username)) {
+      return;
+    }
     const idx = this.formGrupo.estudiantes.indexOf(username);
     if (idx >= 0) this.formGrupo.estudiantes.splice(idx, 1);
     else this.formGrupo.estudiantes.push(username);
@@ -1423,12 +1475,20 @@ export class MisProfesComponent implements OnInit {
 
   // Lista de estudiantes filtrada por unidad seleccionada en el modal (si la opción está activa)
   get estudiantesParaCrearGrupo(): Estudiante[] {
-    if (!this.soloEstudiantesDeUnidad || !this.formGrupo.unidad_id) {
-      return this.todosEstudiantes;
+    const base: Estudiante[] = (!this.soloEstudiantesDeUnidad || !this.formGrupo.unidad_id)
+      ? this.todosEstudiantes
+      : this.estudiantesFiltradosPorUnidad;
+
+    const term = (this.busquedaEstudiante || '').trim().toLowerCase();
+    if (!term) {
+      return base;
     }
-    
-    // Filtrar estudiantes que tienen la unidad habilitada
-    return this.estudiantesFiltradosPorUnidad;
+
+    return base.filter(est => {
+      const nombreCompleto = `${est.nombres || ''} ${est.apellidos || ''}`.toLowerCase();
+      const username = (est.username || '').toLowerCase();
+      return nombreCompleto.includes(term) || username.includes(term);
+    });
   }
 
   crearGrupo(): void {
@@ -1748,5 +1808,47 @@ export class MisProfesComponent implements OnInit {
         alert(e?.error?.detail || 'No se pudo eliminar el grupo');
       }
     });
+  }
+
+  abrirModalAgregarEstudiantes(profesor: Profesor, grupo: any): void {
+    // Asegurar que haya datos base cargados
+    if (!this.todosEstudiantes.length) {
+      this.cargarTodosEstudiantes();
+    }
+    if (!this.unidades?.length) {
+      this.unidades = DEFAULT_UNIDADES.slice();
+    }
+
+    // Fijar profesor del grupo
+    this.formGrupo.profesor_username = profesor.username;
+
+    // Intentar deducir unidad desde el texto del grupo ("Grupo Unidad X" o similar)
+    const baseTexto = grupo?.unidad || grupo?.tema || '';
+    const unidadId = this.parseUnidadIdDesdeTexto(baseTexto) ?? this.unidadesOrDefault?.[0]?.id ?? null;
+    this.formGrupo.unidad_id = unidadId;
+
+    // Limpiar selección actual (solo queremos nuevos estudiantes)
+    this.formGrupo.estudiantes = [];
+
+    // Por defecto, filtrar por la unidad del grupo para facilitar la selección
+    this.soloEstudiantesDeUnidad = !!this.formGrupo.unidad_id;
+    if (this.soloEstudiantesDeUnidad && this.formGrupo.unidad_id) {
+      this.filtrarEstudiantesPorUnidad();
+    }
+
+    // Guardar los estudiantes que ya están en el grupo para resaltarlos en el listado
+    this.estudiantesYaEnGrupo = (grupo?.estudiantes || [])
+      .map((e: any) => e?.username)
+      .filter((u: any) => !!u);
+
+    this.busquedaEstudiante = '';
+
+    this.mostrarModalGrupo = true;
+  }
+
+  private parseUnidadIdDesdeTexto(texto: string | undefined | null): number | null {
+    if (!texto) return null;
+    const match = String(texto).match(/Unidad\s+(\d+)/i);
+    return match ? Number(match[1]) : null;
   }
 }
