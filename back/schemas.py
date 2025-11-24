@@ -159,6 +159,10 @@ class QuizDetalleEstudiante(BaseModel):
     max_intentos: Optional[int] = None
     puede_intentar: Optional[bool] = None
     tiempo_limite_minutos: Optional[int] = None
+    aprobada: Optional[bool] = None
+    aprobada_at: Optional[datetime] = None
+    origen_manual: Optional[bool] = None
+    comentario_profesor: Optional[str] = None
 
     class Config:
         from_attributes = True

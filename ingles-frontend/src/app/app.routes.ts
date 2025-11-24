@@ -46,6 +46,7 @@ import { QuizPermisosComponent } from './dashboard-evaluaciones/quiz-permisos.co
 import { QuizRespuestasComponent } from './dashboard-evaluaciones/quiz-respuestas.component';
 import { EvaluacionesListaEstudianteComponent } from './evaluaciones-estudiante/evaluaciones-lista-estudiante.component';
 import { EvaluacionRendirComponent } from './evaluaciones-estudiante/evaluacion-rendir.component';
+import { MisCalificacionesComponent } from './evaluaciones-estudiante/mis-calificaciones.component';
 import { GradingTestComponent } from './grading-test/grading-test.component';
 import { EvaluacionIntentoGuard } from './auth/evaluacion-intento.guard';
 
@@ -70,6 +71,7 @@ export const routes: Routes = [
       { path: 'unidades/:id/subcarpeta/:sub', component: SubcarpetaDetalleComponent },
       { path: 'tareas-unidad/:unidadId', component: TareasUnidadComponent },
       { path: 'evaluaciones', component: EvaluacionesListaEstudianteComponent },
+      { path: 'evaluaciones/calificaciones', component: MisCalificacionesComponent },
       { path: 'evaluaciones/:id', component: EvaluacionRendirComponent, canDeactivate: [EvaluacionIntentoGuard] },
       { path: 'planeador', component: PlaneadorComponent },
       { path: 'analisis-estudiante', component: AnalisisEstudianteComponent },

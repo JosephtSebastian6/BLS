@@ -26,17 +26,32 @@ import { QuizzesService } from '../services/quizzes.service';
         <div class="calificacion-item" *ngFor="let cal of calificaciones">
           <div class="calificacion-header">
             <h3>{{ cal.quiz_titulo }}</h3>
-            <span class="score" [class.aprobado]="cal.score >= 60" [class.reprobado]="cal.score < 60">
-              {{ cal.score }}/100
+            <span class="score" [class.aprobado]="cal.aprobada && cal.score >= 60" [class.reprobado]="cal.aprobada && cal.score < 60">
+              <ng-container *ngIf="cal.aprobada && cal.score !== null && cal.score !== undefined; else pendienteScore">
+                {{ cal.score }}/100
+              </ng-container>
+              <ng-template #pendienteScore>
+                Pendiente
+              </ng-template>
             </span>
           </div>
           <div class="calificacion-info">
             <p><strong>Unidad:</strong> {{ cal.unidad_nombre }}</p>
             <p><strong>Fecha:</strong> {{ cal.updated_at | date:'short' }}</p>
             <p><strong>Estado:</strong> 
-              <span [class.aprobado]="cal.score >= 60" [class.reprobado]="cal.score < 60">
-                {{ cal.score >= 60 ? 'Aprobado' : 'Reprobado' }}
-              </span>
+              <ng-container *ngIf="cal.aprobada && cal.score !== null && cal.score !== undefined; else pendienteEstado">
+                <span [class.aprobado]="cal.score >= 60" [class.reprobado]="cal.score < 60">
+                  {{ cal.score >= 60 ? 'Aprobado' : 'Reprobado' }}
+                </span>
+                <span *ngIf="cal.origen_manual" class="badge-manual"> · Nota manual</span>
+              </ng-container>
+              <ng-template #pendienteEstado>
+                <span>Pendiente de aprobación del profesor</span>
+              </ng-template>
+            </p>
+            <p *ngIf="cal.comentario_profesor">
+              <strong>Comentario del profesor:</strong>
+              <span class="comentario">{{ cal.comentario_profesor }}</span>
             </p>
           </div>
         </div>
@@ -84,6 +99,8 @@ import { QuizzesService } from '../services/quizzes.service';
     .calificacion-info p{margin:0.25rem 0;font-size:0.9rem}
     .aprobado{color:#065f46}
     .reprobado{color:#dc2626}
+    .badge-manual{font-size:0.8rem;color:#0369a1;margin-left:0.25rem}
+    .comentario{display:block;margin-top:0.15rem;color:#374151}
     .resumen{border-top:1px solid #e5e7eb;padding-top:1.5rem}
     .resumen h3{margin-bottom:1rem}
     .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}
@@ -117,16 +134,17 @@ export class MisCalificacionesComponent implements OnInit {
   }
   
   get aprobadas(): number {
-    return this.calificaciones.filter(c => c.score >= 60).length;
+    return this.calificaciones.filter(c => c.aprobada && c.score !== null && c.score !== undefined && c.score >= 60).length;
   }
   
   get reprobadas(): number {
-    return this.calificaciones.filter(c => c.score < 60).length;
+    return this.calificaciones.filter(c => c.aprobada && c.score !== null && c.score !== undefined && c.score < 60).length;
   }
   
   get promedio(): number {
-    if (this.calificaciones.length === 0) return 0;
-    const suma = this.calificaciones.reduce((acc, cal) => acc + cal.score, 0);
-    return Math.round(suma / this.calificaciones.length);
+    const aprobadas = this.calificaciones.filter(c => c.aprobada && c.score !== null && c.score !== undefined);
+    if (aprobadas.length === 0) return 0;
+    const suma = aprobadas.reduce((acc, cal) => acc + (cal.score || 0), 0);
+    return Math.round(suma / aprobadas.length);
   }
 }

@@ -10,11 +10,14 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
   imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink],
   template: `
   <div class="card" *ngIf="quiz && !loading">
+    <div class="watermark" *ngIf="usuarioWatermark">
+      <div class="watermark-text">{{ usuarioWatermark }}</div>
+    </div>
     <div class="card-header">
       <h2>{{ quiz.titulo }}</h2>
       <button type="button" class="btn-outline" (click)="volver()" onclick="console.log('Botón volver clickeado')">Volver</button>
     </div>
-    <div class="card-body">
+    <div class="card-body" [class.blur]="ocultarContenido">
       <p class="desc">{{ quiz.descripcion }}</p>
       <div class="attempts" *ngIf="quiz">
         <ng-container *ngIf="quiz.max_intentos && quiz.max_intentos > 0; else intentosIlimitados">
@@ -44,7 +47,18 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
       <div *ngIf="quiz.ya_respondido" class="alert alert-info">
         <h3>✅ Intentos realizados</h3>
         <p>Has respondido esta evaluación {{ quiz.intentos_realizados || 1 }} vez(es).</p>
-        <p *ngIf="quiz.calificacion !== null"><strong>Mejor calificación: {{ quiz.calificacion }}/100</strong></p>
+        <p *ngIf="quiz.calificacion === null">
+          Tus respuestas fueron enviadas y la calificación está pendiente de revisión y aprobación por el profesor.
+        </p>
+        <p *ngIf="quiz.calificacion !== null">
+          <strong>Mejor calificación: {{ quiz.calificacion }}/100</strong>
+          <span *ngIf="quiz.aprobada"> · Aprobada por el profesor</span>
+          <span *ngIf="quiz.origen_manual" class="badge-manual"> · Nota manual del profesor</span>
+        </p>
+        <p *ngIf="quiz.calificacion !== null && quiz.comentario_profesor">
+          <strong>Comentario del profesor:</strong>
+          <span class="comentario-profesor">{{ quiz.comentario_profesor }}</span>
+        </p>
         <p *ngIf="quiz.fecha_respuesta">Último intento: {{ quiz.fecha_respuesta | date:'short' }}</p>
         <p *ngIf="quiz.max_intentos && quiz.max_intentos > 0">
           Límite de intentos: {{ quiz.max_intentos }}.
@@ -84,7 +98,15 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
                 <span>Falso</span>
               </label>
             </div>
-            <!-- Tipo 'respuesta_corta' se omite temporalmente -->
+            <div *ngSwitchCase="'respuesta_corta'">
+              <input
+                type="text"
+                class="short"
+                [value]="respuestas['pregunta_' + i] || ''"
+                (input)="actualizarTexto(i, $event)"
+                placeholder="Escribe tu respuesta aquí"
+              />
+            </div>
           </ng-container>
         </div>
         
@@ -93,6 +115,13 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
             {{ enviando ? 'Enviando...' : 'Enviar Respuestas' }}
           </button>
         </div>
+      </div>
+    </div>
+    <div class="focus-overlay" *ngIf="ocultarContenido">
+      <div class="focus-overlay-content">
+        <h3>Contenido temporalmente oculto</h3>
+        <p>Por seguridad, la evaluación se ha ocultado porque cambiaste de ventana o pestaña.</p>
+        <p>Vuelve a esta pestaña para continuar respondiendo.</p>
       </div>
     </div>
   </div>
@@ -106,9 +135,10 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
   styles: [`
     :host { position: relative !important; z-index: 10000 !important; }
     * { pointer-events: auto !important; }
-    .card{max-width:900px;margin:2rem auto;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.06);position:relative !important;z-index:99999 !important}
-    .card-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.06)}
-    .card-body{padding:1rem 1.25rem}
+    .card{max-width:900px;margin:2rem auto;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.06);position:relative !important;z-index:99999 !important;overflow:hidden}
+    .card-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.06);position:relative;z-index:1}
+    .card-body{padding:1rem 1.25rem;position:relative;z-index:1;transition:filter 0.2s ease}
+    .card-body.blur{filter:blur(6px);pointer-events:none}
     .btn-outline{border:1px solid #cbd5e1;background:#fff;color:#1f2937;border-radius:10px;padding:.5rem .8rem;text-decoration:none;cursor:pointer;pointer-events:auto !important}
     .q-item{border:1px solid #e5e7eb;border-radius:12px;padding:.8rem 1rem;margin:12px 0}
     .row{display:flex;gap:8px;align-items:center;margin:.3rem 0;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background-color 0.2s;pointer-events:auto !important}
@@ -119,10 +149,17 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
     .alert{border:1px solid #d1ecf1;background:#d1ecf1;color:#0c5460;border-radius:10px;padding:1rem;margin:1rem 0}
     .alert-info{border-color:#bee5eb;background:#d1ecf1}
     .time-info{margin:.25rem 0 1rem 0;color:#4b5563;font-size:.85rem}
+    .badge-manual{font-size:0.85rem;color:#0369a1;margin-left:0.25rem}
+    .comentario-profesor{display:block;margin-top:0.15rem;color:#083344}
     .attempts{margin:.75rem 0;color:#4b5563;font-size:.9rem;font-weight:500}
     .form-actions{margin-top:1.5rem;text-align:center}
     .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:10px;padding:.75rem 1.5rem;cursor:pointer;font-size:1rem;pointer-events:auto !important}
     .btn-primary:disabled{opacity:0.6;cursor:not-allowed}
+    .watermark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:0;opacity:.08}
+    .watermark-text{font-size:3rem;font-weight:700;color:#111827;transform:rotate(-25deg);text-align:center;white-space:nowrap}
+    .focus-overlay{position:absolute;inset:0;background:rgba(15,23,42,.8);z-index:2;display:flex;align-items:center;justify-content:center;text-align:center;color:#f9fafb;padding:1.5rem}
+    .focus-overlay-content h3{margin-bottom:.75rem;font-size:1.3rem}
+    .focus-overlay-content p{margin:.25rem 0;font-size:.95rem}
   `]
 })
 export class EvaluacionRendirComponent implements OnInit, OnDestroy {
@@ -136,6 +173,8 @@ export class EvaluacionRendirComponent implements OnInit, OnDestroy {
   tiempoRestante: number | null = null; // en segundos
   tiempoAgotado = false;
   intentoEnCurso = false;
+  usuarioWatermark: string | null = null;
+  ocultarContenido = false;
   private countdownId: any = null;
   
   constructor(private api: QuizzesService, private route: ActivatedRoute, private router: Router) {}
@@ -156,6 +195,20 @@ export class EvaluacionRendirComponent implements OnInit, OnDestroy {
     this.loading = true;
     const id = Number(this.route.snapshot.paramMap.get('id'));
     
+    // Inicializar watermark con el usuario actual (si existe)
+    const username = localStorage.getItem('username') || localStorage.getItem('user') && (() => {
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        return u?.username || u?.email || null;
+      } catch {
+        return null;
+      }
+    })();
+    this.usuarioWatermark = username ? `Usuario: ${username}` : 'Uso exclusivo BLS';
+
+    // Ocultar/mostrar contenido según visibilidad de la pestaña
+    document.addEventListener('visibilitychange', this.manejarVisibilidad, false);
+    
     this.api.obtenerDetalleEstudiante(id).subscribe({
       next: (quiz) => {
         console.log('Quiz recibido:', quiz);
@@ -174,8 +227,8 @@ export class EvaluacionRendirComponent implements OnInit, OnDestroy {
           this.items = [];
         }
 
-        // Filtrar temporalmente las preguntas de tipo respuesta_corta
-        this.itemsFiltrados = this.items.filter(it => it?.tipo === 'opcion_multiple' || it?.tipo === 'vf');
+        // Mostramos actualmente opcion_multiple, vf y respuesta_corta
+        this.itemsFiltrados = this.items.filter(it => it?.tipo === 'opcion_multiple' || it?.tipo === 'vf' || it?.tipo === 'respuesta_corta');
         console.log('Items procesados (filtrados):', this.itemsFiltrados);
         this.loading = false;
         
@@ -225,9 +278,9 @@ export class EvaluacionRendirComponent implements OnInit, OnDestroy {
     this.enviando = true;
     
     this.api.responderQuiz(this.quiz.id, this.respuestas).subscribe({
-      next: (resultado) => {
+      next: () => {
         this.enviando = false;
-        alert(`¡Evaluación enviada exitosamente! Tu calificación es: ${resultado.score}/100`);
+        alert('¡Evaluación enviada exitosamente! Tus respuestas fueron registradas y la calificación será revisada y aprobada por tu profesor. Podrás ver tu nota final en la sección "Mis Calificaciones" cuando haya sido aprobada.');
         this.intentoEnCurso = false;
         this.volver();
       },
@@ -243,6 +296,7 @@ export class EvaluacionRendirComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.limpiarTimer();
     this.intentoEnCurso = false;
+    document.removeEventListener('visibilitychange', this.manejarVisibilidad, false);
   }
 
   private inicializarTimer(): void {
@@ -283,6 +337,26 @@ export class EvaluacionRendirComponent implements OnInit, OnDestroy {
     const mm = minutos.toString().padStart(2, '0');
     const ss = segundos.toString().padStart(2, '0');
     return `${mm}:${ss}`;
+  }
+
+  manejarVisibilidad = () => {
+    if (document.visibilityState === 'hidden') {
+      this.ocultarContenido = true;
+    } else {
+      this.ocultarContenido = false;
+    }
+  };
+
+  @HostListener('window:blur')
+  onWindowBlur() {
+    if (this.intentoEnCurso) {
+      this.ocultarContenido = true;
+    }
+  }
+
+  @HostListener('window:focus')
+  onWindowFocus() {
+    this.ocultarContenido = false;
   }
 
   @HostListener('window:beforeunload', ['$event'])

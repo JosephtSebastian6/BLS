@@ -44,6 +44,11 @@ import { QuizzesService, QuizRespuestaResponse, QuizResponse } from '../services
             [(ngModel)]="filtro"
             placeholder="Buscar por nombre de usuario"
           />
+          <div class="filter-chips">
+            <button type="button" class="chip" [class.active]="filtroEstado === 'todas'" (click)="filtroEstado = 'todas'">Todas</button>
+            <button type="button" class="chip" [class.active]="filtroEstado === 'pendientes'" (click)="filtroEstado = 'pendientes'">Pendientes</button>
+            <button type="button" class="chip" [class.active]="filtroEstado === 'aprobadas'" (click)="filtroEstado = 'aprobadas'">Aprobadas</button>
+          </div>
         </div>
 
         <div *ngIf="respuestasFiltradas.length === 0" class="empty-state">
@@ -80,6 +85,29 @@ import { QuizzesService, QuizRespuestaResponse, QuizResponse } from '../services
             <span class="meta-pill">{{ respuestaSeleccionada.created_at | date:'dd/MM/yyyy HH:mm' }}</span>
             <span class="meta-pill score">{{ respuestaSeleccionada.score }}/100</span>
           </div>
+        </div>
+
+        <div class="approval-bar">
+          <button class="btn-approve" type="button" (click)="aprobarActual()" [disabled]="aprobando || !quiz">
+            {{ aprobando ? 'Aprobando…' : 'Aprobar calificación' }}
+          </button>
+          <span class="approved-label" *ngIf="respuestaSeleccionada && aprobadas[respuestaSeleccionada.estudiante_username]">
+            ✔ Calificación aprobada
+          </span>
+        </div>
+
+        <div class="manual-grade-bar">
+          <label class="manual-grade-field">
+            Nota manual (0-100):
+            <input type="number" min="0" max="100" [(ngModel)]="calificacionManual" />
+          </label>
+          <label class="manual-comment-field">
+            Comentario profesor (opcional):
+            <textarea rows="2" [(ngModel)]="comentarioProfesor"></textarea>
+          </label>
+          <button class="btn-approve secondary" type="button" (click)="guardarCalificacionManual()" [disabled]="guardandoManual || !quiz">
+            {{ guardandoManual ? 'Guardando…' : 'Guardar calificación manual' }}
+          </button>
         </div>
 
         <div *ngIf="detallePreguntas.length; else sinDetalle" class="questions-detail">
@@ -244,6 +272,9 @@ import { QuizzesService, QuizRespuestaResponse, QuizResponse } from '../services
     }
 
     .search-bar { margin-bottom: 0.9rem; }
+    .filter-chips { margin-top: 0.5rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .chip { border-radius: 999px; border: 1px solid #e5e7eb; padding: 0.2rem 0.7rem; font-size: 0.8rem; background:#fff; cursor:pointer; }
+    .chip.active { background:#e0e7ff; border-color:#4f46e5; color:#1f2937; font-weight:600; }
 
     .search-input {
       width: 100%;
@@ -450,6 +481,84 @@ import { QuizzesService, QuizRespuestaResponse, QuizResponse } from '../services
       text-align: center;
     }
 
+    .approval-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .btn-approve {
+      border: none;
+      border-radius: 999px;
+      padding: 0.4rem 1.1rem;
+      background: linear-gradient(135deg,#22c55e,#16a34a);
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);
+      transition: transform 0.1s, box-shadow 0.1s, opacity 0.1s;
+    }
+
+    .btn-approve:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-approve:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(22, 163, 74, 0.55);
+    }
+
+    .approved-label {
+      font-size: 0.85rem;
+      color: #16a34a;
+      font-weight: 600;
+    }
+
+    .manual-grade-bar {
+      display: grid;
+      grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr) auto;
+      gap: 0.75rem;
+      align-items: flex-start;
+      margin-bottom: 1.2rem;
+    }
+
+    .manual-grade-field,
+    .manual-comment-field {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.8rem;
+      color: #4b5563;
+    }
+
+    .manual-grade-field input {
+      margin-top: 0.25rem;
+      padding: 0.3rem 0.5rem;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      width: 100%;
+      font-size: 0.85rem;
+    }
+
+    .manual-comment-field textarea {
+      margin-top: 0.25rem;
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      width: 100%;
+      font-size: 0.85rem;
+      resize: vertical;
+    }
+
+    .btn-approve.secondary {
+      background: linear-gradient(135deg,#0ea5e9,#0369a1);
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
+    }
+
     @media (max-width: 960px) {
       .dashboard-container { padding: 5rem 1rem 1rem; }
       .content-layout { grid-template-columns: 1fr; }
@@ -463,6 +572,12 @@ export class QuizRespuestasComponent implements OnInit {
   filtro = '';
   detallePreguntas: { enunciado: string; respuesta: string }[] = [];
   itemsPreguntas: any[] = [];
+  aprobando = false;
+  aprobadas: { [username: string]: boolean } = {};
+  filtroEstado: 'todas' | 'pendientes' | 'aprobadas' = 'todas';
+  calificacionManual: number | null = null;
+  comentarioProfesor: string = '';
+  guardandoManual = false;
 
   constructor(private api: QuizzesService, private route: ActivatedRoute, private router: Router) {}
 
@@ -508,13 +623,78 @@ export class QuizRespuestasComponent implements OnInit {
 
   get respuestasFiltradas(): QuizRespuestaResponse[] {
     const term = (this.filtro || '').trim().toLowerCase();
-    if (!term) return this.respuestas;
-    return this.respuestas.filter(r => (r.estudiante_username || '').toLowerCase().includes(term));
+    let lista = this.respuestas;
+    if (term) {
+      lista = lista.filter(r => (r.estudiante_username || '').toLowerCase().includes(term));
+    }
+
+    if (this.filtroEstado === 'pendientes') {
+      lista = lista.filter(r => !this.aprobadas[r.estudiante_username]);
+    } else if (this.filtroEstado === 'aprobadas') {
+      lista = lista.filter(r => !!this.aprobadas[r.estudiante_username]);
+    }
+
+    return lista;
   }
 
   seleccionar(r: QuizRespuestaResponse): void {
     this.respuestaSeleccionada = r;
     this.actualizarDetalle();
+    // Reset de campos manuales al cambiar de estudiante
+    this.calificacionManual = r?.score ?? null;
+    this.comentarioProfesor = '';
+  }
+
+  aprobarActual(): void {
+    if (!this.quiz || !this.respuestaSeleccionada) { return; }
+    const estudiante = this.respuestaSeleccionada.estudiante_username;
+    this.aprobando = true;
+    this.api.aprobarCalificacionQuiz(this.quiz.id, estudiante).subscribe({
+      next: (res) => {
+        this.aprobando = false;
+        if (res && res.estudiante_username) {
+          this.aprobadas[res.estudiante_username] = true;
+        }
+        alert('Calificación aprobada correctamente para ' + estudiante);
+      },
+      error: (err) => {
+        this.aprobando = false;
+        console.error('Error al aprobar calificación:', err);
+        const msg = err?.error?.detail || 'No se pudo aprobar la calificación';
+        alert(msg);
+      }
+    });
+  }
+
+  guardarCalificacionManual(): void {
+    if (!this.quiz || !this.respuestaSeleccionada) { return; }
+
+    if (this.calificacionManual == null || isNaN(this.calificacionManual as any)) {
+      alert('Ingresa una nota manual válida entre 0 y 100.');
+      return;
+    }
+
+    const val = Number(this.calificacionManual);
+    if (val < 0 || val > 100) {
+      alert('La nota manual debe estar entre 0 y 100.');
+      return;
+    }
+
+    const estudiante = this.respuestaSeleccionada.estudiante_username;
+    this.guardandoManual = true;
+    this.api.establecerCalificacionManualQuiz(this.quiz.id, estudiante, val, this.comentarioProfesor).subscribe({
+      next: (res) => {
+        this.guardandoManual = false;
+        this.aprobadas[estudiante] = true;
+        alert('Calificación manual guardada y aprobada para ' + estudiante);
+      },
+      error: (err) => {
+        this.guardandoManual = false;
+        console.error('Error al guardar calificación manual:', err);
+        const msg = err?.error?.detail || 'No se pudo guardar la calificación manual';
+        alert(msg);
+      }
+    });
   }
 
   volver(): void {

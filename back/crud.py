@@ -508,18 +508,41 @@ def upsert_quiz_calificacion(db: Session, *, estudiante_username: str, unidad_id
     ).first()
     now = datetime.utcnow()
     if row:
-        row.score = int(score)
-        row.updated_at = now
-        db.add(row)
+        # Si la calificación fue fijada manualmente por un profesor, no la sobreescribimos
+        is_manual = False
+        try:
+            is_manual = bool(getattr(row, "origen_manual", False))
+        except Exception:
+            is_manual = False
+
+        if not is_manual:
+            new_score = int(score)
+            # Si la nota cambia, reiniciamos el estado de aprobación para que el profesor vuelva a validar
+            if row.score != new_score:
+                row.score = new_score
+                row.updated_at = now
+                try:
+                    row.aprobada = False
+                    row.aprobada_por = None
+                    row.aprobada_at = None
+                except Exception:
+                    # Compatibilidad si aún no existen las columnas
+                    pass
+            db.add(row)
     else:
+        new_score = int(score)
         row = EstudianteQuizCalificacion(
             estudiante_username=estudiante_username,
             unidad_id=unidad_id,
             quiz_id=quiz_id,
-            score=int(score),
+            score=new_score,
             created_at=now,
             updated_at=now,
         )
+        try:
+            row.aprobada = False
+        except Exception:
+            pass
         db.add(row)
     db.commit()
     db.refresh(row)

@@ -169,6 +169,11 @@ class EstudianteQuizCalificacion(Base):
     score = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
+    aprobada = Column(Boolean, default=False)
+    aprobada_por = Column(String(50), ForeignKey('estudiante.username'), nullable=True)
+    aprobada_at = Column(DateTime, nullable=True)
+    origen_manual = Column(Boolean, default=False)
+    comentario_profesor = Column(String(500), nullable=True)
 
 # Permisos individuales de quiz por estudiante
 class EstudianteQuizPermiso(Base):

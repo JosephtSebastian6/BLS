@@ -57,6 +57,10 @@ export interface QuizDetalleEstudiante {
   max_intentos?: number | null;
   puede_intentar?: boolean;
   tiempo_limite_minutos?: number | null;
+  aprobada?: boolean | null;
+  aprobada_at?: string | null;
+  origen_manual?: boolean | null;
+  comentario_profesor?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -128,9 +132,13 @@ export class QuizzesService {
     quiz_titulo: string;
     unidad_id: number;
     unidad_nombre: string;
-    score: number;
+    score: number | null;
     created_at: string;
     updated_at: string;
+    aprobada?: boolean;
+    aprobada_at?: string | null;
+    origen_manual?: boolean;
+    comentario_profesor?: string | null;
   }>> {
     return this.http.get<Array<any>>(`${this.base}/estudiante/mis-calificaciones-quizzes`, this.headers());
   }
@@ -156,6 +164,44 @@ export class QuizzesService {
 
   obtenerRespuesta(quiz_id: number, estudiante_username: string): Observable<QuizRespuestaResponse> {
     return this.http.get<QuizRespuestaResponse>(`${this.base}/quizzes/${quiz_id}/respuestas/${encodeURIComponent(estudiante_username)}`, this.headers());
+  }
+
+  aprobarCalificacionQuiz(quiz_id: number, estudiante_username: string): Observable<{
+    id: number;
+    estudiante_username: string;
+    quiz_id: number;
+    unidad_id: number;
+    score: number;
+    aprobada: boolean;
+    aprobada_por?: string | null;
+    aprobada_at?: string | null;
+    updated_at: string;
+  }> {
+    return this.http.post<any>(
+      `${this.base}/quizzes/${quiz_id}/estudiantes/${encodeURIComponent(estudiante_username)}/aprobar`,
+      {},
+      this.headers()
+    );
+  }
+
+  establecerCalificacionManualQuiz(quiz_id: number, estudiante_username: string, score: number, comentario_profesor?: string | null): Observable<{
+    id: number;
+    estudiante_username: string;
+    quiz_id: number;
+    unidad_id: number;
+    score: number;
+    aprobada: boolean;
+    aprobada_por?: string | null;
+    aprobada_at?: string | null;
+    origen_manual: boolean;
+    comentario_profesor?: string | null;
+    updated_at: string;
+  }> {
+    return this.http.post<any>(
+      `${this.base}/quizzes/${quiz_id}/estudiantes/${encodeURIComponent(estudiante_username)}/calificacion-manual`,
+      { score, comentario_profesor: comentario_profesor ?? null },
+      this.headers()
+    );
   }
 
   // ===== Permisos de Quiz por Estudiante =====

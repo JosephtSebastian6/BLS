@@ -1,0 +1,6 @@
+Endpoint planificado: POST /auth/quizzes/{quiz_id}/estudiantes/{estudiante_username}/aprobar
+- Roles permitidos: profesor, empresa, admin (via require_roles)
+- Para profesores, verificar asignación via _estudiante_asignado_a_profesor
+- Buscar quiz y calificación (EstudianteQuizCalificacion) por estudiante + quiz + unidad
+- Marcar cal.aprobada=True, cal.aprobada_por=who["username"], cal.aprobada_at=now, actualizar updated_at
+- Devolver JSON con info básica de la calificación y flags de aprobación.

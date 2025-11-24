@@ -987,6 +987,157 @@ def obtener_respuesta_quiz_estudiante(
 
     return row
 
+
+@authRouter.post("/quizzes/{quiz_id}/estudiantes/{estudiante_username}/aprobar")
+def aprobar_calificacion_quiz(
+    quiz_id: int,
+    estudiante_username: str,
+    db: Session = Depends(get_db),
+    who=Depends(require_roles(["profesor", "empresa", "admin"]))
+):
+    """Marca como aprobada la calificación de un estudiante para un quiz.
+
+    - Profesores solo pueden aprobar calificaciones de estudiantes que tengan asignados.
+    - Empresa/Admin pueden aprobar cualquier calificación.
+    """
+    now = datetime.utcnow()
+    tipo_usuario = who.get("tipo_usuario")
+    username = who.get("username")
+
+    if tipo_usuario == "profesor":
+        # Verificar que el estudiante esté asignado a este profesor
+        if not _estudiante_asignado_a_profesor(db, username, estudiante_username):
+            raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+
+    # Buscar calificación existente
+    cal = db.query(models.EstudianteQuizCalificacion).filter(
+        models.EstudianteQuizCalificacion.estudiante_username == estudiante_username,
+        models.EstudianteQuizCalificacion.quiz_id == quiz_id,
+    ).first()
+
+    if not cal:
+        raise HTTPException(status_code=404, detail="Calificación de quiz no encontrada para este estudiante")
+
+    try:
+        # Marcar como aprobada
+        try:
+            cal.aprobada = True
+            cal.aprobada_por = username
+            cal.aprobada_at = now
+        except Exception:
+            # Compatibilidad si las columnas aún no existen
+            pass
+        cal.updated_at = now
+        db.add(cal)
+        db.commit()
+        db.refresh(cal)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"No se pudo aprobar la calificación: {e}")
+
+    return {
+        "id": cal.id,
+        "estudiante_username": cal.estudiante_username,
+        "quiz_id": cal.quiz_id,
+        "unidad_id": cal.unidad_id,
+        "score": cal.score,
+        "aprobada": bool(getattr(cal, "aprobada", True)),
+        "aprobada_por": getattr(cal, "aprobada_por", None),
+        "aprobada_at": getattr(cal, "aprobada_at", None),
+        "updated_at": cal.updated_at,
+    }
+
+class QuizCalificacionManualBody(BaseModel):
+    score: int
+    comentario_profesor: str | None = None
+
+
+@authRouter.post("/quizzes/{quiz_id}/estudiantes/{estudiante_username}/calificacion-manual")
+def establecer_calificacion_manual_quiz(
+    quiz_id: int,
+    estudiante_username: str,
+    body: QuizCalificacionManualBody,
+    db: Session = Depends(get_db),
+    who=Depends(require_roles(["profesor", "empresa", "admin"]))
+):
+    """Permite fijar una calificación manual (override) para un quiz.
+
+    - Marca la calificación como manual, aprobada y visible para el estudiante.
+    - Profesores solo pueden calificar manualmente a estudiantes que tengan asignados.
+    """
+    now = datetime.utcnow()
+    tipo_usuario = who.get("tipo_usuario")
+    username = who.get("username")
+
+    if tipo_usuario == "profesor":
+        if not _estudiante_asignado_a_profesor(db, username, estudiante_username):
+            raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+
+    # Normalizar score entre 0 y 100
+    try:
+        new_score = int(body.score)
+    except Exception:
+        raise HTTPException(status_code=400, detail="La calificación debe ser un número entero")
+    new_score = max(0, min(100, new_score))
+
+    # Buscar calificación existente
+    cal = db.query(models.EstudianteQuizCalificacion).filter(
+        models.EstudianteQuizCalificacion.estudiante_username == estudiante_username,
+        models.EstudianteQuizCalificacion.quiz_id == quiz_id,
+    ).first()
+
+    # Necesitamos unidad_id para crear una fila nueva en caso necesario
+    if not cal:
+        quiz = db.query(models.Quiz).filter(models.Quiz.id == quiz_id).first()
+        if not quiz:
+            raise HTTPException(status_code=404, detail="Quiz no encontrado")
+        unidad_id = quiz.unidad_id
+
+        cal = models.EstudianteQuizCalificacion(
+            estudiante_username=estudiante_username,
+            unidad_id=unidad_id,
+            quiz_id=quiz_id,
+            score=new_score,
+            created_at=now,
+            updated_at=now,
+        )
+    else:
+        cal.score = new_score
+        cal.updated_at = now
+
+    # Marcar como manual y aprobada
+    try:
+        cal.origen_manual = True
+        cal.aprobada = True
+        cal.aprobada_por = username
+        cal.aprobada_at = now
+        cal.comentario_profesor = body.comentario_profesor
+    except Exception:
+        # Compatibilidad si la BD aún no tiene todas las columnas
+        pass
+
+    try:
+        db.add(cal)
+        db.commit()
+        db.refresh(cal)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"No se pudo guardar la calificación manual: {e}")
+
+    return {
+        "id": cal.id,
+        "estudiante_username": cal.estudiante_username,
+        "quiz_id": cal.quiz_id,
+        "unidad_id": cal.unidad_id,
+        "score": cal.score,
+        "aprobada": bool(getattr(cal, "aprobada", True)),
+        "aprobada_por": getattr(cal, "aprobada_por", None),
+        "aprobada_at": getattr(cal, "aprobada_at", None),
+        "origen_manual": bool(getattr(cal, "origen_manual", True)),
+        "comentario_profesor": getattr(cal, "comentario_profesor", None),
+        "updated_at": cal.updated_at,
+    }
+
 # ============================
 # Quizzes (estudiante)
 # ============================
@@ -1038,6 +1189,12 @@ def obtener_calificaciones_quizzes_estudiante(db: Session = Depends(get_db), who
     for cal in calificaciones:
         quiz = db.query(models.Quiz).filter(models.Quiz.id == cal.quiz_id).first()
         unidad = db.query(models.Unidad).filter(models.Unidad.id == cal.unidad_id).first()
+
+        aprobada = getattr(cal, "aprobada", None)
+        visible_score = cal.score if aprobada else None
+        aprobada_at = getattr(cal, "aprobada_at", None)
+        origen_manual = getattr(cal, "origen_manual", None)
+        comentario_profesor = getattr(cal, "comentario_profesor", None)
         
         resultado.append({
             "id": cal.id,
@@ -1045,9 +1202,13 @@ def obtener_calificaciones_quizzes_estudiante(db: Session = Depends(get_db), who
             "quiz_titulo": quiz.titulo if quiz else "Quiz eliminado",
             "unidad_id": cal.unidad_id,
             "unidad_nombre": unidad.nombre if unidad else "Unidad eliminada",
-            "score": cal.score,
+            "score": visible_score,
             "created_at": cal.created_at,
-            "updated_at": cal.updated_at
+            "updated_at": cal.updated_at,
+            "aprobada": bool(aprobada) if aprobada is not None else False,
+            "aprobada_at": aprobada_at,
+            "origen_manual": bool(origen_manual) if origen_manual is not None else False,
+            "comentario_profesor": comentario_profesor,
         })
     
     return resultado
@@ -1194,6 +1355,26 @@ def obtener_quiz_detalle_estudiante(quiz_id: int, db: Session = Depends(get_db),
         models.EstudianteQuizCalificacion.quiz_id == quiz_id
     ).first()
     
+    calificacion_val = None
+    aprobada = None
+    aprobada_at = None
+    origen_manual = None
+    comentario_profesor = None
+    if calificacion_obj:
+        try:
+            aprobada = getattr(calificacion_obj, "aprobada", None)
+            aprobada_at = getattr(calificacion_obj, "aprobada_at", None)
+            origen_manual = getattr(calificacion_obj, "origen_manual", None)
+            comentario_profesor = getattr(calificacion_obj, "comentario_profesor", None)
+        except Exception:
+            aprobada = None
+            aprobada_at = None
+            origen_manual = None
+            comentario_profesor = None
+        # Solo revelar la nota al estudiante cuando esté aprobada
+        if aprobada:
+            calificacion_val = calificacion_obj.score
+
     unidad_id = getattr(asig, "unidad_id", q.unidad_id)
     detalle = QuizDetalleEstudiante(
         id=q.id,
@@ -1202,8 +1383,12 @@ def obtener_quiz_detalle_estudiante(quiz_id: int, db: Session = Depends(get_db),
         descripcion=q.descripcion,
         preguntas=q.preguntas,
         ya_respondido=respuesta_existente is not None,
-        calificacion=calificacion_obj.score if calificacion_obj else None,
-        fecha_respuesta=respuesta_existente.created_at if respuesta_existente else None
+        calificacion=calificacion_val,
+        fecha_respuesta=respuesta_existente.created_at if respuesta_existente else None,
+        aprobada=bool(aprobada) if aprobada is not None else False,
+        aprobada_at=aprobada_at,
+        origen_manual=bool(origen_manual) if origen_manual is not None else False,
+        comentario_profesor=comentario_profesor,
     )
 
     # Adjuntar metadatos de intentos en el dict de salida (Pydantic permite atributos extra vía response_model)
@@ -1212,6 +1397,10 @@ def obtener_quiz_detalle_estudiante(quiz_id: int, db: Session = Depends(get_db),
     data["max_intentos"] = max_intentos
     data["puede_intentar"] = (max_intentos is None or max_intentos == 0 or puede_crear_nuevo_intento)
     data["tiempo_limite_minutos"] = tiempo_limite_minutos
+    data["aprobada"] = detalle.aprobada
+    data["aprobada_at"] = detalle.aprobada_at
+    data["origen_manual"] = detalle.origen_manual
+    data["comentario_profesor"] = detalle.comentario_profesor
     return data
 
 @authRouter.post("/estudiante/quizzes/{quiz_id}/responder", response_model=QuizRespuestaResponse)
@@ -1389,6 +1578,11 @@ def calcular_puntaje_quiz(preguntas: dict, respuestas: dict) -> int:
     for i, pregunta in enumerate(preguntas_lista):
         pregunta_key = f"pregunta_{i}"
         respuesta_estudiante = respuestas.get(pregunta_key)
+
+        # Ignorar explícitamente preguntas de respuesta corta en el cálculo automático
+        if isinstance(pregunta, dict) and pregunta.get("tipo") == "respuesta_corta":
+            print(f"🧮 DEBUG: Pregunta {i} es de tipo 'respuesta_corta' → se ignora en el puntaje automático")
+            continue
 
         respuesta_correcta = None
         if isinstance(pregunta, dict):
