@@ -917,6 +917,76 @@ def listar_quizzes(unidad_id: int | None = None, db: Session = Depends(get_db), 
     rows = query.order_by(models.Quiz.created_at.desc()).all()
     return rows
 
+@authRouter.get("/quizzes/{quiz_id}/respuestas", response_model=list[QuizRespuestaResponse])
+def listar_respuestas_quiz(
+    quiz_id: int,
+    db: Session = Depends(get_db),
+    who=Depends(require_roles(["profesor", "empresa", "admin"]))
+):
+    """Lista las respuestas de un quiz para revisión.
+
+    - Profesores solo ven respuestas de sus estudiantes asignados.
+    - Empresa/Admin ven todas las respuestas registradas.
+    """
+    query = db.query(models.EstudianteQuizRespuesta).filter(
+        models.EstudianteQuizRespuesta.quiz_id == quiz_id
+    )
+
+    tipo_usuario = who.get("tipo_usuario")
+    username = who.get("username")
+
+    if tipo_usuario == "profesor":
+        profesor = db.query(models.Registro).filter(models.Registro.username == username).first()
+        if not profesor:
+            raise HTTPException(status_code=404, detail="Profesor no encontrado")
+
+        asignaciones = db.query(models.profesor_estudiante.c.estudiante_id).filter(
+            models.profesor_estudiante.c.profesor_id == profesor.identificador
+        ).all()
+        est_ids = [row[0] for row in asignaciones]
+        if not est_ids:
+            return []
+
+        estudiantes = db.query(models.Registro).filter(models.Registro.identificador.in_(est_ids)).all()
+        usernames = [e.username for e in estudiantes]
+        if not usernames:
+            return []
+
+        query = query.filter(models.EstudianteQuizRespuesta.estudiante_username.in_(usernames))
+
+    rows = query.order_by(models.EstudianteQuizRespuesta.created_at.desc()).all()
+    return rows
+
+@authRouter.get("/quizzes/{quiz_id}/respuestas/{estudiante_username}", response_model=QuizRespuestaResponse)
+def obtener_respuesta_quiz_estudiante(
+    quiz_id: int,
+    estudiante_username: str,
+    db: Session = Depends(get_db),
+    who=Depends(require_roles(["profesor", "empresa", "admin"]))
+):
+    """Devuelve el detalle de la respuesta de un estudiante para un quiz específico.
+
+    - Profesores solo pueden ver respuestas de estudiantes que tengan asignados.
+    - Empresa/Admin pueden ver cualquier respuesta.
+    """
+    tipo_usuario = who.get("tipo_usuario")
+    username = who.get("username")
+
+    if tipo_usuario == "profesor":
+        # Reusar helper existente para verificar asignación profesor-estudiante
+        if not _estudiante_asignado_a_profesor(db, username, estudiante_username):
+            raise HTTPException(status_code=403, detail="Estudiante no asignado a este profesor")
+
+    row = db.query(models.EstudianteQuizRespuesta).filter(
+        models.EstudianteQuizRespuesta.quiz_id == quiz_id,
+        models.EstudianteQuizRespuesta.estudiante_username == estudiante_username
+    ).first()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Respuesta no encontrada")
+
+    return row
+
 # ============================
 # Quizzes (estudiante)
 # ============================
@@ -1071,21 +1141,63 @@ def obtener_quiz_detalle_estudiante(quiz_id: int, db: Session = Depends(get_db),
     if not q:
         raise HTTPException(status_code=403, detail="No tienes acceso a esta evaluación o no está disponible")
     
-    # Verificar si ya respondió
+    # Tomar la asignación principal para extraer max_intentos (si hubiera varias, usamos la más reciente)
+    # Se filtra por las unidades a las que está asignado el estudiante y por la ventana de disponibilidad
+    asig = (
+        db.query(models.QuizAsignacion)
+        .join(models.estudiante_unidad, models.estudiante_unidad.c.unidad_id == models.QuizAsignacion.unidad_id)
+        .filter(
+            models.QuizAsignacion.quiz_id == quiz_id,
+            models.estudiante_unidad.c.estudiante_id == user.identificador,
+            (models.QuizAsignacion.start_at.is_(None) | (models.QuizAsignacion.start_at <= now)),
+            (models.QuizAsignacion.end_at.is_(None) | (models.QuizAsignacion.end_at >= now)),
+        )
+        .order_by(models.QuizAsignacion.created_at.desc())
+        .first()
+    )
+    max_intentos = getattr(asig, "max_intentos", None) if asig else None
+    tiempo_limite_minutos = getattr(asig, "tiempo_limite_minutos", None) if asig else None
+
+    # Contar intentos de apertura realizados por el estudiante
+    intentos_previos = db.query(models.EstudianteQuizIntento).filter(
+        models.EstudianteQuizIntento.estudiante_username == who["username"],
+        models.EstudianteQuizIntento.quiz_id == quiz_id
+    ).count()
+
+    puede_crear_nuevo_intento = (max_intentos is None or max_intentos == 0 or intentos_previos < max_intentos)
+    intentos_usados = intentos_previos
+
+    if puede_crear_nuevo_intento:
+        unidad_id_intento = getattr(asig, "unidad_id", q.unidad_id)
+        nuevo_intento = models.EstudianteQuizIntento(
+            estudiante_username=who["username"],
+            quiz_id=quiz_id,
+            unidad_id=unidad_id_intento,
+            intento_num=intentos_previos + 1,
+            started_at=now,
+        )
+        db.add(nuevo_intento)
+        db.commit()
+        intentos_usados = intentos_previos + 1
+
+    intentos_realizados = intentos_usados
+
+    # Obtener la última respuesta (si existe) para fecha_respuesta
     respuesta_existente = db.query(models.EstudianteQuizRespuesta).filter(
         models.EstudianteQuizRespuesta.estudiante_username == who["username"],
         models.EstudianteQuizRespuesta.quiz_id == quiz_id
-    ).first()
-    
+    ).order_by(models.EstudianteQuizRespuesta.created_at.desc()).first()
+
     # Obtener calificación si existe
     calificacion_obj = db.query(models.EstudianteQuizCalificacion).filter(
         models.EstudianteQuizCalificacion.estudiante_username == who["username"],
         models.EstudianteQuizCalificacion.quiz_id == quiz_id
     ).first()
     
-    return QuizDetalleEstudiante(
+    unidad_id = getattr(asig, "unidad_id", q.unidad_id)
+    detalle = QuizDetalleEstudiante(
         id=q.id,
-        unidad_id=q.unidad_id,
+        unidad_id=unidad_id,
         titulo=q.titulo,
         descripcion=q.descripcion,
         preguntas=q.preguntas,
@@ -1093,6 +1205,14 @@ def obtener_quiz_detalle_estudiante(quiz_id: int, db: Session = Depends(get_db),
         calificacion=calificacion_obj.score if calificacion_obj else None,
         fecha_respuesta=respuesta_existente.created_at if respuesta_existente else None
     )
+
+    # Adjuntar metadatos de intentos en el dict de salida (Pydantic permite atributos extra vía response_model)
+    data = detalle.dict()
+    data["intentos_realizados"] = intentos_realizados
+    data["max_intentos"] = max_intentos
+    data["puede_intentar"] = (max_intentos is None or max_intentos == 0 or puede_crear_nuevo_intento)
+    data["tiempo_limite_minutos"] = tiempo_limite_minutos
+    return data
 
 @authRouter.post("/estudiante/quizzes/{quiz_id}/responder", response_model=QuizRespuestaResponse)
 def responder_quiz(quiz_id: int, body: QuizRespuestaCreate, db: Session = Depends(get_db), who=Depends(require_roles(["estudiante", "admin"]))):
@@ -1126,14 +1246,35 @@ def responder_quiz(quiz_id: int, body: QuizRespuestaCreate, db: Session = Depend
     if not q:
         raise HTTPException(status_code=403, detail="No tienes acceso a esta evaluación o no está disponible")
     
-    # Verificar si ya respondió
-    respuesta_existente = db.query(models.EstudianteQuizRespuesta).filter(
-        models.EstudianteQuizRespuesta.estudiante_username == who["username"],
-        models.EstudianteQuizRespuesta.quiz_id == quiz_id
-    ).first()
-    
-    if respuesta_existente:
-        raise HTTPException(status_code=400, detail="Ya has respondido esta evaluación")
+    # Verificar cantidad de intentos permitidos para esta asignación
+    asig = (
+        db.query(models.QuizAsignacion)
+        .filter(models.QuizAsignacion.quiz_id == quiz_id, models.QuizAsignacion.unidad_id == q.unidad_id)
+        .order_by(models.QuizAsignacion.created_at.desc())
+        .first()
+    )
+    max_intentos = getattr(asig, "max_intentos", None) if asig else None
+
+    # Contar intentos ya consumidos (aperturas)
+    intentos_usados = db.query(models.EstudianteQuizIntento).filter(
+        models.EstudianteQuizIntento.estudiante_username == who["username"],
+        models.EstudianteQuizIntento.quiz_id == quiz_id
+    ).count()
+
+    if intentos_usados == 0:
+        unidad_id_intento = getattr(asig, "unidad_id", q.unidad_id)
+        nuevo_intento = models.EstudianteQuizIntento(
+            estudiante_username=who["username"],
+            quiz_id=quiz_id,
+            unidad_id=unidad_id_intento,
+            intento_num=1,
+            started_at=now,
+        )
+        db.add(nuevo_intento)
+        intentos_usados = 1
+
+    if max_intentos is not None and max_intentos != 0 and intentos_usados > max_intentos:
+        raise HTTPException(status_code=400, detail="Has alcanzado el número máximo de intentos para esta evaluación")
     
     try:
         # Calcular puntaje (por ahora simple, se puede mejorar)
@@ -1152,14 +1293,28 @@ def responder_quiz(quiz_id: int, body: QuizRespuestaCreate, db: Session = Depend
         db.commit()
         db.refresh(nueva_respuesta)
         
-        # Usar la función existente para actualizar calificaciones
-        crud.upsert_quiz_calificacion(
-            db,
-            estudiante_username=who["username"],
-            unidad_id=q.unidad_id,
-            quiz_id=quiz_id,
-            score=score
-        )
+        # Usar la función existente para actualizar calificaciones, guardando la mejor nota alcanzada
+        try:
+            # Obtener calificación previa, si existe
+            cal_prev = db.query(models.EstudianteQuizCalificacion).filter(
+                models.EstudianteQuizCalificacion.estudiante_username == who["username"],
+                models.EstudianteQuizCalificacion.unidad_id == q.unidad_id,
+                models.EstudianteQuizCalificacion.quiz_id == quiz_id
+            ).first()
+
+            best_score = score
+            if cal_prev and cal_prev.score is not None:
+                best_score = max(best_score, int(cal_prev.score))
+
+            crud.upsert_quiz_calificacion(
+                db,
+                estudiante_username=who["username"],
+                unidad_id=q.unidad_id,
+                quiz_id=quiz_id,
+                score=best_score
+            )
+        except Exception as e:
+            print(f"[WARN] Error actualizando calificación de quiz con mejor nota: {e}")
         
         # Crear notificación de evaluación completada
         try:
@@ -1238,18 +1393,14 @@ def calcular_puntaje_quiz(preguntas: dict, respuestas: dict) -> int:
         respuesta_correcta = None
         if isinstance(pregunta, dict):
             # 1) Si viene un campo directo (compatibilidad hacia adelante)
-            #    Soporta: respuesta_correcta, correct_answer, answer, correcta (para casos simples)
-            if any(k in pregunta for k in ("respuesta_correcta", "correct_answer", "answer", "correcta", "respuesta")):
-                # Para vf y respuesta_corta, el cambio que te afecta es el campo 'respuesta'
-                respuesta_correcta = (
-                    pregunta.get("respuesta_correcta")
-                    or pregunta.get("correct_answer")
-                    or pregunta.get("answer")
-                    or pregunta.get("respuesta")
-                    or pregunta.get("correcta")
-                )
+            #    Soporta: respuesta_correcta, correct_answer, answer, respuesta, correcta
+            #    IMPORTANTE: no usar cadena de "or" para no descartar valores falsy válidos (False, 0, "")
+            for key in ("respuesta_correcta", "correct_answer", "answer", "respuesta", "correcta"):
+                if key in pregunta:
+                    respuesta_correcta = pregunta.get(key)
+                    break
             # 2) Caso actual: opción múltiple con flag `correcta` en la lista de opciones
-            elif "opciones" in pregunta and isinstance(pregunta["opciones"], list):
+            if respuesta_correcta is None and "opciones" in pregunta and isinstance(pregunta["opciones"], list):
                 for idx, op in enumerate(pregunta["opciones"]):
                     try:
                         if isinstance(op, dict) and op.get("correcta") is True:
@@ -1373,6 +1524,8 @@ def crear_asignacion(quiz_id: int, body: QuizAsignacionCreate, db: Session = Dep
         unidad_id=body.unidad_id,
         start_at=body.start_at,
         end_at=body.end_at,
+        max_intentos=body.max_intentos,
+        tiempo_limite_minutos=body.tiempo_limite_minutos
     )
     db.add(asig)
     db.commit()

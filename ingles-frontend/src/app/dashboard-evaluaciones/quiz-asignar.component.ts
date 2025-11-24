@@ -82,6 +82,30 @@ import { QuizzesService, QuizAsignacionCreate, QuizAsignacionResponse } from '..
 
             <div class="form-group">
               <label class="form-label">
+                <span class="label-text">Tiempo límite (minutos)</span>
+                <span class="label-optional">0 = Sin límite</span>
+              </label>
+              <div class="input-wrapper">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  [(ngModel)]="form.tiempo_limite_minutos"
+                  name="tiempo_limite_minutos"
+                  class="form-input"
+                  placeholder="Ej: 20"
+                />
+                <div class="input-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12,6 12,12 16,14"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
                 <span class="label-text">Fecha de inicio</span>
                 <span class="label-optional">Opcional</span>
               </label>
@@ -121,6 +145,30 @@ import { QuizzesService, QuizAsignacionCreate, QuizAsignacionResponse } from '..
                     <line x1="16" y1="2" x2="16" y2="6"/>
                     <line x1="8" y1="2" x2="8" y2="6"/>
                     <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
+                <span class="label-text">Número máximo de intentos</span>
+                <span class="label-optional">0 = Ilimitados</span>
+              </label>
+              <div class="input-wrapper">
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  [(ngModel)]="form.max_intentos"
+                  name="max_intentos"
+                  class="form-input"
+                  placeholder="Ej: 3"
+                />
+                <div class="input-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 8v4l3 3"/>
                   </svg>
                 </div>
               </div>
@@ -167,6 +215,16 @@ import { QuizzesService, QuizAsignacionCreate, QuizAsignacionResponse } from '..
                     </svg>
                     <span>Fin: {{ formatDate(a.end_at) || 'Sin límite' }}</span>
                   </div>
+                </div>
+                <div class="attempts-info">
+                  <span *ngIf="a.max_intentos && a.max_intentos > 0">Intentos máximos: {{ a.max_intentos }}</span>
+                  <span *ngIf="!a.max_intentos || a.max_intentos === 0">Intentos: Ilimitados</span>
+                  <span class="time-info" *ngIf="a.tiempo_limite_minutos && a.tiempo_limite_minutos > 0">
+                    · Tiempo límite: {{ a.tiempo_limite_minutos }} min
+                  </span>
+                  <span class="time-info" *ngIf="!a.tiempo_limite_minutos || a.tiempo_limite_minutos === 0">
+                    · Sin límite de tiempo
+                  </span>
                 </div>
               </div>
             </div>
@@ -532,6 +590,19 @@ import { QuizzesService, QuizAsignacionCreate, QuizAsignacionResponse } from '..
       gap: 0.25rem;
     }
 
+    .attempts-info {
+      margin-top: 0.35rem;
+      font-size: 0.8rem;
+      color: #4b5563;
+      font-weight: 500;
+    }
+
+    .time-info {
+      display: inline-block;
+      margin-left: 0.25rem;
+      color: #6b7280;
+    }
+
     .date-range {
       display: flex;
       flex-direction: column;
@@ -639,7 +710,11 @@ export class QuizAsignarComponent implements OnInit {
     });
   }
   guardar(){
-    const payload: QuizAsignacionCreate = { unidad_id: this.form.unidad_id };
+    const payload: QuizAsignacionCreate = {
+      unidad_id: this.form.unidad_id,
+      max_intentos: this.form.max_intentos ?? null,
+      tiempo_limite_minutos: this.form.tiempo_limite_minutos ?? null
+    };
     if (this.start) payload.start_at = new Date(this.start).toISOString();
     if (this.end) payload.end_at = new Date(this.end).toISOString();
     this.api.crearAsignacion(this.quizId, payload).subscribe(()=>{ this.load(); });

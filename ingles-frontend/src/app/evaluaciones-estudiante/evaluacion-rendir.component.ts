@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -16,16 +16,45 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
     </div>
     <div class="card-body">
       <p class="desc">{{ quiz.descripcion }}</p>
-      
-      <!-- Mostrar si ya fue respondido -->
-      <div *ngIf="quiz.ya_respondido" class="alert alert-info">
-        <h3>✅ Evaluación completada</h3>
-        <p>Ya has respondido esta evaluación el {{ quiz.fecha_respuesta | date:'short' }}</p>
-        <p *ngIf="quiz.calificacion !== null"><strong>Calificación: {{ quiz.calificacion }}/100</strong></p>
+      <div class="attempts" *ngIf="quiz">
+        <ng-container *ngIf="quiz.max_intentos && quiz.max_intentos > 0; else intentosIlimitados">
+          <span>Intentos usados: {{ quiz.intentos_realizados || 0 }} / {{ quiz.max_intentos }}</span>
+        </ng-container>
+        <ng-template #intentosIlimitados>
+          <span>Intentos usados: {{ quiz.intentos_realizados || 0 }} (ilimitados)</span>
+        </ng-template>
       </div>
 
-      <!-- Formulario de respuestas -->
-      <div *ngIf="!quiz.ya_respondido">
+      <div class="time-info" *ngIf="quiz">
+        <ng-container *ngIf="quiz.tiempo_limite_minutos && quiz.tiempo_limite_minutos > 0; else sinLimiteTiempo">
+          <span *ngIf="!tiempoAgotado">
+            Tiempo límite: {{ quiz.tiempo_limite_minutos }} min ·
+            Tiempo restante: {{ formatoTiempo(tiempoRestante) }}
+          </span>
+          <span *ngIf="tiempoAgotado">
+            ⏱ Se agotó el tiempo para este intento.
+          </span>
+        </ng-container>
+        <ng-template #sinLimiteTiempo>
+          <span>Sin límite de tiempo.</span>
+        </ng-template>
+      </div>
+      
+      <!-- Mostrar info de intentos y calificación -->
+      <div *ngIf="quiz.ya_respondido" class="alert alert-info">
+        <h3>✅ Intentos realizados</h3>
+        <p>Has respondido esta evaluación {{ quiz.intentos_realizados || 1 }} vez(es).</p>
+        <p *ngIf="quiz.calificacion !== null"><strong>Mejor calificación: {{ quiz.calificacion }}/100</strong></p>
+        <p *ngIf="quiz.fecha_respuesta">Último intento: {{ quiz.fecha_respuesta | date:'short' }}</p>
+        <p *ngIf="quiz.max_intentos && quiz.max_intentos > 0">
+          Límite de intentos: {{ quiz.max_intentos }}.
+          <span *ngIf="quiz.puede_intentar">Aún puedes volver a intentarlo.</span>
+          <span *ngIf="!quiz.puede_intentar">Ya no tienes más intentos disponibles.</span>
+        </p>
+      </div>
+
+      <!-- Formulario de respuestas (solo si todavía puede intentar y no se agotó el tiempo) -->
+      <div *ngIf="quiz.puede_intentar !== false">
         <!-- Solo mostramos tipos soportados actualmente: opcion_multiple y vf -->
         <div class="q-item" *ngFor="let it of itemsFiltrados; let i = index">
           <h3>{{ i+1 }}. {{ it.enunciado }}</h3>
@@ -60,7 +89,7 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
         </div>
         
         <div class="form-actions" *ngIf="itemsFiltrados.length > 0">
-          <button type="button" class="btn-primary" [disabled]="enviando" (click)="enviarRespuestas()" onclick="console.log('Botón enviar clickeado')">
+          <button type="button" class="btn-primary" [disabled]="enviando || tiempoAgotado" (click)="enviarRespuestas()" onclick="console.log('Botón enviar clickeado')">
             {{ enviando ? 'Enviando...' : 'Enviar Respuestas' }}
           </button>
         </div>
@@ -89,12 +118,14 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
     .short{width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:.5rem .7rem;pointer-events:auto !important}
     .alert{border:1px solid #d1ecf1;background:#d1ecf1;color:#0c5460;border-radius:10px;padding:1rem;margin:1rem 0}
     .alert-info{border-color:#bee5eb;background:#d1ecf1}
+    .time-info{margin:.25rem 0 1rem 0;color:#4b5563;font-size:.85rem}
+    .attempts{margin:.75rem 0;color:#4b5563;font-size:.9rem;font-weight:500}
     .form-actions{margin-top:1.5rem;text-align:center}
     .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:10px;padding:.75rem 1.5rem;cursor:pointer;font-size:1rem;pointer-events:auto !important}
     .btn-primary:disabled{opacity:0.6;cursor:not-allowed}
   `]
 })
-export class EvaluacionRendirComponent implements OnInit {
+export class EvaluacionRendirComponent implements OnInit, OnDestroy {
   quiz!: QuizDetalleEstudiante;
   respuestas: { [key: string]: any } = {};
   items: any[] = [];
@@ -102,6 +133,10 @@ export class EvaluacionRendirComponent implements OnInit {
   itemsFiltrados: any[] = [];
   loading = false;
   enviando = false;
+  tiempoRestante: number | null = null; // en segundos
+  tiempoAgotado = false;
+  intentoEnCurso = false;
+  private countdownId: any = null;
   
   constructor(private api: QuizzesService, private route: ActivatedRoute, private router: Router) {}
   
@@ -149,6 +184,9 @@ export class EvaluacionRendirComponent implements OnInit {
         for (let i = 0; i < this.itemsFiltrados.length; i++) {
           this.respuestas[`pregunta_${i}`] = null;
         }
+
+        this.inicializarTimer();
+        this.intentoEnCurso = this.quiz.puede_intentar !== false;
       },
       error: (error) => {
         console.error('Error al cargar evaluación:', error);
@@ -160,6 +198,10 @@ export class EvaluacionRendirComponent implements OnInit {
   
   enviarRespuestas() {
     if (this.enviando) return;
+    if (this.tiempoAgotado) {
+      alert('El tiempo para esta evaluación se ha agotado. Si aún tienes intentos disponibles, vuelve a abrir la evaluación para iniciar un nuevo intento.');
+      return;
+    }
     
     // Validar que todas las preguntas soportadas estén respondidas
     const preguntasSinResponder = [];
@@ -186,6 +228,7 @@ export class EvaluacionRendirComponent implements OnInit {
       next: (resultado) => {
         this.enviando = false;
         alert(`¡Evaluación enviada exitosamente! Tu calificación es: ${resultado.score}/100`);
+        this.intentoEnCurso = false;
         this.volver();
       },
       error: (error) => {
@@ -197,6 +240,59 @@ export class EvaluacionRendirComponent implements OnInit {
     });
   }
   
+  ngOnDestroy(): void {
+    this.limpiarTimer();
+    this.intentoEnCurso = false;
+  }
+
+  private inicializarTimer(): void {
+    this.limpiarTimer();
+    this.tiempoAgotado = false;
+
+    if (!this.quiz || !this.quiz.tiempo_limite_minutos || this.quiz.tiempo_limite_minutos <= 0) {
+      this.tiempoRestante = null;
+      return;
+    }
+
+    this.tiempoRestante = this.quiz.tiempo_limite_minutos * 60;
+    this.countdownId = setInterval(() => {
+      if (this.tiempoRestante == null) return;
+      this.tiempoRestante = this.tiempoRestante - 1;
+      if (this.tiempoRestante <= 0) {
+        this.tiempoRestante = 0;
+        this.tiempoAgotado = true;
+        this.intentoEnCurso = false;
+        this.limpiarTimer();
+      }
+    }, 1000);
+  }
+
+  private limpiarTimer(): void {
+    if (this.countdownId) {
+      clearInterval(this.countdownId);
+      this.countdownId = null;
+    }
+  }
+
+  formatoTiempo(totalSegundos: number | null): string {
+    if (totalSegundos == null || totalSegundos <= 0) {
+      return '00:00';
+    }
+    const minutos = Math.floor(totalSegundos / 60);
+    const segundos = totalSegundos % 60;
+    const mm = minutos.toString().padStart(2, '0');
+    const ss = segundos.toString().padStart(2, '0');
+    return `${mm}:${ss}`;
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  manejarBeforeUnload(event: BeforeUnloadEvent) {
+    if (this.intentoEnCurso) {
+      event.preventDefault();
+      event.returnValue = 'Tienes un intento en curso. Si sales de la página, este intento se dará por utilizado y tendrás que usar otro para volver a ingresar.';
+    }
+  }
+
   volver(){
     this.router.navigateByUrl('/dashboard-estudiante/evaluaciones');
   }

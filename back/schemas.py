@@ -110,6 +110,8 @@ class QuizAsignacionCreate(BaseModel):
     unidad_id: int
     start_at: Optional[datetime] = None
     end_at: Optional[datetime] = None
+    max_intentos: Optional[int] = None
+    tiempo_limite_minutos: Optional[int] = None
 
 class QuizAsignacionResponse(BaseModel):
     id: int
@@ -118,6 +120,8 @@ class QuizAsignacionResponse(BaseModel):
     start_at: Optional[datetime] = None
     end_at: Optional[datetime] = None
     created_at: datetime
+    max_intentos: Optional[int] = None
+    tiempo_limite_minutos: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -151,6 +155,10 @@ class QuizDetalleEstudiante(BaseModel):
     ya_respondido: bool = False
     calificacion: Optional[int] = None
     fecha_respuesta: Optional[datetime] = None
+    intentos_realizados: Optional[int] = None
+    max_intentos: Optional[int] = None
+    puede_intentar: Optional[bool] = None
+    tiempo_limite_minutos: Optional[int] = None
 
     class Config:
         from_attributes = True

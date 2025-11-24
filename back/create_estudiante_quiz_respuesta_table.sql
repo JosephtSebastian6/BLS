@@ -18,13 +18,10 @@ CREATE TABLE IF NOT EXISTS estudiante_quiz_respuesta (
     FOREIGN KEY (quiz_id) REFERENCES quiz(id) ON DELETE CASCADE,
     FOREIGN KEY (unidad_id) REFERENCES unidad(id) ON DELETE CASCADE,
     
-    -- Índices para mejor rendimiento
+    -- Índices para mejor rendimiento (sin restricción UNIQUE para permitir múltiples intentos)
     INDEX idx_estudiante_quiz (estudiante_username, quiz_id),
     INDEX idx_quiz_id (quiz_id),
-    INDEX idx_unidad_id (unidad_id),
-    
-    -- Restricción única para evitar respuestas duplicadas
-    UNIQUE KEY unique_estudiante_quiz (estudiante_username, quiz_id)
+    INDEX idx_unidad_id (unidad_id)
 );
 
 -- Verificar que la tabla se creó correctamente

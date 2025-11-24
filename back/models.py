@@ -135,6 +135,8 @@ class QuizAsignacion(Base):
     unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=False)
     start_at = Column(DateTime, nullable=True)
     end_at = Column(DateTime, nullable=True)
+    tiempo_limite_minutos = Column(Integer, nullable=True)  # NULL o 0 = sin límite de tiempo
+    max_intentos = Column(Integer, nullable=True)  # NULL o 0 = intentos ilimitados
     created_at = Column(DateTime, default=datetime.utcnow)
 
 # Calificación global/override de unidad
@@ -189,6 +191,16 @@ class EstudianteQuizRespuesta(Base):
     score = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
+
+class EstudianteQuizIntento(Base):
+    __tablename__ = "estudiante_quiz_intento"
+    id = Column(Integer, primary_key=True, index=True)
+    estudiante_username = Column(String(50), ForeignKey('estudiante.username'), nullable=False)
+    quiz_id = Column(Integer, ForeignKey('quiz.id'), nullable=False)
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=False)
+    intento_num = Column(Integer, nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
 
 # ===== Notificaciones =====
 class Notificacion(Base):

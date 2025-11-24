@@ -84,6 +84,10 @@ import { QuizzesService, QuizResponse } from '../services/quizzes.service';
             <span class="action-icon">🔐</span>
             Permisos
           </button>
+          <button class="action-btn responses-btn" (click)="viewResponses(q.id)">
+            <span class="action-icon">🧪</span>
+            Respuestas
+          </button>
           <button class="action-btn delete-btn" (click)="del(q)">
             <span class="action-icon">🗑️</span>
             Eliminar
@@ -392,6 +396,11 @@ import { QuizzesService, QuizResponse } from '../services/quizzes.service';
       color: white;
     }
 
+    .responses-btn {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: white;
+    }
+
     .delete-btn {
       background: linear-gradient(135deg, #ef4444, #dc2626);
       color: white;
@@ -508,6 +517,11 @@ export class QuizzesListaComponent implements OnInit {
   managePermissions(id: number) {
     console.log('Navegando a permisos:', id);
     this.router.navigate([id, 'permisos'], { relativeTo: this.route });
+  }
+
+  viewResponses(id: number) {
+    console.log('Navegando a respuestas:', id);
+    this.router.navigate([id, 'respuestas'], { relativeTo: this.route });
   }
 
   trackByQuiz(index: number, quiz: QuizResponse): number {

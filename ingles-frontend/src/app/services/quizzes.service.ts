@@ -18,6 +18,8 @@ export interface QuizAsignacionCreate {
   unidad_id: number;
   start_at?: string | null;
   end_at?: string | null;
+  max_intentos?: number | null;
+  tiempo_limite_minutos?: number | null;
 }
 
 export interface QuizAsignacionResponse extends QuizAsignacionCreate {
@@ -51,6 +53,10 @@ export interface QuizDetalleEstudiante {
   ya_respondido: boolean;
   calificacion?: number | null;
   fecha_respuesta?: string | null;
+  intentos_realizados?: number;
+  max_intentos?: number | null;
+  puede_intentar?: boolean;
+  tiempo_limite_minutos?: number | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -142,6 +148,14 @@ export class QuizzesService {
   // Checker: estudiantes habilitados por unidad
   getEstudiantesHabilitadosCount(unidad_id: number): Observable<{ unidad_id: number; estudiantes_habilitados: number }> {
     return this.http.get<{ unidad_id: number; estudiantes_habilitados: number }>(`${this.base}/unidades/${unidad_id}/estudiantes-habilitados-count`, this.headers());
+  }
+
+  listarRespuestas(quiz_id: number): Observable<QuizRespuestaResponse[]> {
+    return this.http.get<QuizRespuestaResponse[]>(`${this.base}/quizzes/${quiz_id}/respuestas`, this.headers());
+  }
+
+  obtenerRespuesta(quiz_id: number, estudiante_username: string): Observable<QuizRespuestaResponse> {
+    return this.http.get<QuizRespuestaResponse>(`${this.base}/quizzes/${quiz_id}/respuestas/${encodeURIComponent(estudiante_username)}`, this.headers());
   }
 
   // ===== Permisos de Quiz por Estudiante =====
