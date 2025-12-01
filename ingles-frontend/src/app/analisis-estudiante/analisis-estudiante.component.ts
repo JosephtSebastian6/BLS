@@ -267,8 +267,10 @@ interface Metrica {
     .dashboard-container {
       min-height: 100vh;
       background: #f8f9fa;
-      padding: 5rem 2rem 2rem 2rem;
+      padding: 8rem 2rem 2rem 2rem;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      max-width: 1320px;
+      margin: 0 auto;
     }
 
     /* Header Section */

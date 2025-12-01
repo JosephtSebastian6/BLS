@@ -22,6 +22,23 @@
   overflow: hidden;
 }
 
+/* Vista específica de Análisis Estudiante: dejamos que el componente use todo el ancho */
+.dashboard-estudiante-layout.analisis-view {
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  background: transparent;
+  display: block;
+  min-height: auto;
+}
+
+/* Hacer que el análisis del estudiante ocupe más ancho dentro del dashboard de estudiante */
+.dashboard-estudiante-layout app-analisis-estudiante {
+  flex: 1 1 auto;
+  max-width: 1320px;
+  width: 100%;
+}
+
 .dashboard-estudiante-layout::before {
   content: '';
   position: absolute;
@@ -676,6 +693,14 @@
   background: linear-gradient(135deg, var(--gray-50) 0%, var(--primary-bg) 100%);
   position: relative;
   overflow-x: hidden;
+}
+
+.main-content.analisis-view {
+  display: block;
+  min-height: 100vh;
+  padding: 2rem;
+  background: #ffffff;
+  overflow-x: auto;
 }
 
 

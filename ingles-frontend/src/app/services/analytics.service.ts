@@ -169,6 +169,14 @@ export class AnalyticsService {
     return this.http.get(`${this.base}/analytics/dashboard/stats`, this.headers());
   }
 
+  getDashboardUnits(): Observable<any> {
+    return this.http.get(`${this.base}/analytics/dashboard/unidades`, this.headers());
+  }
+
+  getDashboardActivity(): Observable<any> {
+    return this.http.get(`${this.base}/analytics/dashboard/activity`, this.headers());
+  }
+
   // Eliminar archivo de estudiante
   deleteStudentFile(unidadId: number, subcarpetaNombre: string, filename: string): Observable<any> {
     const url = `${this.base}/estudiantes/subcarpetas/${unidadId}/${encodeURIComponent(subcarpetaNombre)}/files/${encodeURIComponent(filename)}`;

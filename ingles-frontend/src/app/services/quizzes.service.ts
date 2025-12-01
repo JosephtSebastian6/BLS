@@ -75,6 +75,17 @@ export class QuizzesService {
     return { headers: new HttpHeaders(headers) };
   }
 
+  private headersFormData() {
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    let headers: any = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return { headers: new HttpHeaders(headers) };
+  }
+
+  getApiBase(): string {
+    return this.base;
+  }
+
   listar(unidad_id?: number): Observable<QuizResponse[]> {
     let params = new HttpParams();
     if (unidad_id != null) params = params.set('unidad_id', String(unidad_id));
@@ -217,6 +228,26 @@ export class QuizzesService {
     return this.http.get<Array<{ quiz_id: number; habilitado: boolean; created_at: string; updated_at: string }>>(
       `${this.base}/estudiante/${encodeURIComponent(username)}/quizzes-permisos`, 
       this.headers()
+    );
+  }
+
+  subirAudioPregunta(file: File): Observable<{ filename: string; owner: string; size: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ filename: string; owner: string; size: number }>(
+      `${this.base}/quizzes/audio/upload`,
+      formData,
+      this.headersFormData()
+    );
+  }
+
+  subirImagenPregunta(file: File): Observable<{ filename: string; owner: string; size: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ filename: string; owner: string; size: number }>(
+      `${this.base}/quizzes/images/upload`,
+      formData,
+      this.headersFormData()
     );
   }
 }

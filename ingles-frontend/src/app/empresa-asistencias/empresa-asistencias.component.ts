@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService } from '../services/attendance.service';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-empresa-asistencias',
@@ -39,10 +40,28 @@ import { AttendanceService } from '../services/attendance.service';
             <label class="filter-label">📅 Hasta</label>
             <input type="date" [(ngModel)]="hasta" class="filter-input">
           </div>
+          <div class="filter-item period-item">
+            <label class="filter-label">Periodo</label>
+            <div class="period-buttons">
+              <button type="button" class="period-btn" [class.active]="periodo === 'diario'" (click)="setPeriodo('diario')">
+                Día actual
+              </button>
+              <button type="button" class="period-btn" [class.active]="periodo === 'mensual'" (click)="setPeriodo('mensual')">
+                Mes actual
+              </button>
+              <button type="button" class="period-btn" [class.active]="periodo === 'anual'" (click)="setPeriodo('anual')">
+                Año actual
+              </button>
+            </div>
+          </div>
           <div class="filter-actions">
             <button class="search-btn" (click)="buscar()" [disabled]="loading">
               <span class="btn-icon">{{ loading ? '⏳' : '🔍' }}</span>
               <span class="btn-text">{{ loading ? 'Buscando...' : 'Buscar' }}</span>
+            </button>
+            <button class="export-btn" (click)="exportarCSV()" [disabled]="loading || exportando">
+              <span class="btn-icon">{{ exportando ? '⏳' : '📊' }}</span>
+              <span class="btn-text">{{ exportando ? 'Generando...' : 'Exportar a CSV' }}</span>
             </button>
           </div>
         </div>
@@ -416,6 +435,68 @@ import { AttendanceService } from '../services/attendance.service';
     .filter-actions {
       display: flex;
       align-items: end;
+      gap: 0.75rem;
+    }
+
+    .period-item {
+      min-width: 220px;
+    }
+
+    .period-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .period-btn {
+      padding: 0.6rem 1.2rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: #f9fafb;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    .period-btn.active {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      border-color: transparent;
+      box-shadow: 0 6px 18px rgba(102, 126, 234, 0.4);
+    }
+
+    .period-btn:hover:not(.active) {
+      background: #e5e7eb;
+    }
+
+    .export-btn {
+      background: white;
+      color: var(--primary-color);
+      border: 1px solid rgba(102, 126, 234, 0.5);
+      border-radius: 12px;
+      padding: 0.8rem 1.6rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .export-btn:hover {
+      background: rgba(102, 126, 234, 0.08);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .export-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
     }
 
     .search-btn {
@@ -1161,7 +1242,9 @@ import { AttendanceService } from '../services/attendance.service';
 export class EmpresaAsistenciasComponent implements OnInit {
   desde = '';
   hasta = '';
+  periodo: 'diario' | 'mensual' | 'anual' | null = 'mensual';
   loading = false;
+  exportando = false;
   error = '';
   clases: any[] = [];
 
@@ -1174,11 +1257,8 @@ export class EmpresaAsistenciasComponent implements OnInit {
   constructor(private attendance: AttendanceService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
-    // Rango por defecto: últimos 30 días
-    const hoy = new Date();
-    const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000);
-    this.desde = hace30.toISOString().slice(0, 10);
-    this.hasta = hoy.toISOString().slice(0, 10);
+    // Rango por defecto: mes calendario actual
+    this.aplicarPeriodo('mensual');
     this.buscar();
   }
 
@@ -1265,4 +1345,223 @@ export class EmpresaAsistenciasComponent implements OnInit {
   }
 
   // Nota: el template usa d.presente tras normalización
+
+  setPeriodo(p: 'diario' | 'mensual' | 'anual') {
+    this.periodo = p;
+    this.aplicarPeriodo(p);
+    this.buscar();
+  }
+
+  private aplicarPeriodo(p: 'diario' | 'mensual' | 'anual') {
+    const hoy = new Date();
+
+    if (p === 'diario') {
+      const iso = hoy.toISOString().slice(0, 10);
+      this.desde = iso;
+      this.hasta = iso;
+    } else if (p === 'mensual') {
+      const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+      const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+      this.desde = inicioMes.toISOString().slice(0, 10);
+      this.hasta = finMes.toISOString().slice(0, 10);
+    } else {
+      const inicioAnio = new Date(hoy.getFullYear(), 0, 1);
+      const finAnio = new Date(hoy.getFullYear(), 11, 31);
+      this.desde = inicioAnio.toISOString().slice(0, 10);
+      this.hasta = finAnio.toISOString().slice(0, 10);
+    }
+  }
+
+  private inferUnidadFromTema(tema?: string): string {
+    if (!tema) return '';
+    const limpio = tema.toString();
+    const match = limpio.match(/(Unidad\s*\d+|UNIT\s*\d+)/i);
+    return match ? match[0].trim() : '';
+  }
+
+  exportarCSVResumen() {
+    if (!this.clases || this.clases.length === 0) {
+      alert('No hay datos para exportar en el periodo seleccionado.');
+      return;
+    }
+
+    this.exportando = true;
+
+    const encabezados = [
+      'Fecha',
+      'Hora',
+      'Tema',
+      'Unidad',
+      'Profesor',
+      'Inscritos',
+      'Presentes',
+      'Ausentes',
+      'Estado',
+    ];
+
+    const filas = this.clases.map((c: any) => {
+      const fecha = c.dia ?? '';
+      const hora = c.hora ?? '';
+      const tema = (c.tema ?? '').toString().replace(/\s+/g, ' ').trim();
+      const unidad = this.inferUnidadFromTema(tema);
+      const profesor = c.profesor_username ?? '';
+      const inscritos = c.total_inscritos ?? 0;
+      const presentes = c.presentes ?? 0;
+      const ausentes = c.ausentes ?? 0;
+      const estado = c.tiene_asistencia ? 'Publicada' : 'Pendiente';
+
+      return [fecha, hora, tema, unidad, profesor, inscritos, presentes, ausentes, estado];
+    });
+
+    const escape = (valor: any): string => {
+      const str = String(valor ?? '');
+      if (/[";,\n]/.test(str)) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
+    const lineas = [
+      encabezados.map(escape).join(';'),
+      ...filas.map(fila => fila.map(escape).join(';')),
+    ];
+
+    const contenido = '\uFEFF' + lineas.join('\n');
+    const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+
+    const periodoLabel = this.periodo || 'rango';
+    const nombre = `reporte-asistencia-resumen-${periodoLabel}-${this.desde}_a_${this.hasta}.csv`;
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nombre;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    this.exportando = false;
+    this.cdr.markForCheck();
+  }
+
+  exportarCSV() {
+    if (!this.clases || this.clases.length === 0) {
+      alert('No hay datos para exportar en el periodo seleccionado.');
+      return;
+    }
+
+    this.exportando = true;
+
+    const solicitudes = this.clases.map((c: any) =>
+      this.attendance.getAsistenciaEmpresa(c.id)
+    );
+
+    forkJoin(solicitudes).subscribe({
+      next: (detalles) => {
+        const encabezados = [
+          'Fecha',
+          'Hora',
+          'Tema',
+          'Unidad',
+          'Profesor',
+          'Estudiante',
+          'Identificador',
+          'Estado',
+        ];
+
+        const filas: any[] = [];
+
+        detalles.forEach((data: any, index: number) => {
+          const claseBase = this.clases[index] || {};
+          data = data || {};
+
+          const fecha = data.fecha || claseBase.dia || '';
+          const hora = data.hora || claseBase.hora || '';
+          const tema = (data.tema || claseBase.tema || '').toString();
+          const unidad = this.inferUnidadFromTema(tema);
+          const profesor = claseBase.profesor_username || '';
+
+          const detalle = Array.isArray(data.detalle) ? data.detalle : [];
+
+          if (detalle.length === 0) {
+            filas.push([
+              fecha,
+              hora,
+              tema,
+              unidad,
+              profesor,
+              '',
+              '',
+              'SIN DETALLE',
+            ]);
+            return;
+          }
+
+          detalle.forEach((est: any) => {
+            const nombreEst = est.nombre || '';
+            const identificador =
+              est.id ||
+              est.email ||
+              est.username ||
+              est.identificador ||
+              est.usuario ||
+              est.correo ||
+              '';
+            const estado = est.presente ? 'PRESENTE' : 'AUSENTE';
+
+            filas.push([
+              fecha,
+              hora,
+              tema,
+              unidad,
+              profesor,
+              nombreEst,
+              identificador,
+              estado,
+            ]);
+          });
+        });
+
+        const escape = (valor: any): string => {
+          const str = String(valor ?? '');
+          if (/[";\,\n]/.test(str)) {
+            return '"' + str.replace(/"/g, '""') + '"';
+          }
+          return str;
+        };
+
+        const lineas = [
+          encabezados.map(escape).join(';'),
+          ...filas.map(fila => fila.map(escape).join(';')),
+        ];
+
+        const contenido = '\uFEFF' + lineas.join('\n');
+        const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+
+        const periodoLabel = this.periodo || 'rango';
+        const nombre = `reporte-asistencia-detallado-${periodoLabel}-${this.desde}_a_${this.hasta}.csv`;
+
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nombre;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      },
+      error: (err) => {
+        console.error('Error exportando reporte de asistencias', err);
+        alert('Ocurrió un error al generar el reporte de asistencias.');
+        this.exportando = false;
+        this.cdr.markForCheck();
+      },
+      complete: () => {
+        this.exportando = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
 }
+

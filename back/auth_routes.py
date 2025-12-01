@@ -1573,15 +1573,17 @@ def calcular_puntaje_quiz(preguntas: dict, respuestas: dict) -> int:
     print(f"🧮 DEBUG: Total de preguntas: {total_preguntas}")
 
     respuestas_correctas = 0
-    total_evaluables = 0  # preguntas que realmente cuentan para el puntaje
+    total_evaluables = 0  # preguntas que realmente cuentan para el conteo
+    puntos_obtenidos = 0.0
+    total_peso = 0.0      # suma de los pesos (puntaje) de preguntas evaluables
 
     for i, pregunta in enumerate(preguntas_lista):
         pregunta_key = f"pregunta_{i}"
         respuesta_estudiante = respuestas.get(pregunta_key)
 
-        # Ignorar explícitamente preguntas de respuesta corta en el cálculo automático
-        if isinstance(pregunta, dict) and pregunta.get("tipo") == "respuesta_corta":
-            print(f"🧮 DEBUG: Pregunta {i} es de tipo 'respuesta_corta' → se ignora en el puntaje automático")
+        # Ignorar explícitamente preguntas de respuesta corta (texto) y audio+respuesta corta en el cálculo automático
+        if isinstance(pregunta, dict) and pregunta.get("tipo") in ("respuesta_corta", "audio_respuesta_corta"):
+            print(f"🧮 DEBUG: Pregunta {i} es de tipo '{pregunta.get('tipo')}' → se ignora en el puntaje automático")
             continue
 
         respuesta_correcta = None
@@ -1609,11 +1611,22 @@ def calcular_puntaje_quiz(preguntas: dict, respuestas: dict) -> int:
         print(f"  - Respuesta correcta (normalizada): {respuesta_correcta}")
 
         es_correcta = False
+        peso = 1.0
 
         # Solo contamos la pregunta si hay respuesta correcta definida
         # y el estudiante envió algo para esa pregunta.
         if respuesta_correcta is not None and respuesta_estudiante is not None:
             total_evaluables += 1
+
+            # Determinar el peso de la pregunta (puntaje configurado por el profesor)
+            if isinstance(pregunta, dict):
+                try:
+                    raw_peso = pregunta.get("puntaje", 1)
+                    peso = float(raw_peso)
+                except Exception:
+                    peso = 1.0
+            if peso < 0:
+                peso = 0.0
 
             # Comparación flexible: primero como string
             try:
@@ -1627,21 +1640,27 @@ def calcular_puntaje_quiz(preguntas: dict, respuestas: dict) -> int:
             if not es_correcta:
                 es_correcta = respuesta_estudiante == respuesta_correcta
 
+            # Acumular pesos
+            total_peso += peso
+            if es_correcta:
+                respuestas_correctas += 1
+                puntos_obtenidos += peso
+
+        print(f"  - Peso (puntaje) usado: {peso}")
         print(f"  - ¿Es correcta?: {es_correcta}")
 
-        if es_correcta:
-            respuestas_correctas += 1
-
-    # Si por alguna razón no hay preguntas evaluables (p.ej. solo tipos aún no soportados)
+    # Si por alguna razón no hay preguntas evaluables o peso total (p.ej. solo tipos aún no soportados)
     # devolvemos 0 para evitar división por cero.
-    if total_evaluables == 0:
-        print("❌ DEBUG: No hay preguntas evaluables (todas ignoradas temporalmente)")
+    if total_peso <= 0:
+        print("❌ DEBUG: No hay preguntas evaluables con peso (todas ignoradas temporalmente)")
         return 0
 
-    puntaje = int((respuestas_correctas / total_evaluables) * 100)
+    puntaje = int((puntos_obtenidos / total_peso) * 100)
 
-    print("🧮 DEBUG: Resultado final:")
+    print("🧮 DEBUG: Resultado final (ponderado):")
     print(f"  - Respuestas correctas: {respuestas_correctas}/{total_evaluables}")
+    print(f"  - Peso total: {total_peso}")
+    print(f"  - Puntos obtenidos: {puntos_obtenidos}")
     print(f"  - Puntaje calculado: {puntaje}/100")
 
     return puntaje
@@ -2590,17 +2609,22 @@ def analytics_dashboard_stats(
         
         # Calcular estadísticas agregadas
         estudiantes_activos = 0
-        progreso_total = 0
+        progreso_total = 0.0
         unidades_completadas_total = 0
+        tiempo_total_min = 0
+        racha_total = 0.0
         
         for est in estudiantes:
             resumen = crud.get_analytics_resumen(db, est.username)
-            if resumen['tiempo_dedicado_min'] > 0:
+            if resumen["tiempo_dedicado_min"] > 0:
                 estudiantes_activos += 1
-            progreso_total += resumen['progreso_general']
-            unidades_completadas_total += resumen['unidades_completadas']
+            progreso_total += float(resumen.get("progreso_general", 0))
+            unidades_completadas_total += int(resumen.get("unidades_completadas", 0))
+            tiempo_total_min += int(resumen.get("tiempo_dedicado_min", 0))
+            racha_total += float(resumen.get("racha_dias", 0))
         
         progreso_promedio = (progreso_total / total_estudiantes) if total_estudiantes > 0 else 0
+        racha_promedio = (racha_total / total_estudiantes) if total_estudiantes > 0 else 0
         
         return {
             "total_estudiantes": total_estudiantes,
@@ -2608,10 +2632,188 @@ def analytics_dashboard_stats(
             "total_unidades": total_unidades,
             "progreso_promedio": round(progreso_promedio, 2),
             "unidades_completadas_total": unidades_completadas_total,
+            "tiempo_total_min": int(tiempo_total_min),
+            "racha_promedio_dias": round(racha_promedio, 2),
             "tipo_usuario": tipo_usuario
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error obteniendo estadísticas: {e}")
+
+@authRouter.get("/analytics/dashboard/unidades")
+def analytics_dashboard_unidades(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Progreso por unidad agregado para dashboard empresa/profesor."""
+    current_username, tipo_usuario = _username_from_token(credentials)
+    if not current_username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    if tipo_usuario not in ["empresa", "profesor"]:
+        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a esta información")
+
+    try:
+        # Estudiantes según el tipo de usuario
+        if tipo_usuario == "profesor":
+            estudiantes = crud.obtener_estudiantes_asignados(db, current_username)
+        else:
+            estudiantes = crud.obtener_estudiantes(db)
+
+        usernames = [e.username for e in estudiantes]
+        total_estudiantes = len(usernames)
+        if total_estudiantes == 0:
+            return {"tipo_usuario": tipo_usuario, "total_estudiantes": 0, "unidades": []}
+
+        # Obtener todas las unidades
+        unidades = db.query(models.Unidad).order_by(models.Unidad.id.asc()).all()
+
+        resultados: list[dict] = []
+        for u in unidades:
+            avg_prog, estudiantes_count = db.query(
+                func.avg(models.EstudianteProgresoUnidad.porcentaje_completado),
+                func.count(func.distinct(models.EstudianteProgresoUnidad.username)),
+            ).filter(
+                models.EstudianteProgresoUnidad.unidad_id == u.id,
+                models.EstudianteProgresoUnidad.username.in_(usernames),
+            ).one()
+
+            avance = float(avg_prog or 0.0)
+            estudiantes_unidad = int(estudiantes_count or 0)
+
+            if avance >= 70:
+                tendencia = "up"
+            elif avance >= 40:
+                tendencia = "flat"
+            else:
+                tendencia = "down"
+
+            resultados.append(
+                {
+                    "unidad_id": u.id,
+                    "nombre": getattr(u, "nombre", f"Unidad {u.id}"),
+                    "avance": round(avance, 2),
+                    "estudiantes": estudiantes_unidad,
+                    "tendencia": tendencia,
+                }
+            )
+
+        return {
+            "tipo_usuario": tipo_usuario,
+            "total_estudiantes": total_estudiantes,
+            "unidades": resultados,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error obteniendo progreso por unidades: {e}")
+
+
+@authRouter.get("/analytics/dashboard/activity")
+def analytics_dashboard_activity(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    """Actividad reciente y alertas para dashboard empresa/profesor."""
+    current_username, tipo_usuario = _username_from_token(credentials)
+    if not current_username:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    if tipo_usuario not in ["empresa", "profesor"]:
+        raise HTTPException(status_code=403, detail="No tienes permisos para acceder a esta información")
+
+    try:
+        # Estudiantes según el tipo de usuario
+        if tipo_usuario == "profesor":
+            estudiantes = crud.obtener_estudiantes_asignados(db, current_username)
+        else:
+            estudiantes = crud.obtener_estudiantes(db)
+
+        if not estudiantes:
+            return {
+                "tipo_usuario": tipo_usuario,
+                "total_estudiantes": 0,
+                "actividades": [],
+                "alertas": {"bajo_progreso": [], "inactivos": []},
+            }
+
+        usernames = [e.username for e in estudiantes]
+
+        # Actividad reciente global de estos estudiantes (últimos 20 eventos)
+        q = (
+            db.query(models.ActividadEstudiante, models.Registro, models.Unidad)
+            .join(models.Registro, models.Registro.username == models.ActividadEstudiante.username)
+            .join(models.Unidad, models.Unidad.id == models.ActividadEstudiante.unidad_id)
+            .filter(models.ActividadEstudiante.username.in_(usernames))
+            .order_by(models.ActividadEstudiante.creado_at.desc())
+            .limit(20)
+        )
+
+        actividades = []
+        for ev, user, unidad in q.all():
+            actividades.append(
+                {
+                    "username": user.username,
+                    "nombre": f"{getattr(user, 'nombres', '')} {getattr(user, 'apellidos', '')}".strip() or user.username,
+                    "unidad_id": unidad.id,
+                    "unidad_nombre": getattr(unidad, "nombre", f"Unidad {unidad.id}"),
+                    "tipo_evento": ev.tipo_evento,
+                    "fecha": ev.creado_at.isoformat(),
+                }
+            )
+
+        # Alertas: bajo progreso e inactivos (+7 días sin actividad)
+        from datetime import datetime as _dt
+
+        hoy = _dt.utcnow().date()
+        bajo_prog_candidatos: list[dict] = []
+        inactivos: list[dict] = []
+
+        for est in estudiantes:
+            resumen = crud.get_analytics_resumen(db, est.username)
+            progreso = float(resumen.get("progreso_general", 0))
+            nombre_est = f"{getattr(est, 'nombres', '')} {getattr(est, 'apellidos', '')}".strip() or est.username
+
+            bajo_prog_candidatos.append(
+                {
+                    "username": est.username,
+                    "nombre": nombre_est,
+                    "progreso_general": progreso,
+                }
+            )
+
+            # Última actividad para detectar inactividad prolongada
+            last_ev = (
+                db.query(models.ActividadEstudiante)
+                .filter(models.ActividadEstudiante.username == est.username)
+                .order_by(models.ActividadEstudiante.creado_at.desc())
+                .first()
+            )
+
+            if last_ev is not None and last_ev.creado_at is not None:
+                dias = (hoy - last_ev.creado_at.date()).days
+                if dias >= 7:
+                    inactivos.append(
+                        {
+                            "username": est.username,
+                            "nombre": nombre_est,
+                            "dias_inactivo": dias,
+                        }
+                    )
+
+        # Bajo progreso: quedarnos con los estudiantes < 60% y ordenar por progreso asc
+        bajo_prog_candidatos.sort(key=lambda x: x["progreso_general"])
+        bajo_progreso = [e for e in bajo_prog_candidatos if e["progreso_general"] < 60][:10]
+
+        return {
+            "tipo_usuario": tipo_usuario,
+            "total_estudiantes": len(usernames),
+            "actividades": actividades,
+            "alertas": {
+                "bajo_progreso": bajo_progreso,
+                "inactivos": inactivos,
+            },
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error obteniendo actividad y alertas: {e}")
+
 
 @authRouter.get("/debug/actividad/{username}")
 def debug_actividad_estudiante(
@@ -2717,6 +2919,12 @@ def debug_registrar_actividad(
 # Sistema de archivos para estudiantes - FUERA del backend
 UPLOAD_DIR = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes")
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+QUIZ_AUDIO_DIR = Path("/Users/sena/Desktop/Ingles/archivos_quiz_audio")
+QUIZ_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+
+QUIZ_IMAGE_DIR = Path("/Users/sena/Desktop/Ingles/archivos_quiz_imagenes")
+QUIZ_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 def get_current_user_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Extrae el username del token JWT"""
@@ -3258,6 +3466,117 @@ def get_student_file(
     if content_type is None:
         content_type = "application/octet-stream"
     
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=str(file_path),
+        media_type=content_type,
+        filename=filename
+    )
+
+@authRouter.post("/quizzes/audio/upload")
+async def upload_quiz_audio(
+    file: UploadFile = File(...),
+    who=Depends(require_roles(["profesor", "empresa", "admin"]))
+):
+    username = who.get("username") if isinstance(who, dict) else None
+    if not username:
+        raise HTTPException(status_code=401, detail="Usuario no identificado")
+
+    allowed_extensions = {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"}
+    file_extension = Path(file.filename or "").suffix.lower()
+    if file_extension not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Tipo de archivo no permitido para audio")
+
+    user_dir = QUIZ_AUDIO_DIR / username
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    safe_filename = f"{timestamp}_{uuid.uuid4().hex[:8]}{file_extension}"
+    file_path = user_dir / safe_filename
+
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        if file_path.exists():
+            file_path.unlink()
+        raise HTTPException(status_code=500, detail=f"No se pudo guardar el audio: {e}")
+
+    try:
+        size = file_path.stat().st_size
+    except Exception:
+        size = 0
+
+    return {"filename": safe_filename, "owner": username, "size": size}
+
+
+@authRouter.get("/quizzes/audio/{owner}/{filename}")
+def get_quiz_audio(owner: str, filename: str):
+    file_path = QUIZ_AUDIO_DIR / owner / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Audio no encontrado")
+
+    import mimetypes
+    content_type, _ = mimetypes.guess_type(str(file_path))
+    if content_type is None:
+        content_type = "application/octet-stream"
+
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=str(file_path),
+        media_type=content_type,
+        filename=filename
+    )
+
+
+@authRouter.post("/quizzes/images/upload")
+async def upload_quiz_image(
+    file: UploadFile = File(...),
+    who=Depends(require_roles(["profesor", "empresa", "admin"]))
+):
+    username = who.get("username") if isinstance(who, dict) else None
+    if not username:
+        raise HTTPException(status_code=401, detail="Usuario no identificado")
+
+    allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+    file_extension = Path(file.filename or "").suffix.lower()
+    if file_extension not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Tipo de archivo no permitido para imagen")
+
+    user_dir = QUIZ_IMAGE_DIR / username
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    safe_filename = f"{timestamp}_{uuid.uuid4().hex[:8]}{file_extension}"
+    file_path = user_dir / safe_filename
+
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        if file_path.exists():
+            file_path.unlink()
+        raise HTTPException(status_code=500, detail=f"No se pudo guardar la imagen: {e}")
+
+    try:
+        size = file_path.stat().st_size
+    except Exception:
+        size = 0
+
+    return {"filename": safe_filename, "owner": username, "size": size}
+
+
+@authRouter.get("/quizzes/images/{owner}/{filename}")
+def get_quiz_image(owner: str, filename: str):
+    file_path = QUIZ_IMAGE_DIR / owner / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Imagen no encontrada")
+
+    import mimetypes
+    content_type, _ = mimetypes.guess_type(str(file_path))
+    if content_type is None:
+        content_type = "application/octet-stream"
+
     from fastapi.responses import FileResponse
     return FileResponse(
         path=str(file_path),

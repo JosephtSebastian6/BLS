@@ -34,8 +34,8 @@
       </li>
     </ul>
   </aside>
-  <main class="main-content">
-    <div class="dashboard-estudiante-layout">
+  <main class="main-content" [class.analisis-view]="currentUrl.startsWith('/dashboard-estudiante/analisis-estudiante')">
+    <div class="dashboard-estudiante-layout" [class.analisis-view]="currentUrl.startsWith('/dashboard-estudiante/analisis-estudiante')">
       <!-- Formulario de perfil SOLO en inicio -->
       <ng-container *ngIf="getRouterUrl() === '/dashboard-estudiante'">
         <form *ngIf="perfil" (ngSubmit)="onSubmit()" class="perfil-form-freepik">

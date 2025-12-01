@@ -84,29 +84,38 @@ import { QuizzesService } from '../services/quizzes.service';
   </div>
   `,
   styles: [`
-    .card{max-width:1100px;margin:2rem auto;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.06)}
-    .card-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid rgba(0,0,0,.06)}
-    .card-body{padding:1rem 1.25rem}
-    .btn-outline{border:1px solid #cbd5e1;background:#fff;color:#1f2937;border-radius:10px;padding:.5rem .8rem;text-decoration:none;cursor:pointer}
-    .empty{color:#6b7280;text-align:center;padding:2rem}
-    .calificaciones-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;margin-bottom:2rem}
-    .calificacion-item{border:1px solid #e5e7eb;border-radius:12px;padding:1rem;background:#fafafa}
-    .calificacion-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem}
-    .calificacion-header h3{margin:0;font-size:1.1rem}
-    .score{font-weight:bold;font-size:1.2rem;padding:4px 8px;border-radius:6px}
-    .score.aprobado{background:#d1fae5;color:#065f46}
-    .score.reprobado{background:#fee2e2;color:#dc2626}
-    .calificacion-info p{margin:0.25rem 0;font-size:0.9rem}
-    .aprobado{color:#065f46}
-    .reprobado{color:#dc2626}
+    .card{max-width:1320px;margin:2.5rem auto;background:rgba(255,255,255,0.96);border:1px solid rgba(148,163,184,.35);border-radius:20px;box-shadow:0 18px 45px rgba(15,23,42,.18);backdrop-filter:blur(10px)}
+    .card-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.75rem;border-bottom:1px solid rgba(226,232,240,.9)}
+    .card-header h2{margin:0;font-size:1.35rem;font-weight:600;color:#0f172a}
+    .card-body{padding:1.5rem 1.75rem 1.75rem}
+    .btn-outline{border:1px solid #cbd5e1;background:#fff;color:#111827;border-radius:999px;padding:.55rem 1rem;text-decoration:none;cursor:pointer;font-size:.9rem;font-weight:500;box-shadow:0 1px 2px rgba(15,23,42,.08);transition:background-color .15s ease,color .15s ease,box-shadow .15s ease,transform .15s ease}
+    .btn-outline:hover{background:#111827;color:#f9fafb;box-shadow:0 4px 14px rgba(15,23,42,.25);transform:translateY(-1px)}
+    .empty{color:#6b7280;text-align:center;padding:2.5rem 1rem;font-size:.95rem}
+    .calificaciones-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2rem;margin-bottom:2rem;margin-top:.75rem}
+    .calificacion-item{border:1px solid rgba(226,232,240,0.95);border-radius:16px;padding:1rem 1.1rem;background:linear-gradient(135deg,#f9fafb,#eff6ff);box-shadow:0 10px 30px rgba(15,23,42,.06);position:relative;overflow:hidden;transition:box-shadow .18s ease,transform .18s ease,border-color .18s ease,background .18s ease}
+    .calificacion-item::before{content:"";position:absolute;inset:-40%;background:radial-gradient(circle at top left,rgba(45,212,191,.38),transparent 55%);opacity:0;transition:opacity .25s ease;pointer-events:none}
+    .calificacion-item:hover{transform:translateY(-3px);box-shadow:0 18px 45px rgba(15,23,42,.12);border-color:rgba(148,163,184,.8)}
+    .calificacion-item:hover::before{opacity:1}
+    .calificacion-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;gap:.75rem}
+    .calificacion-header h3{margin:0;font-size:1.05rem;font-weight:600;color:#0f172a}
+    .score{font-weight:600;font-size:1rem;padding:4px 10px;border-radius:999px;background:#e5e7eb;color:#111827;min-width:80px;text-align:center;white-space:nowrap}
+    .score.aprobado{background:#dcfce7;color:#166534}
+    .score.reprobado{background:#fee2e2;color:#b91c1c}
+    .calificacion-info p{margin:0.25rem 0;font-size:0.9rem;color:#374151}
+    .aprobado{color:#166534}
+    .reprobado{color:#b91c1c}
     .badge-manual{font-size:0.8rem;color:#0369a1;margin-left:0.25rem}
-    .comentario{display:block;margin-top:0.15rem;color:#374151}
-    .resumen{border-top:1px solid #e5e7eb;padding-top:1.5rem}
-    .resumen h3{margin-bottom:1rem}
-    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}
-    .stat{display:flex;justify-content:space-between;padding:0.5rem 1rem;background:#f8f9fa;border-radius:8px}
-    .stat .label{font-weight:500}
-    .stat .value{font-weight:bold}
+    .comentario{display:block;margin-top:0.15rem;color:#111827;font-size:0.9rem}
+    .resumen{border-top:1px solid #e5e7eb;padding-top:1.5rem;margin-top:.5rem}
+    .resumen h3{margin-bottom:1rem;font-size:1.1rem;font-weight:600;color:#0f172a}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
+    .stat{display:flex;justify-content:space-between;align-items:center;padding:.65rem 1.1rem;background:#f8fafc;border-radius:12px;border:1px solid #e5e7eb}
+    .stat .label{font-weight:500;color:#4b5563;font-size:0.9rem}
+    .stat .value{font-weight:700;color:#111827}
+    .stat .value.aprobado{color:#16a34a}
+    .stat .value.reprobado{color:#dc2626}
+    @media (max-width:1024px){.calificaciones-grid{grid-template-columns:repeat(1,minmax(0,1fr))}}
+    @media (max-width:640px){.card{margin:1.5rem .75rem}.card-header,.card-body{padding:1rem 1.1rem}.card-header h2{font-size:1.2rem}}
   `]
 })
 export class MisCalificacionesComponent implements OnInit {

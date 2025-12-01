@@ -115,9 +115,19 @@ import { QuizzesService, QuizRespuestaResponse, QuizResponse } from '../services
             <div class="question-index">#{{ i + 1 }}</div>
             <div class="question-body">
               <div class="question-text">{{ d.enunciado }}</div>
+              <div *ngIf="d.imagen_url" style="margin-top:0.35rem;">
+                <img
+                  [src]="d.imagen_url"
+                  alt="Imagen de la pregunta"
+                  style="max-width:260px;max-height:260px;width:100%;height:auto;object-fit:contain;border-radius:8px;display:block;margin:0.35rem auto;"
+                />
+              </div>
               <div class="answer-pill">
                 <span class="answer-label">Respuesta del estudiante:</span>
                 <span class="answer-text">{{ d.respuesta }}</span>
+              </div>
+              <div *ngIf="d.tipo === 'audio_respuesta_corta' && d.audio_url" style="margin-top:0.5rem;">
+                <audio [src]="d.audio_url" controls style="width:100%;"></audio>
               </div>
             </div>
           </div>
@@ -570,7 +580,7 @@ export class QuizRespuestasComponent implements OnInit {
   respuestas: QuizRespuestaResponse[] = [];
   respuestaSeleccionada: QuizRespuestaResponse | null = null;
   filtro = '';
-  detallePreguntas: { enunciado: string; respuesta: string }[] = [];
+  detallePreguntas: { enunciado: string; respuesta: string; tipo?: string; audio_url?: string; imagen_url?: string }[] = [];
   itemsPreguntas: any[] = [];
   aprobando = false;
   aprobadas: { [username: string]: boolean } = {};
@@ -744,7 +754,10 @@ export class QuizRespuestasComponent implements OnInit {
 
       return {
         enunciado: p?.enunciado ?? '(Pregunta sin texto)',
-        respuesta: textoRespuesta
+        respuesta: textoRespuesta,
+        tipo: p?.tipo,
+        audio_url: p?.audio_url,
+        imagen_url: p?.imagen_url
       };
     });
   }

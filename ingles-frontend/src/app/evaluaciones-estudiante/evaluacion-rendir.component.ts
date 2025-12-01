@@ -69,9 +69,16 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
 
       <!-- Formulario de respuestas (solo si todavía puede intentar y no se agotó el tiempo) -->
       <div *ngIf="quiz.puede_intentar !== false">
-        <!-- Solo mostramos tipos soportados actualmente: opcion_multiple y vf -->
+        <!-- Solo mostramos tipos soportados actualmente: opcion_multiple, vf y variantes de respuesta corta -->
         <div class="q-item" *ngFor="let it of itemsFiltrados; let i = index">
           <h3>{{ i+1 }}. {{ it.enunciado }}</h3>
+          <div *ngIf="it.imagen_url" style="margin:0.5rem 0;">
+            <img
+              [src]="it.imagen_url"
+              alt="Imagen de la pregunta"
+              style="max-width:260px;max-height:260px;width:100%;height:auto;object-fit:contain;border-radius:8px;display:block;margin:0.5rem auto;"
+            />
+          </div>
           <ng-container [ngSwitch]="it.tipo">
             <div *ngSwitchCase="'opcion_multiple'">
               <label class="row" *ngFor="let op of it.opciones; let j=index">
@@ -105,6 +112,21 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
                 [value]="respuestas['pregunta_' + i] || ''"
                 (input)="actualizarTexto(i, $event)"
                 placeholder="Escribe tu respuesta aquí"
+              />
+            </div>
+            <div *ngSwitchCase="'audio_respuesta_corta'">
+              <div style="margin-bottom:0.5rem;">
+                <audio *ngIf="it.audio_url" [src]="it.audio_url" controls style="width:100%;"></audio>
+                <p *ngIf="!it.audio_url" style="font-size:0.85rem;color:#6b7280;">
+                  No se ha configurado la URL del audio para esta pregunta.
+                </p>
+              </div>
+              <input
+                type="text"
+                class="short"
+                [value]="respuestas['pregunta_' + i] || ''"
+                (input)="actualizarTexto(i, $event)"
+                placeholder="Escribe tu respuesta después de escuchar el audio"
               />
             </div>
           </ng-container>
@@ -227,8 +249,8 @@ export class EvaluacionRendirComponent implements OnInit, OnDestroy {
           this.items = [];
         }
 
-        // Mostramos actualmente opcion_multiple, vf y respuesta_corta
-        this.itemsFiltrados = this.items.filter(it => it?.tipo === 'opcion_multiple' || it?.tipo === 'vf' || it?.tipo === 'respuesta_corta');
+        // Mostramos actualmente opcion_multiple, vf, respuesta_corta y audio_respuesta_corta
+        this.itemsFiltrados = this.items.filter(it => it?.tipo === 'opcion_multiple' || it?.tipo === 'vf' || it?.tipo === 'respuesta_corta' || it?.tipo === 'audio_respuesta_corta');
         console.log('Items procesados (filtrados):', this.itemsFiltrados);
         this.loading = false;
         

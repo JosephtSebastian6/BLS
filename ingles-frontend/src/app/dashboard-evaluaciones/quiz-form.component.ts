@@ -94,6 +94,7 @@ import { QuizzesService, QuizCreate, QuizResponse } from '../services/quizzes.se
                   <option value="opcion_multiple">📊 Opción múltiple</option>
                   <option value="vf">✅ Verdadero/Falso</option>
                   <option value="respuesta_corta">📝 Respuesta corta</option>
+                  <option value="audio_respuesta_corta">🎧 Audio + respuesta corta</option>
                 </select>
               </div>
               <button type="button" class="btn-primary" (click)="onAgregarClick($event)">
@@ -165,6 +166,29 @@ import { QuizzesService, QuizCreate, QuizResponse } from '../services/quizzes.se
                   </label>
                 </div>
 
+                <!-- Imagen opcional para cualquier tipo de pregunta -->
+                <div class="form-group">
+                  <label class="form-label">
+                    <span class="label-text">🖼 Imagen (opcional)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      (change)="onImageFileSelected($event, i)"
+                      class="form-input"
+                    />
+                  </label>
+                  <div *ngIf="it._imageUploading" class="upload-hint">
+                    Subiendo imagen...
+                  </div>
+                  <div *ngIf="it.imagen_url && !it._imageUploading" class="upload-hint" style="margin-top:0.5rem;">
+                    <img
+                      [src]="it.imagen_url"
+                      alt="Imagen de la pregunta"
+                      style="max-width:260px;max-height:260px;width:100%;height:auto;object-fit:contain;border-radius:8px;display:block;margin:0.5rem auto;"
+                    />
+                  </div>
+                </div>
+
                 <!-- Question Type Specific Content -->
                 <ng-container [ngSwitch]="it.tipo">
                   <!-- Multiple Choice -->
@@ -224,6 +248,51 @@ import { QuizzesService, QuizCreate, QuizResponse } from '../services/quizzes.se
                           [(ngModel)]="it.respuesta" 
                           name="rc_resp_{{i}}" 
                           placeholder="Texto de referencia para la corrección"
+                          class="form-input"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Audio + Short Answer -->
+                  <div *ngSwitchCase="'audio_respuesta_corta'" class="options-section">
+                    <div class="form-group">
+                      <label class="form-label">
+                        <span class="label-text">Archivo de audio</span>
+                        <input
+                          type="file"
+                          accept="audio/*"
+                          (change)="onAudioFileSelected($event, i)"
+                          class="form-input"
+                        />
+                      </label>
+                      <div *ngIf="it._audioUploading" class="upload-hint">
+                        Subiendo audio...
+                      </div>
+                      <div *ngIf="it.audio_url && !it._audioUploading" class="upload-hint">
+                        <audio [src]="it.audio_url" controls style="width:100%;"></audio>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">
+                        <span class="label-text">URL del audio (opcional)</span>
+                        <input
+                          type="text"
+                          [(ngModel)]="it.audio_url"
+                          name="audio_url_{{i}}"
+                          placeholder="https://.../mi-audio.mp3"
+                          class="form-input"
+                        />
+                      </label>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">
+                        <span class="label-text">📝 Respuesta esperada (opcional)</span>
+                        <input
+                          type="text"
+                          [(ngModel)]="it.respuesta"
+                          name="audio_rc_resp_{{i}}"
+                          placeholder="Texto de referencia para la corrección manual"
                           class="form-input"
                         />
                       </label>
@@ -893,8 +962,8 @@ import { QuizzesService, QuizCreate, QuizResponse } from '../services/quizzes.se
 export class QuizFormComponent implements OnInit {
   id: number | null = null;
   form: QuizCreate = { unidad_id: 0, titulo: '', descripcion: '', preguntas: null };
-  // Editor visual: ahora permitimos opcion_multiple, vf y respuesta_corta
-  nuevoTipo: 'opcion_multiple' | 'vf' | 'respuesta_corta' = 'opcion_multiple';
+  // Editor visual: permitimos opcion_multiple, vf, respuesta_corta y audio_respuesta_corta
+  nuevoTipo: 'opcion_multiple' | 'vf' | 'respuesta_corta' | 'audio_respuesta_corta' = 'opcion_multiple';
   items: any[] = [];
   constructor(private api: QuizzesService, private route: ActivatedRoute, private router: Router) {}
   ngOnInit(){
@@ -927,6 +996,7 @@ export class QuizFormComponent implements OnInit {
     if (t === 'opcion_multiple') return 'Opción múltiple';
     if (t === 'vf') return 'Verdadero/Falso';
     if (t === 'respuesta_corta') return 'Respuesta corta';
+    if (t === 'audio_respuesta_corta') return 'Audio + respuesta corta';
     return t;
   }
 
@@ -937,6 +1007,8 @@ export class QuizFormComponent implements OnInit {
       this.items.push({ tipo: 'vf', enunciado: '', puntaje: 1, respuesta: true });
     } else if (this.nuevoTipo === 'respuesta_corta') {
       this.items.push({ tipo: 'respuesta_corta', enunciado: '', puntaje: 1, respuesta: '' });
+    } else if (this.nuevoTipo === 'audio_respuesta_corta') {
+      this.items.push({ tipo: 'audio_respuesta_corta', enunciado: '', puntaje: 1, audio_url: '', respuesta: '' });
     }
     // Forzar CD en algunos entornos
     this.items = [...this.items];
@@ -949,4 +1021,74 @@ export class QuizFormComponent implements OnInit {
   eliminarOpcion(i: number, j: number){ this.items[i].opciones.splice(j,1); }
 
   onAgregarClick(ev: Event){ ev.preventDefault(); ev.stopPropagation(); this.agregarPregunta(); }
+
+  onAudioFileSelected(ev: Event, index: number) {
+    const input = ev.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) {
+      return;
+    }
+    const file = input.files[0];
+    if (!file) {
+      return;
+    }
+    const it = this.items[index];
+    if (!it) {
+      return;
+    }
+    it._audioUploading = true;
+    this.api.subirAudioPregunta(file).subscribe({
+      next: (res: any) => {
+        try {
+          const base = this.api.getApiBase();
+          const apiRoot = base.replace(/\/auth$/, '');
+          const owner = res.owner || '';
+          const filename = res.filename;
+          it.audio_url = owner ? `${apiRoot}/auth/quizzes/audio/${owner}/${filename}` : `${apiRoot}/auth/quizzes/audio/${filename}`;
+        } catch (e) {
+          console.error('Error construyendo URL de audio', e);
+        }
+        it._audioUploading = false;
+      },
+      error: (err) => {
+        console.error('Error subiendo audio', err);
+        alert('No se pudo subir el audio. Intenta nuevamente.');
+        it._audioUploading = false;
+      }
+    });
+  }
+
+  onImageFileSelected(ev: Event, index: number) {
+    const input = ev.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) {
+      return;
+    }
+    const file = input.files[0];
+    if (!file) {
+      return;
+    }
+    const it = this.items[index];
+    if (!it) {
+      return;
+    }
+    it._imageUploading = true;
+    this.api.subirImagenPregunta(file).subscribe({
+      next: (res: any) => {
+        try {
+          const base = this.api.getApiBase();
+          const apiRoot = base.replace(/\/auth$/, '');
+          const owner = res.owner || '';
+          const filename = res.filename;
+          it.imagen_url = owner ? `${apiRoot}/auth/quizzes/images/${owner}/${filename}` : `${apiRoot}/auth/quizzes/images/${filename}`;
+        } catch (e) {
+          console.error('Error construyendo URL de imagen', e);
+        }
+        it._imageUploading = false;
+      },
+      error: (err) => {
+        console.error('Error subiendo imagen', err);
+        alert('No se pudo subir la imagen. Intenta nuevamente.');
+        it._imageUploading = false;
+      }
+    });
+  }
 }

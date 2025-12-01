@@ -1,7 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { AnalyticsService } from '../services/analytics.service';
+import { GradingV2Service } from '../services/grading-v2.service';
 
 interface KPI {
   label: string;
@@ -229,7 +231,7 @@ interface ActividadItem {
         
         <div class="activity-list">
           <div 
-            *ngFor="let actividad of actividad; trackBy: trackByActivity" 
+            *ngFor="let actividad of actividadPaginada; trackBy: trackByActivity" 
             class="activity-item">
             
             <div class="activity-avatar">
@@ -244,6 +246,16 @@ interface ActividadItem {
             </div>
             
             <div class="activity-icon">✅</div>
+          </div>
+        </div>
+
+        <div class="activity-pagination" *ngIf="totalActivityPages > 1">
+          <div class="activity-pagination-buttons">
+            <button (click)="prevActivityPage()" [disabled]="activityPage === 1">Anterior</button>
+            <button (click)="nextActivityPage()" [disabled]="activityPage === totalActivityPages">Siguiente</button>
+          </div>
+          <div class="activity-pagination-info">
+            Página {{ activityPage }} de {{ totalActivityPages }}
           </div>
         </div>
       </div>
@@ -912,6 +924,56 @@ interface ActividadItem {
       flex-shrink: 0;
     }
 
+    .activity-pagination {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px dashed rgba(148, 163, 184, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .activity-pagination-buttons {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .activity-pagination-buttons button {
+      min-width: 110px;
+      padding: 0.55rem 1.4rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      background: #f9fafb;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    }
+
+    .activity-pagination-buttons button:hover:not(:disabled) {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      border-color: transparent;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
+    }
+
+    .activity-pagination-buttons button:disabled {
+      opacity: 0.6;
+      cursor: default;
+      box-shadow: none;
+      transform: none;
+      background: #e5e7eb;
+    }
+
+    .activity-pagination-info {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
     .alerts-content {
       display: flex;
       flex-direction: column;
@@ -1118,51 +1180,199 @@ interface ActividadItem {
     }
   `]
 })
-export class HomeResumenComponent {
-  // Rango de fechas (mock)
+
+export class HomeResumenComponent implements OnInit {
+  // Rango de fechas
   selectedRange: '7d' | '30d' | '90d' | 'custom' = '7d';
   startDate?: string; // yyyy-mm-dd
   endDate?: string;   // yyyy-mm-dd
 
-  // Datos mock (luego se conectan al backend)
+  // Métricas clave (se sobrescriben con datos reales)
   kpis: KPI[] = [
-    { label: 'Estudiantes activos', value: '128', sub: 'últimos 7 días', icon: 'groups' },
-    { label: 'Avance promedio', value: '62%', sub: 'todas las unidades', icon: 'trending_up' },
-    { label: 'Tiempo total', value: '142h', sub: 'acumulado', icon: 'schedule' },
-    { label: 'Racha promedio', value: '3 días', sub: 'actividad', icon: 'bolt' },
-    { label: 'Unidades completadas', value: '418', sub: 'histórico', icon: 'check_circle' },
+    { label: 'Estudiantes activos', value: '0', sub: 'con actividad', icon: 'groups' },
+    { label: 'Avance promedio', value: '0%', sub: 'todas las unidades', icon: 'trending_up' },
+    { label: 'Tiempo total', value: '0m', sub: 'acumulado', icon: 'schedule' },
+    { label: 'Racha promedio', value: '0 días', sub: 'actividad', icon: 'bolt' },
+    { label: 'Unidades completadas', value: '0', sub: 'histórico', icon: 'check_circle' },
   ];
 
-  unidades: UnidadResumen[] = [
-    { nombre: 'Unidad 1 - Introducción', avance: 78, estudiantes: 96, tendencia: 'up' },
-    { nombre: 'Unidad 2 - Procesos', avance: 61, estudiantes: 90, tendencia: 'flat' },
-    { nombre: 'Unidad 3 - RRHH', avance: 44, estudiantes: 87, tendencia: 'down' },
-    { nombre: 'Unidad 4 - Proyectos', avance: 23, estudiantes: 80, tendencia: 'up' },
-  ];
+  unidades: UnidadResumen[] = [];
 
-  actividad: ActividadItem[] = [
-    { usuario: 'Sebastián', evento: 'completó Unidad 2', fecha: 'hace 12 min' },
-    { usuario: 'María', evento: 'obtuvo 85/100 en Quiz 3', fecha: 'hace 1 h' },
-    { usuario: 'Carlos', evento: 'inició Unidad 3', fecha: 'ayer' },
-    { usuario: 'Laura', evento: 'revisó materiales de Unidad 1', fecha: 'ayer' },
-  ];
+  actividad: ActividadItem[] = [];
+  activityPage = 1;
+  activityPageSize = 5;
 
   alertas = {
-    bajoProgreso: [ 'andres', 'tatiana' ],
-    inactivos: [ 'julian', 'camila' ],
+    bajoProgreso: [] as string[],
+    inactivos: [] as string[],
   };
 
   // Distribución de desempeño (para donut)
   distribucion = { alto: 42, medio: 38, bajo: 20 };
   private readonly C = 283; // circunferencia aproximada para r=45
 
+  constructor(
+    private analytics: AnalyticsService,
+    private gradingV2: GradingV2Service
+  ) {}
+
+  ngOnInit(): void {
+    this.loadDashboardStats();
+    this.loadPerformanceDistribution();
+    this.loadUnitsProgress();
+    this.loadActivityAndAlerts();
+  }
+
+  private loadDashboardStats(): void {
+    this.analytics.getDashboardStats().subscribe({
+      next: (stats) => {
+        this.kpis = [
+          { label: 'Estudiantes activos', value: String(stats?.estudiantes_activos ?? 0), sub: 'con actividad', icon: 'groups' },
+          { label: 'Avance promedio', value: `${Math.round(stats?.progreso_promedio ?? 0)}%`, sub: 'todas las unidades', icon: 'trending_up' },
+          { label: 'Tiempo total', value: this.formatTiempo(stats?.tiempo_total_min), sub: 'acumulado', icon: 'schedule' },
+          { label: 'Racha promedio', value: this.formatRacha(stats?.racha_promedio_dias), sub: 'actividad', icon: 'bolt' },
+          { label: 'Unidades completadas', value: String(stats?.unidades_completadas_total ?? 0), sub: 'histórico', icon: 'check_circle' },
+        ];
+      },
+      error: (err) => {
+        console.error('Error cargando estadísticas del dashboard', err);
+      }
+    });
+  }
+
+  private loadPerformanceDistribution(): void {
+    this.gradingV2.getGeneralStatistics().subscribe({
+      next: (stats) => {
+        const dist = stats?.distribuciones;
+        if (!dist) {
+          this.distribucion = { alto: 0, medio: 0, bajo: 0 };
+          return;
+        }
+
+        const altoCount =
+          (dist.excelente?.tareas || 0) + (dist.excelente?.quizzes || 0) +
+          (dist.bueno?.tareas || 0) + (dist.bueno?.quizzes || 0);
+
+        const medioCount =
+          (dist.regular?.tareas || 0) + (dist.regular?.quizzes || 0);
+
+        const bajoCount =
+          (dist.deficiente?.tareas || 0) + (dist.deficiente?.quizzes || 0);
+
+        const total = altoCount + medioCount + bajoCount;
+
+        if (total > 0) {
+          const altoPct = Math.round((altoCount / total) * 100);
+          const medioPct = Math.round((medioCount / total) * 100);
+          const bajoPct = Math.max(0, 100 - altoPct - medioPct);
+          this.distribucion = { alto: altoPct, medio: medioPct, bajo: bajoPct };
+        } else {
+          this.distribucion = { alto: 0, medio: 0, bajo: 0 };
+        }
+      },
+      error: (err) => {
+        console.error('Error cargando distribución de desempeño', err);
+      }
+    });
+  }
+
+  private loadUnitsProgress(): void {
+    this.analytics.getDashboardUnits().subscribe({
+      next: (data) => {
+        const raw = data?.unidades || [];
+        this.unidades = raw.map((u: any) => {
+          const baseAvance = u?.avance ?? u?.progreso_porcentaje ?? 0;
+          const avance = Math.round(Number.isFinite(baseAvance as number) ? (baseAvance as number) : 0);
+          const tendencia = (u?.tendencia as 'up' | 'down' | 'flat') || this.inferTendencia(avance);
+          return {
+            nombre: u?.nombre || `Unidad ${u?.unidad_id ?? ''}`.trim(),
+            avance,
+            estudiantes: u?.estudiantes ?? 0,
+            tendencia,
+          } as UnidadResumen;
+        });
+      },
+      error: (err) => {
+        console.error('Error cargando progreso por unidades', err);
+      }
+    });
+  }
+
+  private inferTendencia(avance: number): 'up' | 'down' | 'flat' {
+    if (avance >= 70) return 'up';
+    if (avance >= 40) return 'flat';
+    return 'down';
+  }
+
+  private loadActivityAndAlerts(): void {
+    this.analytics.getDashboardActivity().subscribe({
+      next: (data) => {
+        const actividades = data?.actividades || [];
+        this.actividad = actividades.map((a: any) => ({
+          usuario: a?.nombre || a?.username || 'Estudiante',
+          evento: this.buildActivityDescription(a),
+          fecha: this.formatRelativeTime(a?.fecha),
+        }));
+        this.activityPage = 1;
+
+        const rawAlertas = data?.alertas || {};
+        this.alertas = {
+          bajoProgreso: (rawAlertas.bajo_progreso || []).map((e: any) => e?.nombre || e?.username),
+          inactivos: (rawAlertas.inactivos || []).map((e: any) => e?.nombre || e?.username),
+        };
+      },
+      error: (err) => {
+        console.error('Error cargando actividad y alertas', err);
+      },
+    });
+  }
+
+  private buildActivityDescription(a: any): string {
+    const unidadNombre = a?.unidad_nombre || (a?.unidad_id != null ? `Unidad ${a.unidad_id}` : 'la plataforma');
+    const tipo = (a?.tipo_evento || '').toString();
+    if (tipo === 'start') return `inició ${unidadNombre}`;
+    if (tipo === 'end') return `completó ${unidadNombre}`;
+    if (tipo === 'estudio_manual') return `estudió ${unidadNombre}`;
+    return `realizó actividad en ${unidadNombre}`;
+  }
+
   setRange(range: '7d' | '30d' | '90d' | 'custom') {
     this.selectedRange = range;
     if (range !== 'custom') {
       this.startDate = undefined;
       this.endDate = undefined;
-      // Aquí podríamos refrescar datos mock según el rango
+      // Aquí podríamos refrescar datos según el rango
     }
+  }
+
+  private formatTiempo(minutos?: number): string {
+    const total = Math.max(0, Math.floor(minutos || 0));
+    const horas = Math.floor(total / 60);
+    const mins = total % 60;
+    if (horas && mins) return `${horas}h ${mins}m`;
+    if (horas) return `${horas}h`;
+    return `${mins}m`;
+  }
+
+  private formatRacha(valor?: number): string {
+    const dias = Math.max(0, Math.round(valor || 0));
+    return `${dias} día${dias === 1 ? '' : 's'}`;
+  }
+
+  private formatRelativeTime(iso?: string): string {
+    if (!iso) return '';
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return '';
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.round(diffMs / 60000);
+    if (diffMin < 1) return 'hace un momento';
+    if (diffMin < 60) return `hace ${diffMin} min`;
+    const diffH = Math.round(diffMin / 60);
+    if (diffH < 24) return `hace ${diffH} h`;
+    const diffD = Math.round(diffH / 24);
+    if (diffD === 1) return 'ayer';
+    return `hace ${diffD} días`;
   }
 
   // Porcentajes para el donut
@@ -1236,5 +1446,27 @@ export class HomeResumenComponent {
 
   trackByActivity(index: number, activity: any): any {
     return activity.usuario + activity.evento || index;
+  }
+
+  get totalActivityPages(): number {
+    if (!this.actividad.length) return 1;
+    return Math.ceil(this.actividad.length / this.activityPageSize);
+  }
+
+  get actividadPaginada(): ActividadItem[] {
+    const start = (this.activityPage - 1) * this.activityPageSize;
+    return this.actividad.slice(start, start + this.activityPageSize);
+  }
+
+  prevActivityPage(): void {
+    if (this.activityPage > 1) {
+      this.activityPage--;
+    }
+  }
+
+  nextActivityPage(): void {
+    if (this.activityPage < this.totalActivityPages) {
+      this.activityPage++;
+    }
   }
 }

@@ -22,6 +22,12 @@
         </button>
       </li>
       <li>
+        <button (click)="navigateIfNotCurrent('/dashboard-estudiante/evaluaciones')" [class.active]="currentUrl === '/dashboard-estudiante/evaluaciones'">
+          <span class="material-icons">assignment</span>
+          <span class="sidebar-text">Evaluaciones</span>
+        </button>
+      </li>
+      <li>
         <button (click)="navigateIfNotCurrent('/analisis-estudiante')" [class.active]="currentUrl === '/analisis-estudiante'">
           <span class="material-icons">analytics</span>
           <span class="sidebar-text">Análisis Estudiante</span>
