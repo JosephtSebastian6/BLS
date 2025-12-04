@@ -95,6 +95,7 @@ import { QuizzesService, QuizCreate, QuizResponse } from '../services/quizzes.se
                   <option value="vf">✅ Verdadero/Falso</option>
                   <option value="respuesta_corta">📝 Respuesta corta</option>
                   <option value="audio_respuesta_corta">🎧 Audio + respuesta corta</option>
+                  <option value="respuesta_voz">🎙 Respuesta de voz</option>
                 </select>
               </div>
               <button type="button" class="btn-primary" (click)="onAgregarClick($event)">
@@ -296,6 +297,16 @@ import { QuizzesService, QuizCreate, QuizResponse } from '../services/quizzes.se
                           class="form-input"
                         />
                       </label>
+                    </div>
+                  </div>
+                  
+                  <!-- Respuesta de voz (solo grabación del estudiante) -->
+                  <div *ngSwitchCase="'respuesta_voz'" class="options-section">
+                    <div class="form-group">
+                      <p class="upload-hint">
+                        El estudiante grabará su voz como respuesta a esta pregunta.
+                        Esta pregunta se califica de forma manual por el profesor.
+                      </p>
                     </div>
                   </div>
                 </ng-container>
@@ -962,8 +973,8 @@ import { QuizzesService, QuizCreate, QuizResponse } from '../services/quizzes.se
 export class QuizFormComponent implements OnInit {
   id: number | null = null;
   form: QuizCreate = { unidad_id: 0, titulo: '', descripcion: '', preguntas: null };
-  // Editor visual: permitimos opcion_multiple, vf, respuesta_corta y audio_respuesta_corta
-  nuevoTipo: 'opcion_multiple' | 'vf' | 'respuesta_corta' | 'audio_respuesta_corta' = 'opcion_multiple';
+  // Editor visual: permitimos opcion_multiple, vf, respuesta_corta, audio_respuesta_corta y respuesta_voz
+  nuevoTipo: 'opcion_multiple' | 'vf' | 'respuesta_corta' | 'audio_respuesta_corta' | 'respuesta_voz' = 'opcion_multiple';
   items: any[] = [];
   constructor(private api: QuizzesService, private route: ActivatedRoute, private router: Router) {}
   ngOnInit(){
@@ -997,6 +1008,7 @@ export class QuizFormComponent implements OnInit {
     if (t === 'vf') return 'Verdadero/Falso';
     if (t === 'respuesta_corta') return 'Respuesta corta';
     if (t === 'audio_respuesta_corta') return 'Audio + respuesta corta';
+    if (t === 'respuesta_voz') return 'Respuesta de voz';
     return t;
   }
 
@@ -1009,6 +1021,8 @@ export class QuizFormComponent implements OnInit {
       this.items.push({ tipo: 'respuesta_corta', enunciado: '', puntaje: 1, respuesta: '' });
     } else if (this.nuevoTipo === 'audio_respuesta_corta') {
       this.items.push({ tipo: 'audio_respuesta_corta', enunciado: '', puntaje: 1, audio_url: '', respuesta: '' });
+    } else if (this.nuevoTipo === 'respuesta_voz') {
+      this.items.push({ tipo: 'respuesta_voz', enunciado: '', puntaje: 1 });
     }
     // Forzar CD en algunos entornos
     this.items = [...this.items];

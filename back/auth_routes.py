@@ -1581,8 +1581,8 @@ def calcular_puntaje_quiz(preguntas: dict, respuestas: dict) -> int:
         pregunta_key = f"pregunta_{i}"
         respuesta_estudiante = respuestas.get(pregunta_key)
 
-        # Ignorar explícitamente preguntas de respuesta corta (texto) y audio+respuesta corta en el cálculo automático
-        if isinstance(pregunta, dict) and pregunta.get("tipo") in ("respuesta_corta", "audio_respuesta_corta"):
+        # Ignorar explícitamente preguntas de respuesta corta (texto), audio+respuesta corta y respuesta de voz
+        if isinstance(pregunta, dict) and pregunta.get("tipo") in ("respuesta_corta", "audio_respuesta_corta", "respuesta_voz"):
             print(f"🧮 DEBUG: Pregunta {i} es de tipo '{pregunta.get('tipo')}' → se ignora en el puntaje automático")
             continue
 
@@ -3473,6 +3473,62 @@ def get_student_file(
         filename=filename
     )
 
+
+@authRouter.post("/estudiante/quizzes/audio-respuesta/upload")
+async def upload_quiz_answer_audio(
+    file: UploadFile = File(...),
+    who=Depends(require_roles(["estudiante", "admin"]))
+):
+    username = who.get("username") if isinstance(who, dict) else None
+    if not username:
+        raise HTTPException(status_code=401, detail="Usuario no identificado")
+
+    allowed_extensions = {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".webm"}
+    file_extension = Path(file.filename or "").suffix.lower()
+    if file_extension not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Tipo de archivo no permitido para audio")
+
+    user_dir = QUIZ_AUDIO_DIR / username
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    safe_filename = f"{timestamp}_{uuid.uuid4().hex[:8]}{file_extension}"
+    file_path = user_dir / safe_filename
+
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        if file_path.exists():
+            file_path.unlink()
+        raise HTTPException(status_code=500, detail=f"No se pudo guardar el audio: {e}")
+
+    try:
+        size = file_path.stat().st_size
+    except Exception:
+        size = 0
+
+    return {"filename": safe_filename, "owner": username, "size": size}
+
+
+@authRouter.get("/estudiante/quizzes/audio-respuesta/{owner}/{filename}")
+def get_quiz_answer_audio(owner: str, filename: str):
+    file_path = QUIZ_AUDIO_DIR / owner / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Audio no encontrado")
+
+    import mimetypes
+    content_type, _ = mimetypes.guess_type(str(file_path))
+    if content_type is None:
+        content_type = "application/octet-stream"
+
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=str(file_path),
+        media_type=content_type,
+        filename=filename
+    )
+
 @authRouter.post("/quizzes/audio/upload")
 async def upload_quiz_audio(
     file: UploadFile = File(...),
@@ -3482,7 +3538,7 @@ async def upload_quiz_audio(
     if not username:
         raise HTTPException(status_code=401, detail="Usuario no identificado")
 
-    allowed_extensions = {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"}
+    allowed_extensions = {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".webm"}
     file_extension = Path(file.filename or "").suffix.lower()
     if file_extension not in allowed_extensions:
         raise HTTPException(status_code=400, detail="Tipo de archivo no permitido para audio")

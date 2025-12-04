@@ -241,6 +241,16 @@ export class QuizzesService {
     );
   }
 
+  subirAudioRespuesta(file: File): Observable<{ filename: string; owner: string; size: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ filename: string; owner: string; size: number }>(
+      `${this.base}/estudiante/quizzes/audio-respuesta/upload`,
+      formData,
+      this.headersFormData()
+    );
+  }
+
   subirImagenPregunta(file: File): Observable<{ filename: string; owner: string; size: number }> {
     const formData = new FormData();
     formData.append('file', file);

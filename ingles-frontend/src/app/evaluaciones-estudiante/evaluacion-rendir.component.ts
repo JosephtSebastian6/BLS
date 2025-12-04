@@ -69,7 +69,7 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
 
       <!-- Formulario de respuestas (solo si todavía puede intentar y no se agotó el tiempo) -->
       <div *ngIf="quiz.puede_intentar !== false">
-        <!-- Solo mostramos tipos soportados actualmente: opcion_multiple, vf y variantes de respuesta corta -->
+        <!-- Solo mostramos tipos soportados actualmente: opcion_multiple, vf, variantes de respuesta corta y respuesta de voz -->
         <div class="q-item" *ngFor="let it of itemsFiltrados; let i = index">
           <h3>{{ i+1 }}. {{ it.enunciado }}</h3>
           <div *ngIf="it.imagen_url" style="margin:0.5rem 0;">
@@ -128,6 +128,29 @@ import { QuizzesService, QuizDetalleEstudiante } from '../services/quizzes.servi
                 (input)="actualizarTexto(i, $event)"
                 placeholder="Escribe tu respuesta después de escuchar el audio"
               />
+            </div>
+            <div *ngSwitchCase="'respuesta_voz'">
+              <div class="voice-box">
+                <p class="voice-hint">
+                  Graba tu voz diciendo la palabra o frase solicitada. Tu profesor escuchará el audio y calificará manualmente.
+                </p>
+                <div class="voice-controls">
+                  <button type="button" class="btn-voice" 
+                          (click)="empezarGrabacion(i)" 
+                          [disabled]="grabando && grabandoIndex === i || tiempoAgotado">
+                    {{ grabando && grabandoIndex === i ? 'Grabando…' : '🎙 Grabar' }}
+                  </button>
+                  <button type="button" class="btn-voice secondary" 
+                          (click)="detenerGrabacion()" 
+                          [disabled]="!grabando || grabandoIndex !== i">
+                    ⏹ Detener
+                  </button>
+                </div>
+                <div *ngIf="subiendoAudio['pregunta_' + i]" class="voice-status">Subiendo audio…</div>
+                <div *ngIf="audioLocalUrls['pregunta_' + i] || respuestas['pregunta_' + i]" class="voice-preview">
+                  <audio [src]="audioLocalUrls['pregunta_' + i] || respuestas['pregunta_' + i]" controls style="width:100%;"></audio>
+                </div>
+              </div>
             </div>
           </ng-container>
         </div>
@@ -198,6 +221,12 @@ export class EvaluacionRendirComponent implements OnInit, OnDestroy {
   usuarioWatermark: string | null = null;
   ocultarContenido = false;
   private countdownId: any = null;
+  grabando: boolean = false;
+  grabandoIndex: number | null = null;
+  audioLocalUrls: { [key: string]: string } = {};
+  subiendoAudio: { [key: string]: boolean } = {};
+  private mediaRecorder: MediaRecorder | null = null;
+  private audioChunks: Blob[] = [];
   
   constructor(private api: QuizzesService, private route: ActivatedRoute, private router: Router) {}
   
@@ -211,6 +240,105 @@ export class EvaluacionRendirComponent implements OnInit, OnDestroy {
     const valor = event.target.value;
     console.log(`Actualizando texto para pregunta ${preguntaIndex}:`, valor);
     this.respuestas[`pregunta_${preguntaIndex}`] = valor;
+  }
+  
+  empezarGrabacion(preguntaIndex: number) {
+    if (this.grabando) {
+      return;
+    }
+    if (!(navigator && navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+      alert('La grabación de audio no es compatible con este navegador.');
+      return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const MediaRec: any = (window as any).MediaRecorder || (window as any).webkitMediaRecorder;
+      if (!MediaRec) {
+        alert('La API de grabación de audio no está disponible en este navegador.');
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+
+      this.audioChunks = [];
+      const mr = new MediaRec(stream);
+      this.mediaRecorder = mr;
+      this.grabando = true;
+      this.grabandoIndex = preguntaIndex;
+
+      mr.ondataavailable = (e: any) => {
+        if (e.data) {
+          this.audioChunks.push(e.data);
+        }
+      };
+
+      mr.onstop = () => {
+        try {
+          const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
+          stream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+          this.subirGrabacion(preguntaIndex, blob);
+        } catch (e) {
+          console.error('Error procesando grabación', e);
+        } finally {
+          this.grabando = false;
+          this.grabandoIndex = null;
+          this.mediaRecorder = null;
+          this.audioChunks = [];
+        }
+      };
+
+      try {
+        mr.start();
+      } catch (e) {
+        console.error('Error iniciando grabación', e);
+        this.grabando = false;
+        this.grabandoIndex = null;
+        this.mediaRecorder = null;
+        stream.getTracks().forEach(t => t.stop());
+      }
+    }).catch(err => {
+      console.error('Error al acceder al micrófono', err);
+      alert('No se pudo acceder al micrófono. Revisa los permisos del navegador.');
+    });
+  }
+
+  detenerGrabacion() {
+    if (this.mediaRecorder && this.grabando) {
+      try {
+        this.mediaRecorder.stop();
+      } catch (e) {
+        console.error('Error al detener la grabación', e);
+      }
+    }
+  }
+
+  private subirGrabacion(preguntaIndex: number, blob: Blob) {
+    const key = `pregunta_${preguntaIndex}`;
+    this.subiendoAudio[key] = true;
+
+    const file = new File([blob], `respuesta_voz_${Date.now()}.webm`, { type: blob.type || 'audio/webm' });
+    this.api.subirAudioRespuesta(file).subscribe({
+      next: (res) => {
+        try {
+          const base = this.api.getApiBase();
+          const apiRoot = base.replace(/\/auth$/, '');
+          const owner = (res as any).owner || '';
+          const filename = (res as any).filename;
+          const url = owner
+            ? `${apiRoot}/auth/estudiante/quizzes/audio-respuesta/${owner}/${filename}`
+            : `${apiRoot}/auth/estudiante/quizzes/audio-respuesta/${filename}`;
+          this.respuestas[key] = url;
+          this.audioLocalUrls[key] = url;
+        } catch (e) {
+          console.error('Error construyendo URL de audio de respuesta', e);
+        }
+        this.subiendoAudio[key] = false;
+      },
+      error: (err) => {
+        console.error('Error subiendo audio de respuesta', err);
+        this.subiendoAudio[key] = false;
+        alert('No se pudo subir el audio de tu respuesta. Intenta nuevamente.');
+      }
+    });
   }
   
   ngOnInit(){
@@ -249,15 +377,25 @@ export class EvaluacionRendirComponent implements OnInit, OnDestroy {
           this.items = [];
         }
 
-        // Mostramos actualmente opcion_multiple, vf, respuesta_corta y audio_respuesta_corta
-        this.itemsFiltrados = this.items.filter(it => it?.tipo === 'opcion_multiple' || it?.tipo === 'vf' || it?.tipo === 'respuesta_corta' || it?.tipo === 'audio_respuesta_corta');
+        // Mostramos actualmente opcion_multiple, vf, respuesta_corta, audio_respuesta_corta y respuesta_voz
+        this.itemsFiltrados = this.items.filter(it => 
+          it?.tipo === 'opcion_multiple' || 
+          it?.tipo === 'vf' || 
+          it?.tipo === 'respuesta_corta' || 
+          it?.tipo === 'audio_respuesta_corta' ||
+          it?.tipo === 'respuesta_voz'
+        );
         console.log('Items procesados (filtrados):', this.itemsFiltrados);
         this.loading = false;
         
         // Inicializar respuestas vacías SOLO para las preguntas filtradas
         this.respuestas = {};
+        this.audioLocalUrls = {};
+        this.subiendoAudio = {};
         for (let i = 0; i < this.itemsFiltrados.length; i++) {
-          this.respuestas[`pregunta_${i}`] = null;
+          const key = `pregunta_${i}`;
+          this.respuestas[key] = null;
+          this.subiendoAudio[key] = false;
         }
 
         this.inicializarTimer();

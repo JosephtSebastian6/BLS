@@ -122,12 +122,16 @@ import { QuizzesService, QuizRespuestaResponse, QuizResponse } from '../services
                   style="max-width:260px;max-height:260px;width:100%;height:auto;object-fit:contain;border-radius:8px;display:block;margin:0.35rem auto;"
                 />
               </div>
-              <div class="answer-pill">
+              <div class="answer-pill" *ngIf="d.tipo !== 'respuesta_voz'">
                 <span class="answer-label">Respuesta del estudiante:</span>
                 <span class="answer-text">{{ d.respuesta }}</span>
               </div>
               <div *ngIf="d.tipo === 'audio_respuesta_corta' && d.audio_url" style="margin-top:0.5rem;">
                 <audio [src]="d.audio_url" controls style="width:100%;"></audio>
+              </div>
+              <div *ngIf="d.tipo === 'respuesta_voz' && d.audio_respuesta_url" style="margin-top:0.5rem;">
+                <span class="answer-label">Respuesta de voz:</span>
+                <audio [src]="d.audio_respuesta_url" controls style="width:100%;"></audio>
               </div>
             </div>
           </div>
@@ -580,7 +584,7 @@ export class QuizRespuestasComponent implements OnInit {
   respuestas: QuizRespuestaResponse[] = [];
   respuestaSeleccionada: QuizRespuestaResponse | null = null;
   filtro = '';
-  detallePreguntas: { enunciado: string; respuesta: string; tipo?: string; audio_url?: string; imagen_url?: string }[] = [];
+  detallePreguntas: { enunciado: string; respuesta: string; tipo?: string; audio_url?: string; audio_respuesta_url?: string | null; imagen_url?: string }[] = [];
   itemsPreguntas: any[] = [];
   aprobando = false;
   aprobadas: { [username: string]: boolean } = {};
@@ -731,6 +735,7 @@ export class QuizRespuestasComponent implements OnInit {
       const key = `pregunta_${index}`;
       const valor = resObj[key];
       let textoRespuesta = '';
+      let audioRespuestaUrl: string | null = null;
 
       if (p?.tipo === 'opcion_multiple') {
         if (valor === null || valor === undefined || valor === '') {
@@ -744,6 +749,13 @@ export class QuizRespuestasComponent implements OnInit {
         if (valor === true) textoRespuesta = 'Verdadero';
         else if (valor === false) textoRespuesta = 'Falso';
         else textoRespuesta = '(sin respuesta)';
+      } else if (p?.tipo === 'respuesta_voz') {
+        if (valor === null || valor === undefined || valor === '') {
+          textoRespuesta = '(sin respuesta)';
+        } else {
+          textoRespuesta = '(respuesta de voz)';
+          audioRespuestaUrl = String(valor);
+        }
       } else {
         if (valor === null || valor === undefined || valor === '') {
           textoRespuesta = '(sin respuesta)';
@@ -757,6 +769,7 @@ export class QuizRespuestasComponent implements OnInit {
         respuesta: textoRespuesta,
         tipo: p?.tipo,
         audio_url: p?.audio_url,
+        audio_respuesta_url: audioRespuestaUrl,
         imagen_url: p?.imagen_url
       };
     });
