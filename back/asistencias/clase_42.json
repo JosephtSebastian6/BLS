@@ -1,0 +1,31 @@
+{
+  "claseId": 42,
+  "presentes": [
+    "sebastian"
+  ],
+  "participacion": {},
+  "camara": {},
+  "act_fuera_clase": {},
+  "historial": [
+    {
+      "fechaISO": "2025-12-10",
+      "presentes": [
+        "sebastian"
+      ],
+      "participacion": {},
+      "camara": {},
+      "act_fuera_clase": {},
+      "timestamp": "2025-12-10T14:33:36.290616"
+    },
+    {
+      "fechaISO": "2025-12-10",
+      "presentes": [
+        "sebastian"
+      ],
+      "participacion": {},
+      "camara": {},
+      "act_fuera_clase": {},
+      "timestamp": "2025-12-10T14:33:42.063124"
+    }
+  ]
+}

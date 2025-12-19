@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { AnalyticsService, ResumenResponse, UnidadAnalytics } from '../services/analytics.service';
+import { AttendanceService } from '../services/attendance.service';
 import { DashboardLayoutComponent } from '../dashboard-layout/dashboard-layout.component';
 
 interface Metrica {
@@ -103,6 +104,44 @@ interface Metrica {
               <span class="progress-start">0%</span>
               <span class="progress-end">100%</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attendance Progress (student only) -->
+      <div *ngIf="tipoUsuario === 'estudiante' && !cargandoAsistencia" class="progress-section">
+        <div class="progress-container">
+          <div class="progress-header">
+            <h3 class="progress-title">✅ Asistencia a Clases</h3>
+            <div class="progress-percentage">{{ asistenciaPorcentaje }}%</div>
+          </div>
+
+          <div class="progress-bar-container">
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="asistenciaPorcentaje" [style.background]="getProgressColor(asistenciaPorcentaje)"></div>
+            </div>
+            <div class="progress-labels">
+              <span class="progress-start">
+                {{ asistenciaPresentes }} presentes
+              </span>
+              <span class="progress-end" *ngIf="asistenciaProgramadas">
+                {{ asistenciaConRegistro }} con registro / {{ asistenciaProgramadas }} programadas
+              </span>
+            </div>
+          </div>
+
+          <div *ngIf="asistenciaNivel" class="attendance-alert" [ngClass]="asistenciaNivel">
+            <div class="attendance-alert-header">
+              <div class="attendance-alert-icon">
+                {{ asistenciaNivel === 'alta' ? '✅' : (asistenciaNivel === 'media' ? '⚠️' : '❌') }}
+              </div>
+              <div class="attendance-alert-title">
+                Estado de asistencia: {{ asistenciaNivelLabel }}
+              </div>
+            </div>
+            <p class="attendance-alert-message">
+              {{ asistenciaMensaje }}
+            </p>
           </div>
         </div>
       </div>
@@ -578,6 +617,105 @@ interface Metrica {
       color: var(--text-secondary);
       font-weight: 600;
     }
+    
+    /* Attendance Alert */
+    .attendance-alert {
+      margin-top: 1.5rem;
+      padding: 1.25rem 1.5rem;
+      border-radius: 18px;
+      border: 2px solid transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .attendance-alert::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.9) 0%, transparent 55%);
+      opacity: 0.5;
+    }
+
+    .attendance-alert-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .attendance-alert-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+      flex-shrink: 0;
+    }
+
+    .attendance-alert-title {
+      font-size: 0.9rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #111827;
+    }
+
+    .attendance-alert-message {
+      margin: 0.25rem 0 0 0;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #111827;
+      position: relative;
+      z-index: 1;
+    }
+
+    .attendance-alert.alta {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(59, 130, 246, 0.12));
+      border-color: rgba(16, 185, 129, 0.9);
+    }
+
+    .attendance-alert.media {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(251, 191, 36, 0.14));
+      border-color: rgba(245, 158, 11, 0.95);
+    }
+
+    .attendance-alert.baja {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.24), rgba(248, 113, 113, 0.16));
+      border-color: rgba(239, 68, 68, 0.98);
+    }
+
+    .attendance-alert.alta::after,
+    .attendance-alert.media::after,
+    .attendance-alert.baja::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+    }
+
+    .attendance-alert.alta::after {
+      background: #10b981;
+    }
+
+    .attendance-alert.media::after {
+      background: #f59e0b;
+    }
+
+    .attendance-alert.baja::after {
+      background: #ef4444;
+    }
 
     /* Metrics Section */
     .metrics-section {
@@ -985,12 +1123,24 @@ export class AnalisisEstudianteComponent implements OnInit {
   // Estados de carga
   cargandoResumen: boolean = false;
   cargandoUnidades: boolean = false;
+  cargandoAsistencia: boolean = false;
+
+  // Resumen de asistencia
+  asistenciaPorcentaje: number = 0;
+  asistenciaPresentes: number = 0;
+  asistenciaAusentes: number = 0;
+  asistenciaProgramadas: number = 0;
+  asistenciaConRegistro: number = 0;
+  asistenciaNivel: string = '';
+  asistenciaNivelLabel: string = '';
+  asistenciaMensaje: string = '';
 
   constructor(
     private analytics: AnalyticsService,
     private router: Router,
     private route: ActivatedRoute,
-    private http: HttpClient
+    private http: HttpClient,
+    private attendance: AttendanceService
   ) {
     // Detectar tipo de usuario
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -1036,6 +1186,7 @@ export class AnalisisEstudianteComponent implements OnInit {
     if (this.tipoUsuario === 'estudiante') {
       // Para estudiantes, cargar sus propios datos
       this.cargarDatosEstudiante();
+      this.cargarAsistenciaEstudiante();
     } else if (this.tipoUsuario === 'empresa' || this.tipoUsuario === 'profesor') {
       // Para empresa/profesor, cargar lista de estudiantes
       this.cargarEstudiantes();
@@ -1161,6 +1312,53 @@ export class AnalisisEstudianteComponent implements OnInit {
     });
   }
 
+  private cargarAsistenciaEstudiante() {
+    if (this.tipoUsuario !== 'estudiante') {
+      this.cargandoAsistencia = false;
+      return;
+    }
+    
+    this.cargandoAsistencia = true;
+    this.attendance.getAsistenciaResumenEstudiante().subscribe({
+      next: (data) => {
+        this.asistenciaProgramadas = Number(data?.total_programadas || 0);
+        this.asistenciaConRegistro = Number(data?.con_registro || 0);
+        this.asistenciaPresentes = Number(data?.presentes || 0);
+        this.asistenciaAusentes = Number(data?.ausentes || 0);
+        const pct = Number(data?.porcentaje || 0);
+        this.asistenciaPorcentaje = isNaN(pct) ? 0 : pct;
+
+        const nivelBackend = (data?.nivel_alerta || data?.nivel || '').toString();
+        const nivel = nivelBackend || this.calcularNivelAsistencia(this.asistenciaPorcentaje, this.asistenciaConRegistro);
+        this.asistenciaNivel = nivel;
+        if (nivel === 'alta') {
+          this.asistenciaNivelLabel = 'Alta';
+          this.asistenciaMensaje = 'Excelente, estás asistiendo a casi todas tus clases. Mantén este ritmo.';
+        } else if (nivel === 'media') {
+          this.asistenciaNivelLabel = 'Media';
+          this.asistenciaMensaje = 'Tu asistencia está en un nivel medio. Intenta no faltar para no afectar tu progreso.';
+        } else if (nivel === 'baja') {
+          this.asistenciaNivelLabel = 'Baja';
+          this.asistenciaMensaje = 'Alerta: tu asistencia es baja. Podrías perder contenidos importantes, habla con tu profesor si lo necesitas.';
+        } else {
+          this.asistenciaNivel = '';
+          this.asistenciaNivelLabel = '';
+          this.asistenciaMensaje = '';
+        }
+        this.cargandoAsistencia = false;
+      },
+      error: (err) => {
+        console.error('Error cargando resumen de asistencia:', err);
+        this.asistenciaProgramadas = 0;
+        this.asistenciaConRegistro = 0;
+        this.asistenciaPresentes = 0;
+        this.asistenciaAusentes = 0;
+        this.asistenciaPorcentaje = 0;
+        this.cargandoAsistencia = false;
+      }
+    });
+  }
+
   irAUsuario() {
     if (!this.selectedUsername) {
       alert('Por favor selecciona un estudiante');
@@ -1179,14 +1377,6 @@ export class AnalisisEstudianteComponent implements OnInit {
     this.unidadesProgreso = [];
   }
 
-  // Color dinámico de barra según progreso: ≥80 verde, 60–79 ámbar, <60 rojo
-  colorFor(pct: number | null | undefined): string {
-    const p = Number(pct ?? 0);
-    if (p >= 80) return 'linear-gradient(90deg, #10b981 0%, #34d399 100%)';
-    if (p >= 60) return 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)';
-    return 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)';
-  }
-
   // Tooltip con métricas clave de la unidad
   tooltipFor(unidad: any): string {
     const tareas = unidad?.tareas_count ?? 0;
@@ -1202,6 +1392,13 @@ export class AnalisisEstudianteComponent implements OnInit {
     const m = min % 60;
     if (h > 0) return `${h}h ${m}m`;
     return `${m}m`;
+  }
+
+  private calcularNivelAsistencia(pct: number, conRegistro: number): string {
+    if (!conRegistro || conRegistro <= 0) return 'sin_datos';
+    if (pct >= 80) return 'alta';
+    if (pct >= 60) return 'media';
+    return 'baja';
   }
 
   getProgressColor(progress: number): string {

@@ -39,7 +39,8 @@ export class LoginComponent {
           localStorage.setItem('token', response.access_token);
           // Redirige según el tipo de usuario actualizado
           if (response.tipo_usuario === 'estudiante') {
-            this.router.navigate(['/dashboard-estudiante']);
+            // Ir directamente a la vista de Análisis del Estudiante dentro del dashboard
+            this.router.navigate(['/dashboard-estudiante/analisis-estudiante']);
           } else if (response.tipo_usuario === 'profesor') {
             this.router.navigate(['/dashboard-profesor']);
           } else if (response.tipo_usuario === 'empresa') {

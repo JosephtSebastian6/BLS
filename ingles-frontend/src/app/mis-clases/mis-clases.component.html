@@ -21,6 +21,14 @@
       </div>
       
       <div class="form-group">
+        <label for="unidad">Unidad:</label>
+        <select id="unidad" [(ngModel)]="nuevaClase.unidad_id" name="unidad" required>
+          <option [ngValue]="null">Selecciona unidad...</option>
+          <option *ngFor="let u of unidades" [ngValue]="u.id">{{ u.nombre }}</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
         <label for="meet_link">Link de Meet:</label>
         <input type="url" id="meet_link" [(ngModel)]="nuevaClase.meet_link" name="meet_link" placeholder="https://meet.google.com/..." required>
       </div>
@@ -82,10 +90,45 @@
           </div>
 
           <div *ngIf="asistenciaEditandoId === clase.id" class="asistencia-lista">
-            <div *ngFor="let est of clase.estudiantes" style="display:flex;align-items:center;gap:.6rem;padding:.25rem 0;">
-              <input type="checkbox" [checked]="isPresente(clase.id, est)" (change)="togglePresente(clase.id, est)" [disabled]="esPasada(clase)" />
+            <div *ngFor="let est of clase.estudiantes" style="display:flex;align-items:center;gap:.6rem;padding:.25rem 0;flex-wrap:wrap;">
+              <input
+                type="checkbox"
+                [checked]="isPresente(clase.id, est)"
+                (change)="togglePresente(clase.id, est)"
+                [disabled]="esPasada(clase)"
+              />
               <span>{{ est.nombres || est.nombre }} {{ est.apellidos || '' }}</span>
               <small style="color:#6b7280;">{{ est.email || est.username }}</small>
+
+              <div style="display:flex;gap:.4rem;margin-left:auto;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:.25rem;font-size:.8rem;">
+                  <input
+                    type="checkbox"
+                    [disabled]="!isPresente(clase.id, est) || esPasada(clase)"
+                    [checked]="getParticipacion(clase.id, est)"
+                    (change)="toggleParticipacion(clase.id, est)"
+                  />
+                  <span>Part.</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:.25rem;font-size:.8rem;">
+                  <input
+                    type="checkbox"
+                    [disabled]="!isPresente(clase.id, est) || esPasada(clase)"
+                    [checked]="getCamara(clase.id, est)"
+                    (change)="toggleCamara(clase.id, est)"
+                  />
+                  <span>Cám.</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:.25rem;font-size:.8rem;">
+                  <input
+                    type="checkbox"
+                    [disabled]="!isPresente(clase.id, est) || esPasada(clase)"
+                    [checked]="getActFueraClase(clase.id, est)"
+                    (change)="toggleActFueraClase(clase.id, est)"
+                  />
+                  <span>Act. off</span>
+                </label>
+              </div>
             </div>
             <div style="display:flex;gap:.6rem;margin-top:.6rem;align-items:center;">
               <button class="btn-agendar" [disabled]="guardandoAsistenciaId === clase.id || esPasada(clase)" (click)="guardarAsistencia(clase)">

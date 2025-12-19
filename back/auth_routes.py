@@ -679,6 +679,7 @@ def crear_clase(clase: ClaseCreate, db: Session = Depends(get_db)):
         tema=nueva_clase.tema,
         meet_link=nueva_clase.meet_link,
         profesor_username=nueva_clase.profesor_username,
+        unidad_id=nueva_clase.unidad_id,
         estudiantes=estudiantes
     )
 
@@ -709,6 +710,7 @@ def ver_clases_profesor(profesor_username: str, db: Session = Depends(get_db)):
             tema=clase.tema,
             meet_link=clase.meet_link,
             profesor_username=clase.profesor_username,
+            unidad_id=getattr(clase, "unidad_id", None),
             estudiantes=estudiantes
         ))
     return respuesta
@@ -740,6 +742,7 @@ def ver_grupos_profesor(profesor_username: str, db: Session = Depends(get_db)):
             tema=clase.tema,
             meet_link=clase.meet_link,
             profesor_username=clase.profesor_username,
+            unidad_id=getattr(clase, "unidad_id", None),
             estudiantes=estudiantes
         ))
     return respuesta
@@ -820,6 +823,7 @@ def crear_grupo_por_unidad(body: GrupoUnidadCreate, db: Session = Depends(get_db
             tema=grupo_existente.tema,
             meet_link=grupo_existente.meet_link,
             profesor_username=grupo_existente.profesor_username,
+            unidad_id=getattr(grupo_existente, "unidad_id", None),
             estudiantes=estudiantes_resp
         )
     
@@ -839,6 +843,7 @@ def crear_grupo_por_unidad(body: GrupoUnidadCreate, db: Session = Depends(get_db
             tema=tema_grupo,
             meet_link=None,
             profesor_username=body.profesor_username,
+            unidad_id=body.unidad_id,
             estudiantes=estudiantes_nuevos
         )
         nueva = crud.crear_clase(db, clase_payload)
@@ -853,6 +858,7 @@ def crear_grupo_por_unidad(body: GrupoUnidadCreate, db: Session = Depends(get_db
             tema=nueva.tema,
             meet_link=nueva.meet_link,
             profesor_username=nueva.profesor_username,
+            unidad_id=getattr(nueva, "unidad_id", None),
             estudiantes=estudiantes_resp
         )
 
@@ -3993,6 +3999,9 @@ class AsistenciaRegistroIn(BaseModel):
     claseId: int
     fechaISO: Optional[str] = None
     presentes: list[str]
+    participacion: dict[str, int] | None = None
+    camara: dict[str, int] | None = None
+    act_fuera_clase: dict[str, int] | None = None
 
 def _asistencia_file(clase_id: int) -> Path:
     return ASISTENCIAS_DIR / f"clase_{clase_id}.json"
@@ -4014,25 +4023,92 @@ def _write_asistencia(clase_id: int, data: dict) -> None:
 
 @authRouter.get("/clases/{clase_id}/asistencia")
 def obtener_asistencia(clase_id: int):
-    data = _read_asistencia(clase_id)
-    return data or {"claseId": clase_id, "presentes": [], "historial": []}
+    data = _read_asistencia(clase_id) or {}
+    if not data:
+        # Estructura base para nuevas clases sin registro
+        return {
+            "claseId": clase_id,
+            "presentes": [],
+            "participacion": {},
+            "camara": {},
+            "act_fuera_clase": {},
+            "historial": [],
+        }
+
+
+
+
+    # Asegurar claves para compatibilidad hacia adelante
+    data.setdefault("claseId", clase_id)
+    data.setdefault("presentes", [])
+    data.setdefault("participacion", {})
+    data.setdefault("camara", {})
+    data.setdefault("act_fuera_clase", {})
+    data.setdefault("historial", [])
+    return data
 
 @authRouter.post("/clases/{clase_id}/asistencia")
 def guardar_asistencia(clase_id: int, body: AsistenciaRegistroIn):
     # Normalizar
     from datetime import datetime
-    fechaISO = body.fechaISO or datetime.utcnow().strftime('%Y-%m-%d')
-    current = _read_asistencia(clase_id) or {"claseId": clase_id, "presentes": [], "historial": []}
+
+    fechaISO = body.fechaISO or datetime.utcnow().strftime("%Y-%m-%d")
+    presentes = body.presentes or []
+
+    # Normalizar mapas 0/1 y forzar 0 para ausentes
+    def _norm_map(raw: dict[str, int] | None) -> dict[str, int]:
+        if not raw:
+            return {}
+        presentes_set = {str(p).strip().lower() for p in presentes}
+        out: dict[str, int] = {}
+        for k, v in raw.items():
+            ident = str(k).strip()
+            ident_norm = ident.lower()
+            try:
+                val = 1 if int(v) else 0
+            except Exception:
+                val = 0
+            if ident_norm not in presentes_set:
+                # Si el estudiante no está marcado como presente, mantener 0
+                val = 0
+            out[ident] = val
+        return out
+
+    participacion = _norm_map(body.participacion)
+    camara = _norm_map(body.camara)
+    act_fuera = _norm_map(body.act_fuera_clase)
+
+    current = _read_asistencia(clase_id) or {
+        "claseId": clase_id,
+        "presentes": [],
+        "participacion": {},
+        "camara": {},
+        "act_fuera_clase": {},
+        "historial": [],
+    }
     current["claseId"] = clase_id
-    current["presentes"] = body.presentes
+    current["presentes"] = presentes
+    current["participacion"] = participacion
+    current["camara"] = camara
+    current["act_fuera_clase"] = act_fuera
     # Agregar al historial con sello de tiempo
     current.setdefault("historial", []).append({
         "fechaISO": fechaISO,
-        "presentes": body.presentes,
-        "timestamp": datetime.utcnow().isoformat()
+        "presentes": presentes,
+        "participacion": participacion,
+        "camara": camara,
+        "act_fuera_clase": act_fuera,
+        "timestamp": datetime.utcnow().isoformat(),
     })
     _write_asistencia(clase_id, current)
-    return {"ok": True, "claseId": clase_id, "presentes": body.presentes}
+    return {
+        "ok": True,
+        "claseId": clase_id,
+        "presentes": presentes,
+        "participacion": participacion,
+        "camara": camara,
+        "act_fuera_clase": act_fuera,
+    }
 
 # Consulta para rol empresa: ver asistencia de una clase
 @authRouter.get("/empresa/clases/{clase_id}/asistencia")
@@ -4127,13 +4203,104 @@ def empresa_ver_asistencia_clase(clase_id: int, db: Session = Depends(get_db)):
         })
     
     data["detalle"] = detalle
-    data["presentes_emails"] = presentes_emails
-    data["presentes_usernames"] = presentes_usernames
-    # Totales derivados
-    data["total"] = len(detalle)
-    data["presentes_count"] = sum(1 for d in detalle if d["presente"])
-    data["ausentes_count"] = data["total"] - data["presentes_count"]
+    # Recalcular totales para el front
+    total = len(detalle)
+    presentes_count = sum(1 for d in detalle if d.get("presente"))
+    data["total"] = total
+    data["presentes_count"] = presentes_count
+    data["ausentes_count"] = total - presentes_count
     return data
+
+
+@authRouter.get("/estudiantes/asistencia-resumen")
+def get_asistencia_resumen_estudiante(
+    db: Session = Depends(get_db),
+    who=Depends(require_roles(["estudiante", "admin"]))
+):
+    """Resumen de asistencia del estudiante autenticado.
+
+    Calcula, para todas las clases en las que el estudiante está inscrito,
+    cuántas tienen registro de asistencia y en cuántas aparece como presente.
+    """
+    # Obtener registro del estudiante
+    estudiante = (
+        db.query(models.Registro)
+        .filter(models.Registro.username == who["username"])
+        .first()
+    )
+    if not estudiante:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+
+    # Clases en las que el estudiante está inscrito
+    clases = (
+        db.query(models.Clase)
+        .join(models.clase_estudiante, models.Clase.id == models.clase_estudiante.c.clase_id)
+        .filter(models.clase_estudiante.c.estudiante_id == estudiante.identificador)
+        .all()
+    )
+
+    total_programadas = len(clases)
+    con_registro = 0
+    presentes = 0
+    ausentes = 0
+
+    email_norm = (estudiante.email or "").strip().lower() if getattr(estudiante, "email", None) else ""
+    username_norm = (estudiante.username or "").strip().lower()
+
+    for clase in clases:
+        data = _read_asistencia(clase.id)
+        if not data:
+            # Clase programada sin registro de asistencia todavía
+            continue
+
+        presentes_raw = data.get("presentes") or []
+        if (not presentes_raw) and isinstance(data.get("historial"), list) and data["historial"]:
+            try:
+                last = data["historial"][-1]
+                presentes_raw = last.get("presentes") or []
+            except Exception:
+                presentes_raw = []
+
+        presentes_norm = [str(x).strip().lower() for x in presentes_raw]
+        presentes_set = set(presentes_norm)
+
+        # Matching por email o username normalizados
+        presente = False
+        for pr in presentes_set:
+            if email_norm and pr == email_norm:
+                presente = True
+                break
+            if username_norm and pr == username_norm:
+                presente = True
+                break
+        con_registro += 1
+        if presente:
+            presentes += 1
+        else:
+            ausentes += 1
+
+    porcentaje = 0.0
+    if con_registro > 0:
+        porcentaje = round((presentes / con_registro) * 100, 1)
+
+    # Nivel de alerta según porcentaje de asistencia
+    nivel = "sin_datos"
+    if con_registro > 0:
+        if porcentaje >= 80:
+            nivel = "alta"
+        elif porcentaje >= 60:
+            nivel = "media"
+        else:
+            nivel = "baja"
+
+    return {
+        "total_programadas": total_programadas,
+        "con_registro": con_registro,
+        "presentes": presentes,
+        "ausentes": ausentes,
+        "porcentaje": porcentaje,
+        "nivel_alerta": nivel,
+    }
 
 # Listado de clases para empresa con estado de asistencia
 @authRouter.get("/empresa/clases")
@@ -4167,11 +4334,341 @@ def empresa_listar_clases(
                 "total_inscritos": total,
                 "presentes": presentes,
                 "ausentes": ausentes,
-                "tiene_asistencia": raw is not None
+                "tiene_asistencia": raw is not None,
             })
-        return resp
+        return {
+            "clases": resp,
+            "total_clases": len(resp),
+            "total_inscritos": sum(c["total_inscritos"] for c in resp),
+            "total_presentes": sum(c["presentes"] for c in resp),
+            "total_ausentes": sum(c["ausentes"] for c in resp),
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listando clases para empresa: {e}")
+
+
+@authRouter.get("/empresa/asistencias/mensual")
+def empresa_reporte_asistencias_mensual(
+    anio: int,
+    mes: int,
+    db: Session = Depends(get_db),
+    who=Depends(require_roles(["empresa", "admin"]))
+):
+    """Reporte mensual de asistencia agrupado por unidad (estudiante_unidad).
+
+    - Columnas: solo días en los que hubo clase en el mes.
+    - Filas: estudiantes agrupados por unidad.
+    - Por estudiante se calcula porcentaje de asistencia mensual.
+    """
+    from datetime import date
+    import calendar
+
+    if mes < 1 or mes > 12:
+        raise HTTPException(status_code=400, detail="Mes inválido (1-12)")
+
+    try:
+        first_day = date(anio, mes, 1)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Año o mes inválido")
+
+    last_day = date(anio, mes, calendar.monthrange(anio, mes)[1])
+    desde = first_day.strftime("%Y-%m-%d")
+    hasta = last_day.strftime("%Y-%m-%d")
+
+    # Clases del mes (excluyendo grupos técnicos "Grupo Unidad X")
+    clases = (
+        db.query(models.Clase)
+        .filter(models.Clase.dia >= desde, models.Clase.dia <= hasta)
+        .filter(~models.Clase.tema.like("Grupo Unidad%"))
+        .order_by(models.Clase.dia, models.Clase.hora)
+        .all()
+    )
+
+    if not clases:
+        return {"anio": anio, "mes": mes, "mes_label": f"{mes}/{anio}", "grupos": []}
+
+    # Recolectar estudiantes (para nombres/identificadores)
+    est_ids: set[int] = set()
+    estudiantes_info: dict[int, dict] = {}
+    for c in clases:
+        for est in (c.estudiantes or []):
+            est_id = getattr(est, "identificador", None)
+            if est_id is None:
+                continue
+            est_ids.add(est_id)
+            if est_id not in estudiantes_info:
+                estudiantes_info[est_id] = {
+                    "id": est_id,
+                    "username": getattr(est, "username", None),
+                    "email": getattr(est, "email", None),
+                    "nombres": getattr(est, "nombres", ""),
+                    "apellidos": getattr(est, "apellidos", ""),
+                }
+
+    # Mapear nombres de unidades por id para el reporte
+    unidades_map: dict[int, str] = {}
+    unidades_rows = db.query(models.Unidad.id, models.Unidad.nombre).all()
+    for uid, nombre in unidades_rows:
+        unidades_map[uid] = nombre
+
+    # Helper para leer mapas 0/1
+    def _get_val(m: dict | None, ident: str) -> int:
+        if not m:
+            return 0
+        if ident in m:
+            try:
+                return 1 if int(m[ident]) else 0
+            except Exception:
+                return 0
+        ident_norm = ident.strip().lower()
+        for k, v in m.items():
+            try:
+                if str(k).strip().lower() == ident_norm:
+                    return 1 if int(v) else 0
+            except Exception:
+                continue
+        return 0
+
+    # Agregado por grupo (unidad de la CLASE)
+    grupos: dict[object, dict] = {}
+
+    for clase in clases:
+        fecha = clase.dia
+        data = _read_asistencia(clase.id)
+        tiene_registro = bool(data)
+
+        presentes_raw: list[str] = []
+        participacion_map: dict | None = None
+        camara_map: dict | None = None
+        act_map: dict | None = None
+
+        if data:
+            presentes_raw = data.get("presentes") or []
+            if (not presentes_raw) and isinstance(data.get("historial"), list) and data["historial"]:
+                try:
+                    last = data["historial"][-1]
+                    presentes_raw = last.get("presentes") or []
+                except Exception:
+                    presentes_raw = []
+            participacion_map = data.get("participacion") or {}
+            camara_map = data.get("camara") or {}
+            act_map = data.get("act_fuera_clase") or {}
+
+        presentes_norm = [str(x).strip().lower() for x in presentes_raw]
+        presentes_set = set(presentes_norm)
+
+        # Determinar grupo/unidad de la clase
+        clase_unidad_id = getattr(clase, "unidad_id", None)
+        if clase_unidad_id is None:
+            grupo_id = None
+            grupo_nombre = "Sin unidad"
+        else:
+            grupo_id = clase_unidad_id
+            grupo_nombre = unidades_map.get(clase_unidad_id) or f"Unidad {clase_unidad_id}"
+
+        for est in (clase.estudiantes or []):
+            est_id = getattr(est, "identificador", None)
+            if est_id is None:
+                continue
+
+            info = estudiantes_info.get(est_id) or {}
+            nombre = f"{info.get('nombres', '')} {info.get('apellidos', '')}".strip() or (
+                info.get("username") or info.get("email") or str(est_id)
+            )
+            email_raw = (info.get("email") or "").strip() or None
+            username_raw = (info.get("username") or "").strip() or None
+
+            # Identificador "principal" (preferimos email si existe) para mapas extra
+            ident = (email_raw or username_raw or str(est_id)).strip()
+            ident_norm = ident.lower()
+
+            # Para la asistencia base, aceptar tanto email como username
+            presentes_candidatos = []
+            if email_raw:
+                presentes_candidatos.append(email_raw.strip().lower())
+            if username_raw and username_raw.lower() not in presentes_candidatos:
+                presentes_candidatos.append(username_raw.strip().lower())
+            presentes_candidatos.append(str(est_id).strip().lower())
+
+            presente = any(c in presentes_set for c in presentes_candidatos)
+            asistencia_val = 1 if (tiene_registro and presente) else 0
+
+            metric_candidatos = list(presentes_candidatos)
+            if ident_norm not in [c.strip().lower() for c in metric_candidatos]:
+                metric_candidatos.append(ident)
+
+            def _best_val(m: dict | None) -> int:
+                if not (tiene_registro and m):
+                    return 0
+                best = 0
+                for cand in metric_candidatos:
+                    v = _get_val(m, cand)
+                    if v > best:
+                        best = v
+                        if best == 1:
+                            break
+                return best
+
+            participacion_val = _best_val(participacion_map)
+            camara_val = _best_val(camara_map)
+            act_val = _best_val(act_map)
+
+            grupo = grupos.setdefault(
+                grupo_id,
+                {
+                    "unidad_id": grupo_id,
+                    "unidad_nombre": grupo_nombre,
+                    "_fechas_set": set(),
+                    # temas de las clases por fecha (se normaliza al final)
+                    "_temas_por_fecha": {},
+                    "estudiantes": {},
+                },
+            )
+            grupo["_fechas_set"].add(fecha)
+
+            # Registrar tema de la clase por fecha para el grupo
+            tema_clase = getattr(clase, "tema", None) or ""
+            if tema_clase:
+                temas_por_fecha = grupo.setdefault("_temas_por_fecha", {})
+                temas_set = temas_por_fecha.setdefault(fecha, set())
+                # Asegurar que internamente usemos un set para evitar duplicados
+                if isinstance(temas_set, set):
+                    temas_set.add(str(tema_clase))
+                else:
+                    try:
+                        current = set(temas_set)
+                        current.add(str(tema_clase))
+                        temas_por_fecha[fecha] = current
+                    except Exception:
+                        temas_por_fecha[fecha] = {str(tema_clase)}
+
+            ests = grupo["estudiantes"]
+            if est_id not in ests:
+                ests[est_id] = {
+                    "estudiante_id": est_id,
+                    "username": username_raw,
+                    "nombre": nombre,
+                    "identificador": ident,
+                    "total_programadas": 0,
+                    "con_registro": 0,
+                    "presentes": 0,
+                    "ausentes": 0,
+                    "dias": {},
+                }
+
+            est_data = ests[est_id]
+            est_data["total_programadas"] += 1
+            if tiene_registro:
+                est_data["con_registro"] += 1
+                if presente:
+                    est_data["presentes"] += 1
+                else:
+                    est_data["ausentes"] += 1
+
+            dias = est_data["dias"]
+            dia_info = dias.get(fecha)
+            if not dia_info:
+                dia_info = {
+                    "tiene_registro": tiene_registro,
+                    "asistencia": 0,
+                    "participacion": 0,
+                    "camara": 0,
+                    "act_fuera_clase": 0,
+                }
+                dias[fecha] = dia_info
+            else:
+                dia_info["tiene_registro"] = dia_info["tiene_registro"] or tiene_registro
+
+            if tiene_registro:
+                if asistencia_val:
+                    dia_info["asistencia"] = 1
+                dia_info["participacion"] = max(dia_info["participacion"], participacion_val)
+                dia_info["camara"] = max(dia_info["camara"], camara_val)
+                dia_info["act_fuera_clase"] = max(dia_info["act_fuera_clase"], act_val)
+
+    # Construir respuesta
+    meses_es = [
+        "",
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre",
+    ]
+    mes_label = f"{meses_es[mes].capitalize()} {anio}" if 1 <= mes <= 12 else f"{mes}/{anio}"
+
+    grupos_resp = []
+    for _, grupo in grupos.items():
+        fechas_sorted = sorted(list(grupo["_fechas_set"]))
+
+        # Normalizar temas_por_fecha a listas de strings serializables
+        temas_por_fecha_raw = grupo.get("_temas_por_fecha") or {}
+        temas_por_fecha: dict[str, list[str]] = {}
+        for f in fechas_sorted:
+            raw = temas_por_fecha_raw.get(f)
+            if not raw:
+                temas_por_fecha[f] = []
+                continue
+
+            if isinstance(raw, set):
+                topics_iter = list(raw)
+            elif isinstance(raw, (list, tuple)):
+                topics_iter = list(raw)
+            else:
+                topics_iter = [raw]
+
+            cleaned: list[str] = []
+            for t in topics_iter:
+                try:
+                    s = str(t).strip()
+                except Exception:
+                    s = ""
+                if s:
+                    cleaned.append(s)
+
+            # Quitar duplicados y ordenar para consistencia
+            temas_por_fecha[f] = sorted(set(cleaned))
+        estudiantes_list = []
+        for est_data in grupo["estudiantes"].values():
+            total_programadas = est_data.get("total_programadas") or 0
+            cr = est_data.get("con_registro") or 0
+            presentes = est_data.get("presentes") or 0
+
+            # Denominador: priorizar total de clases programadas; si por alguna razón es 0,
+            # hacer fallback a las clases con registro.
+            denom = total_programadas or cr
+            porcentaje = 0.0
+            if denom > 0:
+                try:
+                    porcentaje = round((presentes / denom) * 100, 1)
+                except Exception:
+                    porcentaje = 0.0
+
+            est_data["porcentaje_asistencia"] = porcentaje
+            estudiantes_list.append(est_data)
+
+        estudiantes_list.sort(key=lambda e: (e.get("nombre") or "").lower())
+
+        grupos_resp.append(
+            {
+                "unidad_id": grupo["unidad_id"],
+                "unidad_nombre": grupo["unidad_nombre"],
+                "fechas": fechas_sorted,
+                "temas_por_fecha": temas_por_fecha,
+                "estudiantes": estudiantes_list,
+            }
+        )
+
+    grupos_resp.sort(key=lambda g: (g.get("unidad_nombre") or "").lower())
+
+    return {"anio": anio, "mes": mes, "mes_label": mes_label, "grupos": grupos_resp}
 
 def _estudiante_asignado_a_profesor(db: Session, profesor_username: str, estudiante_username: str) -> bool:
     """Verifica si un estudiante está asignado a un profesor."""

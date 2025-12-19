@@ -10,6 +10,7 @@ import { adapterFactory } from 'angular-calendar/date-adapters/date-fns';
 import { LOCALE_ID } from '@angular/core';
 import { addHours, startOfDay } from 'date-fns';
 import { AttendanceService, AsistenciaRegistro } from '../services/attendance.service';
+import { EmpresaGruposService } from '../services/empresa-grupos.service';
 
 @Component({
   selector: 'app-mis-clases',
@@ -43,7 +44,13 @@ export class MisClasesComponent implements OnInit {
   events: CalendarEvent[] = [];
 
   // Formulario nueva clase
-  nuevaClase = { dia: '', hora: '', tema: '', meet_link: '' };
+  nuevaClase: { dia: string; hora: string; tema: string; meet_link: string; unidad_id: number | null } = {
+    dia: '',
+    hora: '',
+    tema: '',
+    meet_link: '',
+    unidad_id: null,
+  };
   creandoClase = false;
   errorNuevaClase = '';
   exitoNuevaClase = false;
@@ -62,9 +69,16 @@ export class MisClasesComponent implements OnInit {
   private limpiezaIntervalId: any = null;
   private readonly LIMITE_DIAS_PASADO = 15; // clases más antiguas que esto se ocultan
 
+  // Unidades disponibles para asociar a la clase
+  unidades: Array<{ id: number; nombre: string }> = [];
+  loadingUnidades = false;
+
   // ===== Asistencia =====
   asistenciaEditandoId: number | null = null;
   presentesPorClase: Record<number, Set<string>> = {};
+  participacionPorClase: Record<number, { [id: string]: number }> = {};
+  camaraPorClase: Record<number, { [id: string]: number }> = {};
+  actFueraClasePorClase: Record<number, { [id: string]: number }> = {};
   guardandoAsistenciaId: number | null = null;
   mensajeAsistencia: string = '';
 
@@ -79,9 +93,34 @@ export class MisClasesComponent implements OnInit {
   eliminando = false;
   confirmDeleteOpen = false;
 
-  constructor(private http: HttpClient, private cdr: ChangeDetectorRef, private attendanceService: AttendanceService) {
+  constructor(
+    private http: HttpClient,
+    private cdr: ChangeDetectorRef,
+    private attendanceService: AttendanceService,
+    private gruposSvc: EmpresaGruposService,
+  ) {
     // Registrar datos de localización para 'es' para que DatePipe funcione
     registerLocaleData(localeEs);
+  }
+
+  private cargarUnidades() {
+    this.loadingUnidades = true;
+    this.gruposSvc.listarUnidades().subscribe({
+      next: (u) => {
+        this.unidades = (u || []).map((x: any) => ({ id: x.id, nombre: x.nombre }));
+        // Preseleccionar primera unidad si existe
+        if (this.unidades.length && !this.nuevaClase.unidad_id) {
+          this.nuevaClase.unidad_id = this.unidades[0].id;
+        }
+        this.loadingUnidades = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.unidades = [];
+        this.loadingUnidades = false;
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   limpiarAhora() {
@@ -239,6 +278,7 @@ export class MisClasesComponent implements OnInit {
     if (this.profesorUsername) {
       this.cargarClases();
       this.cargarEstudiantes();
+      this.cargarUnidades();
     } else {
       this.error = 'No se pudo obtener el username del profesor';
       this.loading = false;
@@ -343,6 +383,11 @@ export class MisClasesComponent implements OnInit {
       if (!this.presentesPorClase[claseId]) this.presentesPorClase[claseId] = new Set<string>();
       this.presentesPorClase[claseId].clear();
       if (reg?.presentes) reg.presentes.forEach((k: string) => this.presentesPorClase[claseId].add(k));
+
+      // Inicializar mapas extra por clase con lo que venga del backend (o vac o)
+      this.participacionPorClase[claseId] = { ...(reg?.participacion || {}) };
+      this.camaraPorClase[claseId] = { ...(reg?.camara || {}) };
+      this.actFueraClasePorClase[claseId] = { ...(reg?.act_fuera_clase || {}) };
       this.cdr.markForCheck();
     });
   }
@@ -360,8 +405,76 @@ export class MisClasesComponent implements OnInit {
   togglePresente(claseId: number, est: any) {
     const key = this.keyEstudiante(est);
     if (!this.presentesPorClase[claseId]) this.presentesPorClase[claseId] = new Set<string>();
-    if (this.presentesPorClase[claseId].has(key)) this.presentesPorClase[claseId].delete(key);
-    else this.presentesPorClase[claseId].add(key);
+    if (!this.participacionPorClase[claseId]) this.participacionPorClase[claseId] = {};
+    if (!this.camaraPorClase[claseId]) this.camaraPorClase[claseId] = {};
+    if (!this.actFueraClasePorClase[claseId]) this.actFueraClasePorClase[claseId] = {};
+
+    if (this.presentesPorClase[claseId].has(key)) {
+      this.presentesPorClase[claseId].delete(key);
+      this.participacionPorClase[claseId][key] = 0;
+      this.camaraPorClase[claseId][key] = 0;
+      this.actFueraClasePorClase[claseId][key] = 0;
+    } else {
+      this.presentesPorClase[claseId].add(key);
+      if (this.participacionPorClase[claseId][key] == null) this.participacionPorClase[claseId][key] = 0;
+      if (this.camaraPorClase[claseId][key] == null) this.camaraPorClase[claseId][key] = 0;
+      if (this.actFueraClasePorClase[claseId][key] == null) this.actFueraClasePorClase[claseId][key] = 0;
+    }
+  }
+
+  getParticipacion(claseId: number, est: any): boolean {
+    const key = this.keyEstudiante(est);
+    return (this.participacionPorClase[claseId]?.[key] || 0) === 1;
+  }
+
+  toggleParticipacion(claseId: number, est: any) {
+    const key = this.keyEstudiante(est);
+    if (!this.participacionPorClase[claseId]) this.participacionPorClase[claseId] = {};
+
+    // Si no est1 presente, siempre dejar en 0
+    if (!this.presentesPorClase[claseId] || !this.presentesPorClase[claseId].has(key)) {
+      this.participacionPorClase[claseId][key] = 0;
+      return;
+    }
+
+    const current = this.participacionPorClase[claseId][key] || 0;
+    this.participacionPorClase[claseId][key] = current ? 0 : 1;
+  }
+
+  getCamara(claseId: number, est: any): boolean {
+    const key = this.keyEstudiante(est);
+    return (this.camaraPorClase[claseId]?.[key] || 0) === 1;
+  }
+
+  toggleCamara(claseId: number, est: any) {
+    const key = this.keyEstudiante(est);
+    if (!this.camaraPorClase[claseId]) this.camaraPorClase[claseId] = {};
+
+    if (!this.presentesPorClase[claseId] || !this.presentesPorClase[claseId].has(key)) {
+      this.camaraPorClase[claseId][key] = 0;
+      return;
+    }
+
+    const current = this.camaraPorClase[claseId][key] || 0;
+    this.camaraPorClase[claseId][key] = current ? 0 : 1;
+  }
+
+  getActFueraClase(claseId: number, est: any): boolean {
+    const key = this.keyEstudiante(est);
+    return (this.actFueraClasePorClase[claseId]?.[key] || 0) === 1;
+  }
+
+  toggleActFueraClase(claseId: number, est: any) {
+    const key = this.keyEstudiante(est);
+    if (!this.actFueraClasePorClase[claseId]) this.actFueraClasePorClase[claseId] = {};
+
+    if (!this.presentesPorClase[claseId] || !this.presentesPorClase[claseId].has(key)) {
+      this.actFueraClasePorClase[claseId][key] = 0;
+      return;
+    }
+
+    const current = this.actFueraClasePorClase[claseId][key] || 0;
+    this.actFueraClasePorClase[claseId][key] = current ? 0 : 1;
   }
 
   guardarAsistencia(clase: any) {
@@ -372,7 +485,10 @@ export class MisClasesComponent implements OnInit {
     const registro: AsistenciaRegistro = {
       claseId,
       fechaISO: new Date().toISOString().slice(0,10),
-      presentes
+      presentes,
+      participacion: this.participacionPorClase[claseId] || {},
+      camara: this.camaraPorClase[claseId] || {},
+      act_fuera_clase: this.actFueraClasePorClase[claseId] || {},
     };
     this.guardandoAsistenciaId = claseId;
     this.mensajeAsistencia = '';
@@ -420,8 +536,14 @@ export class MisClasesComponent implements OnInit {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
+    if (!this.nuevaClase.unidad_id) {
+      this.errorNuevaClase = 'Selecciona una unidad para la clase.';
+      return;
+    }
+
     const body = {
       ...this.nuevaClase,
+      unidad_id: this.nuevaClase.unidad_id,
       profesor_username: this.profesorUsername,
       estudiantes: []
     };
@@ -431,7 +553,7 @@ export class MisClasesComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.exitoNuevaClase = true;
-        this.nuevaClase = { dia: '', hora: '', tema: '', meet_link: '' };
+        this.nuevaClase = { dia: '', hora: '', tema: '', meet_link: '', unidad_id: this.unidades[0]?.id ?? null };
         this.cargarClases();
         this.creandoClase = false;
         this.intentoEnvio = false;
@@ -504,8 +626,8 @@ export class MisClasesComponent implements OnInit {
 
   esPasada(clase: any): boolean {
     const fh = this.fechaHoraDeClase(clase).getTime();
-    // Tolerancia: permitir tomar asistencia hasta 2 horas después del inicio
-    const toleranciaMs = 2 * 60 * 60 * 1000;
+    // Tolerancia: permitir tomar asistencia hasta 3 horas después del inicio
+    const toleranciaMs = 3 * 60 * 60 * 1000;
     return (fh + toleranciaMs) < Date.now();
   }
 
@@ -547,6 +669,13 @@ export class MisClasesComponent implements OnInit {
   }
 
   campoInvalido(nombre: keyof typeof this.nuevaClase): boolean {
-    return this.intentoEnvio && (!this.nuevaClase[nombre] || this.nuevaClase[nombre].trim() === '');
+    const valor = this.nuevaClase[nombre];
+    if (!this.intentoEnvio) return false;
+    if (valor == null) return true;
+    if (typeof valor === 'string') {
+      return valor.trim() === '';
+    }
+    // Para campos numéricos (como unidad_id), basta con que no sea null/undefined
+    return false;
   }
 }

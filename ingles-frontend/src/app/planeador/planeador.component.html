@@ -114,10 +114,40 @@
           </div>
 
           <div *ngIf="asistenciaEditando" class="asistencia-panel" style="margin-top:0.8rem;">
-            <div *ngFor="let estudiante of claseSeleccionada.estudiantes" class="asistencia-item" style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;">
-              <input type="checkbox" [checked]="isPresente(estudiante?.email || estudiante?.username || (estudiante?.toString ? estudiante.toString() : estudiante))" (change)="togglePresente(estudiante?.email || estudiante?.username || (estudiante?.toString ? estudiante.toString() : estudiante))" />
+            <div *ngFor="let estudiante of claseSeleccionada.estudiantes" class="asistencia-item" style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;flex-wrap:wrap;">
+              <input
+                type="checkbox"
+                [checked]="isPresente(getEstudianteId(estudiante))"
+                (change)="togglePresente(getEstudianteId(estudiante))" />
               <span class="estudiante-nombre">{{ (estudiante?.nombres || estudiante?.nombre) ? ((estudiante?.nombres || '') + ' ' + (estudiante?.apellidos || '')) : estudiante }}</span>
               <span class="estudiante-email" style="color:#6b7280;">{{ estudiante?.email || estudiante?.username || '' }}</span>
+
+              <div style="display:flex;gap:.4rem;margin-left:auto;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:.25rem;font-size:.8rem;">
+                  <input
+                    type="checkbox"
+                    [disabled]="!isPresente(getEstudianteId(estudiante))"
+                    [checked]="participacionMap[getEstudianteId(estudiante)] === 1"
+                    (change)="toggleParticipacion(getEstudianteId(estudiante))" />
+                  <span>Part.</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:.25rem;font-size:.8rem;">
+                  <input
+                    type="checkbox"
+                    [disabled]="!isPresente(getEstudianteId(estudiante))"
+                    [checked]="camaraMap[getEstudianteId(estudiante)] === 1"
+                    (change)="toggleCamara(getEstudianteId(estudiante))" />
+                  <span>Cám.</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:.25rem;font-size:.8rem;">
+                  <input
+                    type="checkbox"
+                    [disabled]="!isPresente(getEstudianteId(estudiante))"
+                    [checked]="actFueraClaseMap[getEstudianteId(estudiante)] === 1"
+                    (change)="toggleActFueraClase(getEstudianteId(estudiante))" />
+                  <span>Act. off</span>
+                </label>
+              </div>
             </div>
             <div style="display:flex;gap:.6rem;margin-top:.8rem;">
               <button class="btn-meet" [disabled]="guardandoAsistencia" (click)="guardarAsistencia()">Guardar asistencia</button>

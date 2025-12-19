@@ -1,0 +1,79 @@
+{
+  "claseId": 45,
+  "presentes": [
+    "sebastian4",
+    "sebastian"
+  ],
+  "participacion": {
+    "sebastian": 1,
+    "sebastian4": 1
+  },
+  "camara": {
+    "sebastian": 0,
+    "sebastian4": 0
+  },
+  "act_fuera_clase": {
+    "sebastian": 0,
+    "sebastian4": 1
+  },
+  "historial": [
+    {
+      "fechaISO": "2025-12-18",
+      "presentes": [
+        "sebastian4"
+      ],
+      "participacion": {
+        "sebastian": 0,
+        "sebastian4": 1
+      },
+      "camara": {
+        "sebastian": 0,
+        "sebastian4": 0
+      },
+      "act_fuera_clase": {
+        "sebastian": 0,
+        "sebastian4": 1
+      },
+      "timestamp": "2025-12-18T14:55:45.107109"
+    },
+    {
+      "fechaISO": "2025-12-18",
+      "presentes": [
+        "sebastian4"
+      ],
+      "participacion": {
+        "sebastian": 0,
+        "sebastian4": 1
+      },
+      "camara": {
+        "sebastian": 0,
+        "sebastian4": 0
+      },
+      "act_fuera_clase": {
+        "sebastian": 0,
+        "sebastian4": 1
+      },
+      "timestamp": "2025-12-18T14:58:26.382656"
+    },
+    {
+      "fechaISO": "2025-12-18",
+      "presentes": [
+        "sebastian4",
+        "sebastian"
+      ],
+      "participacion": {
+        "sebastian": 1,
+        "sebastian4": 1
+      },
+      "camara": {
+        "sebastian": 0,
+        "sebastian4": 0
+      },
+      "act_fuera_clase": {
+        "sebastian": 0,
+        "sebastian4": 1
+      },
+      "timestamp": "2025-12-18T14:58:37.817639"
+    }
+  ]
+}

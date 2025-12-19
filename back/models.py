@@ -51,6 +51,7 @@ class Clase(Base):
     tema = Column(String(255), nullable=False)
     meet_link = Column(String(255), nullable=True)
     profesor_username = Column(String(50), ForeignKey('estudiante.username'), nullable=False)
+    unidad_id = Column(Integer, ForeignKey('unidad.id'), nullable=True)
 
     estudiantes = relationship(
         "Registro",

@@ -256,6 +256,7 @@ def crear_clase(db, clase_data):
         tema=clase_data.tema,
         meet_link=clase_data.meet_link,
         profesor_username=clase_data.profesor_username,
+        unidad_id=getattr(clase_data, "unidad_id", None),
         estudiantes=estudiantes_objs
     )
     db.add(nueva_clase)

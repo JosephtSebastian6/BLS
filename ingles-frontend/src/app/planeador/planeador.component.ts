@@ -30,6 +30,9 @@ export class PlaneadorComponent implements OnInit {
   // Asistencia
   asistenciaEditando = false;
   presentesSet: Set<string> = new Set(); // emails presentes
+  participacionMap: { [id: string]: number } = {};
+  camaraMap: { [id: string]: number } = {};
+  actFueraClaseMap: { [id: string]: number } = {};
   guardandoAsistencia = false;
   mensajeAsistencia = '';
 
@@ -171,7 +174,10 @@ export class PlaneadorComponent implements OnInit {
   }
   esClasePasada(clase: any): boolean {
     if (!clase?.dia) return false;
-    return this.fechaHoraDeClase(clase).getTime() < Date.now();
+    const fh = this.fechaHoraDeClase(clase).getTime();
+    // Tolerancia: permitir tomar/guardar asistencia hasta 3 horas después del inicio
+    const toleranciaMs = 3 * 60 * 60 * 1000;
+    return (fh + toleranciaMs) < Date.now();
   }
 
   // ===== Reporte =====
@@ -254,19 +260,81 @@ export class PlaneadorComponent implements OnInit {
     const claseId = this.claseSeleccionada.id as number;
     this.attendanceService.getAsistencia(claseId).subscribe(reg => {
       this.presentesSet.clear();
+      this.participacionMap = {};
+      this.camaraMap = {};
+      this.actFueraClaseMap = {};
       if (reg?.presentes) {
-        reg.presentes.forEach((email: string) => this.presentesSet.add(email));
+        reg.presentes.forEach((id: string) => this.presentesSet.add(id));
+      }
+      if (reg?.participacion) {
+        this.participacionMap = { ...reg.participacion };
+      }
+      if (reg?.camara) {
+        this.camaraMap = { ...reg.camara };
+      }
+      if (reg?.act_fuera_clase) {
+        this.actFueraClaseMap = { ...reg.act_fuera_clase };
       }
     });
   }
 
-  isPresente(email: string): boolean {
-    return this.presentesSet.has(email);
+  isPresente(id: string): boolean {
+    return this.presentesSet.has(id);
   }
 
-  togglePresente(email: string) {
-    if (this.presentesSet.has(email)) this.presentesSet.delete(email);
-    else this.presentesSet.add(email);
+  // Identificador estable del estudiante (email/username)
+  getEstudianteId(estudiante: any): string {
+    if (!estudiante) return '';
+    return (
+      estudiante.email ||
+      estudiante.username ||
+      (typeof estudiante === 'string'
+        ? estudiante
+        : (estudiante.toString ? estudiante.toString() : ''))
+    );
+  }
+
+  togglePresente(id: string) {
+    if (this.presentesSet.has(id)) {
+      this.presentesSet.delete(id);
+      // Forzar 0 en campos extra cuando queda ausente
+      this.participacionMap[id] = 0;
+      this.camaraMap[id] = 0;
+      this.actFueraClaseMap[id] = 0;
+    } else {
+      this.presentesSet.add(id);
+      // Inicializar en 0 si no existían
+      if (this.participacionMap[id] == null) this.participacionMap[id] = 0;
+      if (this.camaraMap[id] == null) this.camaraMap[id] = 0;
+      if (this.actFueraClaseMap[id] == null) this.actFueraClaseMap[id] = 0;
+    }
+  }
+
+  toggleParticipacion(id: string) {
+    if (!this.presentesSet.has(id)) {
+      this.participacionMap[id] = 0;
+      return;
+    }
+    const current = this.participacionMap[id] || 0;
+    this.participacionMap[id] = current ? 0 : 1;
+  }
+
+  toggleCamara(id: string) {
+    if (!this.presentesSet.has(id)) {
+      this.camaraMap[id] = 0;
+      return;
+    }
+    const current = this.camaraMap[id] || 0;
+    this.camaraMap[id] = current ? 0 : 1;
+  }
+
+  toggleActFueraClase(id: string) {
+    if (!this.presentesSet.has(id)) {
+      this.actFueraClaseMap[id] = 0;
+      return;
+    }
+    const current = this.actFueraClaseMap[id] || 0;
+    this.actFueraClaseMap[id] = current ? 0 : 1;
   }
 
   guardarAsistencia() {
@@ -279,7 +347,10 @@ export class PlaneadorComponent implements OnInit {
     const registro: AsistenciaRegistro = {
       claseId,
       fechaISO: new Date().toISOString().slice(0,10),
-      presentes: Array.from(this.presentesSet)
+      presentes: Array.from(this.presentesSet),
+      participacion: this.participacionMap,
+      camara: this.camaraMap,
+      act_fuera_clase: this.actFueraClaseMap
     };
     this.guardandoAsistencia = true;
     this.mensajeAsistencia = '';

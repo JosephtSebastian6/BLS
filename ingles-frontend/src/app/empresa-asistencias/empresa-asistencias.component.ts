@@ -68,6 +68,119 @@ import { forkJoin } from 'rxjs';
       </div>
     </div>
 
+    <!-- Monthly Attendance Section -->
+    <div class="monthly-section">
+      <div class="monthly-container">
+        <div class="monthly-header">
+          <div>
+            <h3 class="monthly-title">📅 Monthly Attendance</h3>
+            <p class="monthly-subtitle">Reporte mensual de asistencia por nivel / unidad</p>
+          </div>
+          <div class="monthly-controls">
+            <div class="filter-item">
+              <label class="filter-label">Mes</label>
+              <select [(ngModel)]="mesSeleccionado" class="filter-input monthly-select">
+                <option *ngFor="let m of mesesOptions" [ngValue]="m.value">{{ m.label }}</option>
+              </select>
+            </div>
+            <div class="filter-item">
+              <label class="filter-label">Año</label>
+              <input type="number" [(ngModel)]="anioSeleccionado" class="filter-input" min="2000" max="2100">
+            </div>
+            <div class="filter-actions">
+              <button type="button" class="search-btn" (click)="cargarReporteMensual()" [disabled]="reporteMensualLoading">
+                <span class="btn-icon">{{ reporteMensualLoading ? '⏳' : '📊' }}</span>
+                <span class="btn-text">{{ reporteMensualLoading ? 'Cargando...' : 'Actualizar reporte' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="reporteMensualError" class="error-container" style="margin-top:1rem;">
+          <div class="error-icon">❌</div>
+          <h3 class="error-title">Error al cargar reporte mensual</h3>
+          <p class="error-text">{{ reporteMensualError }}</p>
+        </div>
+
+        <div *ngIf="reporteMensualLoading && !reporteMensualError" class="loading-container" style="margin-top:1rem;">
+          <div class="loading-spinner">⏳</div>
+          <h3 class="loading-title">Generando reporte mensual...</h3>
+          <p class="loading-text">Procesando asistencias del mes seleccionado</p>
+        </div>
+
+        <div *ngIf="!reporteMensualLoading && !reporteMensualError && (!reporteMensual?.grupos || reporteMensual.grupos.length === 0)" class="empty-state" style="margin-top:1rem;">
+          <div class="empty-icon">📅</div>
+          <h3 class="empty-title">Sin datos de asistencia para el mes seleccionado</h3>
+          <p class="empty-description">Verifica que existan clases programadas y asistencia tomada en ese periodo.</p>
+        </div>
+
+        <div *ngIf="!reporteMensualLoading && !reporteMensualError && reporteMensual?.grupos?.length" class="monthly-groups">
+          <div *ngFor="let g of reporteMensual.grupos" class="monthly-group-card">
+            <div class="monthly-group-header">
+              <div>
+                <h4 class="monthly-group-title">{{ g.unidad_nombre || 'Sin unidad' }}</h4>
+                <p class="monthly-group-subtitle">{{ reporteMensual.mes_label }}</p>
+              </div>
+              <div class="monthly-group-meta">
+                <span class="monthly-chip">{{ g.estudiantes?.length || 0 }} estudiantes</span>
+                <span class="monthly-chip">{{ g.fechas?.length || 0 }} días con clase</span>
+              </div>
+            </div>
+
+            <div class="monthly-table-wrapper">
+              <table class="monthly-table">
+                <thead>
+                  <tr>
+                    <th class="monthly-student-col" rowspan="4">Estudiante</th>
+                    <th class="monthly-metric-col">Métrica</th>
+                    <th *ngFor="let f of g.fechas" class="monthly-day-col">
+                      {{ f | date:'d/MM' }}
+                    </th>
+                    <th class="monthly-total-col" rowspan="4">% Asist.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <ng-container *ngFor="let est of g.estudiantes">
+                    <tr class="monthly-row">
+                      <td class="monthly-student-cell" rowspan="4">
+                        <div class="monthly-student-name">{{ est.nombre }}</div>
+                        <div class="monthly-student-id">{{ est.identificador }}</div>
+                      </td>
+                      <td class="monthly-metric-label">Asistencia</td>
+                      <td *ngFor="let f of g.fechas" [ngClass]="getMonthlyCellClass(getDiaMetric(est, f, 'asistencia'), 'asistencia')">
+                        {{ getDiaMetric(est, f, 'asistencia') }}
+                      </td>
+                      <td class="monthly-total-cell" rowspan="4">
+                        {{ est.porcentaje_asistencia | number:'1.0-1' }}%
+                      </td>
+                    </tr>
+                    <tr class="monthly-row">
+                      <td class="monthly-metric-label">Participación</td>
+                      <td *ngFor="let f of g.fechas" [ngClass]="getMonthlyCellClass(getDiaMetric(est, f, 'participacion'), 'extra')">
+                        {{ getDiaMetric(est, f, 'participacion') }}
+                      </td>
+                    </tr>
+                    <tr class="monthly-row">
+                      <td class="monthly-metric-label">Cámara</td>
+                      <td *ngFor="let f of g.fechas" [ngClass]="getMonthlyCellClass(getDiaMetric(est, f, 'camara'), 'extra')">
+                        {{ getDiaMetric(est, f, 'camara') }}
+                      </td>
+                    </tr>
+                    <tr class="monthly-row">
+                      <td class="monthly-metric-label">Act. off class</td>
+                      <td *ngFor="let f of g.fechas" [ngClass]="getMonthlyCellClass(getDiaMetric(est, f, 'act_fuera_clase'), 'extra')">
+                        {{ getDiaMetric(est, f, 'act_fuera_clase') }}
+                      </td>
+                    </tr>
+                  </ng-container>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Loading State -->
     <div *ngIf="loading" class="loading-container">
       <div class="loading-spinner">⏳</div>
@@ -1156,6 +1269,216 @@ import { forkJoin } from 'rxjs';
       font-size: 1rem;
     }
 
+    /* Monthly Attendance */
+    .monthly-section {
+      margin-bottom: 2rem;
+    }
+
+    .monthly-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 1.5rem 2rem 2rem 2rem;
+    }
+
+    .monthly-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .monthly-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 0 0 0.25rem 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-primary);
+    }
+
+    .monthly-subtitle {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    .monthly-controls {
+      display: flex;
+      align-items: flex-end;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .monthly-select {
+      min-width: 140px;
+    }
+
+    .monthly-groups {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .monthly-group-card {
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      padding: 1rem 1.25rem 1.25rem 1.25rem;
+      background: linear-gradient(135deg, rgba(248, 250, 252, 0.95), rgba(239, 246, 255, 0.95));
+    }
+
+    .monthly-group-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      gap: 1rem;
+    }
+
+    .monthly-group-title {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .monthly-group-subtitle {
+      margin: 0.1rem 0 0 0;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .monthly-group-meta {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .monthly-chip {
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.15);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .monthly-table-wrapper {
+      overflow-x: auto;
+      margin-top: 0.5rem;
+    }
+
+    .monthly-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.8rem;
+      background: white;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .monthly-table thead tr {
+      background: rgba(15, 23, 42, 0.03);
+    }
+
+    .monthly-table th,
+    .monthly-table td {
+      padding: 0.45rem 0.5rem;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+      border-right: 1px solid rgba(226, 232, 240, 0.5);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .monthly-table th:last-child,
+    .monthly-table td:last-child {
+      border-right: none;
+    }
+
+    .monthly-student-col {
+      min-width: 190px;
+    }
+
+    .monthly-metric-col {
+      min-width: 120px;
+    }
+
+    .monthly-day-col {
+      min-width: 52px;
+    }
+
+    .monthly-total-col {
+      min-width: 90px;
+    }
+
+    .monthly-student-cell {
+      text-align: left;
+      vertical-align: top;
+      background: rgba(248, 250, 252, 0.9);
+    }
+
+    .monthly-student-name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .monthly-student-id {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .monthly-metric-label {
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: rgba(248, 250, 252, 0.9);
+    }
+
+    .monthly-total-cell {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--primary-color);
+      background: rgba(239, 246, 255, 0.8);
+    }
+
+    .monthly-row:last-child td {
+      border-bottom: none;
+    }
+
+    .monthly-cell {
+      font-weight: 600;
+    }
+
+    .monthly-cell.asistencia-ok {
+      background: rgba(16, 185, 129, 0.18);
+      color: #047857;
+    }
+
+    .monthly-cell.asistencia-no {
+      background: rgba(239, 68, 68, 0.18);
+      color: #b91c1c;
+    }
+
+    .monthly-cell.extra-ok {
+      background: rgba(59, 130, 246, 0.16);
+      color: #1d4ed8;
+    }
+
+    .monthly-cell.extra-no {
+      background: rgba(148, 163, 184, 0.12);
+      color: #6b7280;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .dashboard-container {
@@ -1248,6 +1571,27 @@ export class EmpresaAsistenciasComponent implements OnInit {
   error = '';
   clases: any[] = [];
 
+  // Reporte mensual
+  mesSeleccionado: number = 1;
+  anioSeleccionado: number = new Date().getFullYear();
+  mesesOptions = [
+    { value: 1, label: 'Enero' },
+    { value: 2, label: 'Febrero' },
+    { value: 3, label: 'Marzo' },
+    { value: 4, label: 'Abril' },
+    { value: 5, label: 'Mayo' },
+    { value: 6, label: 'Junio' },
+    { value: 7, label: 'Julio' },
+    { value: 8, label: 'Agosto' },
+    { value: 9, label: 'Septiembre' },
+    { value: 10, label: 'Octubre' },
+    { value: 11, label: 'Noviembre' },
+    { value: 12, label: 'Diciembre' },
+  ];
+  reporteMensualLoading = false;
+  reporteMensualError = '';
+  reporteMensual: any = null;
+
   // Modal asistencia
   modalVisible = false;
   detalleLoading = false;
@@ -1257,9 +1601,13 @@ export class EmpresaAsistenciasComponent implements OnInit {
   constructor(private attendance: AttendanceService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
+    const hoy = new Date();
+    this.mesSeleccionado = hoy.getMonth() + 1;
+    this.anioSeleccionado = hoy.getFullYear();
     // Rango por defecto: mes calendario actual
     this.aplicarPeriodo('mensual');
     this.buscar();
+    this.cargarReporteMensual();
   }
 
   buscar() {
@@ -1372,6 +1720,46 @@ export class EmpresaAsistenciasComponent implements OnInit {
     }
   }
 
+  cargarReporteMensual() {
+    this.reporteMensualLoading = true;
+    this.reporteMensualError = '';
+    this.attendance
+      .getEmpresaReporteMensual(this.anioSeleccionado, this.mesSeleccionado)
+      .subscribe({
+        next: (data) => {
+          this.reporteMensual = data || null;
+          this.reporteMensualLoading = false;
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          console.error('Error getEmpresaReporteMensual', err);
+          this.reporteMensualError = 'No se pudo cargar el reporte mensual.';
+          this.reporteMensualLoading = false;
+          this.cdr.markForCheck();
+        },
+      });
+  }
+
+  getDiaMetric(
+    est: any,
+    fecha: string,
+    campo: 'asistencia' | 'participacion' | 'camara' | 'act_fuera_clase',
+  ): number {
+    if (!est || !est.dias) return 0;
+    const dia = est.dias[fecha];
+    if (!dia) return 0;
+    const v = dia[campo];
+    return v ? 1 : 0;
+  }
+
+  getMonthlyCellClass(valor: number, tipo: 'asistencia' | 'extra'): string {
+    const base = 'monthly-cell';
+    if (tipo === 'asistencia') {
+      return valor ? `${base} asistencia-ok` : `${base} asistencia-no`;
+    }
+    return valor ? `${base} extra-ok` : `${base} extra-no`;
+  }
+
   private inferUnidadFromTema(tema?: string): string {
     if (!tema) return '';
     const limpio = tema.toString();
@@ -1379,6 +1767,7 @@ export class EmpresaAsistenciasComponent implements OnInit {
     return match ? match[0].trim() : '';
   }
 
+  // Export simple (lista de clases en el rango seleccionado)
   exportarCSVResumen() {
     if (!this.clases || this.clases.length === 0) {
       alert('No hay datos para exportar en el periodo seleccionado.');
@@ -1423,7 +1812,7 @@ export class EmpresaAsistenciasComponent implements OnInit {
 
     const lineas = [
       encabezados.map(escape).join(';'),
-      ...filas.map(fila => fila.map(escape).join(';')),
+      ...filas.map((fila: any[]) => fila.map(escape).join(';')),
     ];
 
     const contenido = '\uFEFF' + lineas.join('\n');
@@ -1445,123 +1834,121 @@ export class EmpresaAsistenciasComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
+  // Export mensual por unidad, usando el layout del reporte mensual
   exportarCSV() {
-    if (!this.clases || this.clases.length === 0) {
-      alert('No hay datos para exportar en el periodo seleccionado.');
+    if (!this.reporteMensual || !this.reporteMensual.grupos || this.reporteMensual.grupos.length === 0) {
+      alert('No hay datos del reporte mensual para exportar. Actualiza el reporte primero.');
       return;
     }
 
     this.exportando = true;
 
-    const solicitudes = this.clases.map((c: any) =>
-      this.attendance.getAsistenciaEmpresa(c.id)
-    );
+    const grupos: any[] = this.reporteMensual.grupos || [];
 
-    forkJoin(solicitudes).subscribe({
-      next: (detalles) => {
-        const encabezados = [
-          'Fecha',
-          'Hora',
-          'Tema',
-          'Unidad',
-          'Profesor',
-          'Estudiante',
-          'Identificador',
-          'Estado',
-        ];
-
-        const filas: any[] = [];
-
-        detalles.forEach((data: any, index: number) => {
-          const claseBase = this.clases[index] || {};
-          data = data || {};
-
-          const fecha = data.fecha || claseBase.dia || '';
-          const hora = data.hora || claseBase.hora || '';
-          const tema = (data.tema || claseBase.tema || '').toString();
-          const unidad = this.inferUnidadFromTema(tema);
-          const profesor = claseBase.profesor_username || '';
-
-          const detalle = Array.isArray(data.detalle) ? data.detalle : [];
-
-          if (detalle.length === 0) {
-            filas.push([
-              fecha,
-              hora,
-              tema,
-              unidad,
-              profesor,
-              '',
-              '',
-              'SIN DETALLE',
-            ]);
-            return;
-          }
-
-          detalle.forEach((est: any) => {
-            const nombreEst = est.nombre || '';
-            const identificador =
-              est.id ||
-              est.email ||
-              est.username ||
-              est.identificador ||
-              est.usuario ||
-              est.correo ||
-              '';
-            const estado = est.presente ? 'PRESENTE' : 'AUSENTE';
-
-            filas.push([
-              fecha,
-              hora,
-              tema,
-              unidad,
-              profesor,
-              nombreEst,
-              identificador,
-              estado,
-            ]);
-          });
-        });
-
-        const escape = (valor: any): string => {
-          const str = String(valor ?? '');
-          if (/[";\,\n]/.test(str)) {
-            return '"' + str.replace(/"/g, '""') + '"';
-          }
-          return str;
-        };
-
-        const lineas = [
-          encabezados.map(escape).join(';'),
-          ...filas.map(fila => fila.map(escape).join(';')),
-        ];
-
-        const contenido = '\uFEFF' + lineas.join('\n');
-        const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
-
-        const periodoLabel = this.periodo || 'rango';
-        const nombre = `reporte-asistencia-detallado-${periodoLabel}-${this.desde}_a_${this.hasta}.csv`;
-
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = nombre;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      },
-      error: (err) => {
-        console.error('Error exportando reporte de asistencias', err);
-        alert('Ocurrió un error al generar el reporte de asistencias.');
-        this.exportando = false;
-        this.cdr.markForCheck();
-      },
-      complete: () => {
-        this.exportando = false;
-        this.cdr.markForCheck();
-      }
+    // Reunir todas las fechas del mes (únicas, ordenadas)
+    const todasFechasSet = new Set<string>();
+    grupos.forEach((g: any) => {
+      (g.fechas || []).forEach((f: string) => todasFechasSet.add(f));
     });
+    const todasFechas = Array.from(todasFechasSet).sort();
+
+    const encabezados: string[] = [
+      'Unidad',
+      'Estudiante',
+      'Identificador',
+      'Métrica',
+      ...todasFechas,
+      '% Asistencia',
+    ];
+
+    const filas: any[] = [];
+
+    grupos.forEach((g: any) => {
+      const unidadNombre = g.unidad_nombre || 'Sin unidad';
+
+      // Fila de "Tema(s)" por unidad, con los temas de cada fecha
+      const temasPorFecha = g.temas_por_fecha || {};
+      const rowTemas: any[] = [unidadNombre, '', '', 'Tema(s)'];
+      todasFechas.forEach((f: string) => {
+        const raw = (temasPorFecha as any)[f];
+        let joined = '';
+        if (Array.isArray(raw)) {
+          joined = raw.map((t: any) => String(t ?? '')).filter((s: string) => s.trim().length > 0).join(' | ');
+        } else if (raw != null) {
+          joined = String(raw ?? '');
+        }
+        rowTemas.push(joined);
+      });
+      rowTemas.push(''); // sin % Asistencia para la fila de temas
+      filas.push(rowTemas);
+
+      (g.estudiantes || []).forEach((est: any) => {
+        const nombreEst = est.nombre || '';
+        const identificador = est.identificador || '';
+
+        const metrics: Array<{
+          label: string;
+          campo: 'asistencia' | 'participacion' | 'camara' | 'act_fuera_clase';
+        }> = [
+          { label: 'Asistencia', campo: 'asistencia' },
+          { label: 'Participación', campo: 'participacion' },
+          { label: 'Cámara', campo: 'camara' },
+          { label: 'Act. off class', campo: 'act_fuera_clase' },
+        ];
+
+        metrics.forEach((m) => {
+          const row: any[] = [unidadNombre, nombreEst, identificador, m.label];
+
+          todasFechas.forEach((f: string) => {
+            const dias = est.dias || {};
+            const diaInfo = dias[f];
+            if (!diaInfo) {
+              row.push(0);
+            } else {
+              const v = diaInfo[m.campo];
+              row.push(v ? 1 : 0);
+            }
+          });
+
+          const pct = m.campo === 'asistencia' && est.porcentaje_asistencia != null
+            ? est.porcentaje_asistencia
+            : '';
+          row.push(pct);
+
+          filas.push(row);
+        });
+      });
+    });
+
+    const escape2 = (valor: any): string => {
+      const str = String(valor ?? '');
+      if (/[";\n]/.test(str)) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
+    const lineas2 = [
+      encabezados.map(escape2).join(';'),
+      ...filas.map((fila: any[]) => fila.map(escape2).join(';')),
+    ];
+
+    const contenido2 = '\uFEFF' + lineas2.join('\n');
+    const blob2 = new Blob([contenido2], { type: 'text/csv;charset=utf-8;' });
+
+    const mesLabel: string = this.reporteMensual?.mes_label || `${this.mesSeleccionado}/${this.anioSeleccionado}`;
+    const nombre2 = `reporte-asistencia-mensual-${mesLabel.replace(/\s+/g, '_')}.csv`;
+
+    const url2 = window.URL.createObjectURL(blob2);
+    const link2 = document.createElement('a');
+    link2.href = url2;
+    link2.download = nombre2;
+    document.body.appendChild(link2);
+    link2.click();
+    document.body.removeChild(link2);
+    window.URL.revokeObjectURL(url2);
+
+    this.exportando = false;
+    this.cdr.markForCheck();
   }
 }
-

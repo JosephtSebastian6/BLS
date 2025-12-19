@@ -62,6 +62,7 @@ class ClaseBase(BaseModel):
     hora: str
     tema: str
     meet_link: Optional[str] = None
+    unidad_id: Optional[int] = None
 
 class ClaseCreate(ClaseBase):
     profesor_username: str
