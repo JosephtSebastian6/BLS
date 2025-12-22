@@ -1,0 +1,41 @@
+{
+  "claseId": 46,
+  "presentes": [
+    "sebastian",
+    "sebastian4"
+  ],
+  "participacion": {
+    "sebastian": 1,
+    "sebastian4": 1
+  },
+  "camara": {
+    "sebastian": 1,
+    "sebastian4": 1
+  },
+  "act_fuera_clase": {
+    "sebastian": 1,
+    "sebastian4": 1
+  },
+  "historial": [
+    {
+      "fechaISO": "2025-12-22",
+      "presentes": [
+        "sebastian",
+        "sebastian4"
+      ],
+      "participacion": {
+        "sebastian": 1,
+        "sebastian4": 1
+      },
+      "camara": {
+        "sebastian": 1,
+        "sebastian4": 1
+      },
+      "act_fuera_clase": {
+        "sebastian": 1,
+        "sebastian4": 1
+      },
+      "timestamp": "2025-12-22T13:37:42.104806"
+    }
+  ]
+}

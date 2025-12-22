@@ -46,6 +46,7 @@ import os
 import json
 import shutil
 import mimetypes
+BASE_DIR = Path(__file__).resolve().parent.parent
 # Local imports
 import crud
 import models
@@ -138,7 +139,7 @@ def grades_resumen_estudiante(
     aprobadas = 0
     reprobadas = 0
 
-    TASKS_BASE = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes")
+    TASKS_BASE = Path(os.getenv("FILES_BASE_DIR", str(BASE_DIR / "archivos_estudiantes")))
 
     for u in unidades:
         # Tiempo dedicado (si existe registro en progreso)
@@ -2923,14 +2924,17 @@ def debug_registrar_actividad(
         raise HTTPException(status_code=500, detail=f"Error registrando actividad: {e}")
 
 # Sistema de archivos para estudiantes - FUERA del backend
-UPLOAD_DIR = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes")
-UPLOAD_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR = Path(os.getenv("FILES_BASE_DIR", str(BASE_DIR / "archivos_estudiantes")))
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-QUIZ_AUDIO_DIR = Path("/Users/sena/Desktop/Ingles/archivos_quiz_audio")
+QUIZ_AUDIO_DIR = Path(os.getenv("QUIZ_AUDIO_DIR", str(BASE_DIR / "archivos_quiz_audio")))
 QUIZ_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
-QUIZ_IMAGE_DIR = Path("/Users/sena/Desktop/Ingles/archivos_quiz_imagenes")
+QUIZ_IMAGE_DIR = Path(os.getenv("QUIZ_IMAGE_DIR", str(BASE_DIR / "archivos_quiz_imagenes")))
 QUIZ_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+EMPRESA_FILES_DIR = Path(os.getenv("EMPRESA_FILES_BASE_DIR", str(BASE_DIR / "archivos_empresa")))
+EMPRESA_FILES_DIR.mkdir(parents=True, exist_ok=True)
 
 def get_current_user_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Extrae el username del token JWT"""
@@ -3335,7 +3339,7 @@ def empresa_listar_tareas_estudiante(
     if not estudiante:
         raise HTTPException(status_code=404, detail="Estudiante no encontrado")
 
-    base_dir = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes") / "estudiantes" / username / f"unidad_{unidad_id}" / "SOLO_TAREAS"
+    base_dir = UPLOAD_DIR / "estudiantes" / username / f"unidad_{unidad_id}" / "SOLO_TAREAS"
     if not base_dir.exists():
         return {"files": []}
 
@@ -4714,7 +4718,7 @@ def _listar_tareas_estudiante(username: str, unidad_id: int | None) -> list:
     """Lista tareas de un estudiante (simplificado)."""
     from pathlib import Path
 
-    base_dir = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes") / "estudiantes" / username
+    base_dir = UPLOAD_DIR / "estudiantes" / username
     if not base_dir.exists():
         return []
 
@@ -4789,8 +4793,8 @@ async def upload_empresa_file(
         raise HTTPException(status_code=401, detail="Token inválido")
 
     # Crear directorio si no existe
-    archivos_dir = Path("/Users/sena/Desktop/Ingles/archivos_empresa")
-    archivos_dir.mkdir(exist_ok=True)
+    archivos_dir = EMPRESA_FILES_DIR
+    archivos_dir.mkdir(parents=True, exist_ok=True)
     user_dir = archivos_dir / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
     user_dir.mkdir(parents=True, exist_ok=True)
 
@@ -4972,7 +4976,7 @@ def download_empresa_file(
         raise HTTPException(status_code=401, detail="Token inválido")
 
     # Buscar metadata del archivo
-    archivos_dir = Path("/Users/sena/Desktop/Ingles/archivos_empresa") / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
+    archivos_dir = EMPRESA_FILES_DIR / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
     metadata_file = archivos_dir / f"{archivo_id}.json"
 
     if not metadata_file.exists():

@@ -12,6 +12,11 @@ import os
 from urllib.parse import urljoin
 import json
 
+# Directorios base para archivos (compatibles con local y Render)
+BASE_DIR = Path(__file__).resolve().parent.parent
+FILES_BASE_DIR = Path(os.getenv("FILES_BASE_DIR", str(BASE_DIR / "archivos_estudiantes")))
+EMPRESA_FILES_BASE_DIR = Path(os.getenv("EMPRESA_FILES_BASE_DIR", str(BASE_DIR / "archivos_empresa")))
+
 # Importaciones para el envío directo con aiosmtplib
 from aiosmtplib import SMTP
 from email.mime.text import MIMEText
@@ -1252,7 +1257,7 @@ def get_analytics_unidades(db: Session, username: str, desde: datetime | None = 
         return []
 
     unidades = db.query(models.Unidad).all()
-    base_fs = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes") / "estudiantes" / username
+    base_fs = FILES_BASE_DIR / "estudiantes" / username
     resultados = []
 
     for u in unidades:
@@ -1348,8 +1353,8 @@ def crear_archivo_empresa(db: Session, unidad_id: int, subcarpeta_id: int, data:
     print(f"[CRUD] crear_archivo_empresa() unidad_id={unidad_id} subcarpeta_id={subcarpeta_id} user={current_user}")
     # Por simplicidad, guardamos metadata en JSON (en producción usar tabla específica)
     # Crear directorio si no existe
-    archivos_dir = Path("/Users/sena/Desktop/Ingles/archivos_empresa")
-    archivos_dir.mkdir(exist_ok=True)
+    archivos_dir = EMPRESA_FILES_BASE_DIR
+    archivos_dir.mkdir(parents=True, exist_ok=True)
     user_dir = archivos_dir / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
     user_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1380,7 +1385,7 @@ def crear_archivo_empresa(db: Session, unidad_id: int, subcarpeta_id: int, data:
 def listar_archivos_empresa(db: Session, unidad_id: int, subcarpeta_id: int, current_user: str):
     """Lista archivos subidos por empresa/profesor en una subcarpeta."""
     print(f"[CRUD] listar_archivos_empresa() unidad_id={unidad_id} subcarpeta_id={subcarpeta_id} user={current_user}")
-    archivos_dir = Path("/Users/sena/Desktop/Ingles/archivos_empresa") / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
+    archivos_dir = EMPRESA_FILES_BASE_DIR / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
 
     if not archivos_dir.exists():
         return []
@@ -1406,7 +1411,7 @@ def listar_archivos_empresa(db: Session, unidad_id: int, subcarpeta_id: int, cur
 def eliminar_archivo_empresa(unidad_id: int, subcarpeta_id: int, archivo_id: str, current_user: str) -> bool:
     """Elimina archivo de empresa/profesor."""
     print(f"[CRUD] eliminar_archivo_empresa() archivo_id={archivo_id} user={current_user}")
-    archivos_dir = Path("/Users/sena/Desktop/Ingles/archivos_empresa") / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
+    archivos_dir = EMPRESA_FILES_BASE_DIR / current_user / f"unidad_{unidad_id}" / f"subcarpeta_{subcarpeta_id}"
 
     # Eliminar metadata JSON
     metadata_file = archivos_dir / f"{archivo_id}.json"
@@ -1443,7 +1448,7 @@ def eliminar_archivo_empresa(unidad_id: int, subcarpeta_id: int, archivo_id: str
             tiempos_por_unidad[uid] = tiempos_por_unidad.get(uid, 0) + (e.duracion_min or 0)
 
     # Conteo de tareas por unidad (en filesystem), última entrega y promedio de calificaciones (en BD)
-    TASKS_BASE = Path("/Users/sena/Desktop/Ingles/archivos_estudiantes")
+    TASKS_BASE = FILES_BASE_DIR
     resultado = []
     for u in unidades:
         r = prog_map.get(u.id)
