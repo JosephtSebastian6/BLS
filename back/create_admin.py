@@ -27,8 +27,11 @@ def ensure_tables():
     try:
         Base.metadata.create_all(bind=engine)
     except Exception as e:
-        print(f"[ERROR] No fue posible asegurar las tablas: {e}")
-        raise
+        # En algunos entornos (p.ej. Render con MySQL ya existente) puede haber
+        # conflictos de claves foráneas o tipos al intentar crear tablas nuevas.
+        # Para este script no es crítico crear/migrar tablas, solo necesitamos
+        # que la base ya exista, así que registramos la advertencia y seguimos.
+        print(f"[WARN] No fue posible asegurar todas las tablas, se continúa de todos modos: {e}")
 
 
 def upsert_admin(db: Session, username: str, password: str, email: str):
