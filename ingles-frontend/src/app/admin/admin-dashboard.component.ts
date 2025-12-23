@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -18,6 +19,7 @@ export class AdminDashboardComponent implements OnInit {
   filtroRol: string = 'todos';
   page = 1;
   pageSize = 10;
+  private backendBase = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
 
@@ -36,7 +38,7 @@ export class AdminDashboardComponent implements OnInit {
 
   pingAdmin() {
     if (!this.token) { this.message = 'Inicia sesión como admin.'; return; }
-    this.http.get('http://localhost:8000/auth/admin/ping', { headers: this.authHeaders() })
+    this.http.get(`${this.backendBase}/auth/admin/ping`, { headers: this.authHeaders() })
       .subscribe({
         next: (res: any) => this.message = `OK: ${res?.message || 'pong'}`,
         error: (err) => this.message = `Error: ${err?.error?.detail || 'verifica token'}`
@@ -45,9 +47,10 @@ export class AdminDashboardComponent implements OnInit {
 
   buscar(all = false) {
     if (!this.token) { this.message = 'Inicia sesión como admin.'; return; }
+    const base = `${this.backendBase}/auth/admin/usuarios`;
     const finalUrl = (all || !this.query?.trim())
-      ? 'http://localhost:8000/auth/admin/usuarios'
-      : `http://localhost:8000/auth/admin/usuarios?q=${encodeURIComponent(this.query.trim())}`;
+      ? base
+      : `${base}?q=${encodeURIComponent(this.query.trim())}`;
     this.http.get<any[]>(finalUrl, { headers: this.authHeaders() })
       .subscribe({
         next: (rows) => { this.usuarios = rows.map(r => ({ ...r, _nuevoRol: r.tipo_usuario })); this.page = 1; this.message = `Encontrados: ${rows.length}`; },
@@ -58,7 +61,7 @@ export class AdminDashboardComponent implements OnInit {
   cambiarRol(u: any) {
     if (!u?._nuevoRol || u._nuevoRol === u.tipo_usuario) { this.message = 'Selecciona un rol diferente.'; return; }
     this.http.put(
-      `http://localhost:8000/auth/admin/usuarios/${encodeURIComponent(u.username)}/rol`,
+      `${this.backendBase}/auth/admin/usuarios/${encodeURIComponent(u.username)}/rol`,
       { tipo_usuario: u._nuevoRol },
       { headers: this.authHeaders() }
     ).subscribe({
