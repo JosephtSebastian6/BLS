@@ -1,4 +1,4 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:8000' // Ajusta esta URL según tu configuración del backend
+  apiUrl: 'https://bls-eqnr.onrender.com' // Backend FastAPI desplegado en Render
 };

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http'; // Importa HttpErrorResponse
+import { environment } from '../../../environments/environment';
 
 import { MatFormFieldModule } from '@angular/material/form-field'; // Para el contenedor del input
 import { MatSelectModule } from '@angular/material/select';
@@ -35,6 +36,7 @@ export class RegisterComponent implements OnInit {
   apellidos: string = '';
   tipo_usuario: string = 'estudiante'; // Valor por defecto
   message: string = '';
+  private backendBase = environment.apiUrl;
 
   constructor(private http: HttpClient, private router: Router) {
     console.log('¡¡DEBUG: RegisterComponent: Constructor llamado!!'); // <-- Añade este log
@@ -58,7 +60,7 @@ export class RegisterComponent implements OnInit {
 
     console.log('¡¡DEBUG: Datos de usuario a enviar:', userData);
 
-    this.http.post('http://127.0.0.1:8000/auth/register', userData)
+    this.http.post(`${this.backendBase}/auth/register`, userData)
       .subscribe({
         next: (response: any) => { // Añadí ': any' para claridad de tipos
           this.message = '¡Registro exitoso! Por favor, verifica tu correo electrónico.';
