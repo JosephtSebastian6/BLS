@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 export interface AsistenciaRegistro {
   claseId: number;
@@ -15,7 +16,7 @@ export interface AsistenciaRegistro {
 
 @Injectable({ providedIn: 'root' })
 export class AttendanceService {
-  private baseUrl = 'http://localhost:8000';
+  private baseUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
 

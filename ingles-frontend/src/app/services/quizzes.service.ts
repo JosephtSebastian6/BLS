@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface QuizCreate {
   unidad_id: number;
@@ -65,7 +66,7 @@ export interface QuizDetalleEstudiante {
 
 @Injectable({ providedIn: 'root' })
 export class QuizzesService {
-  private base = 'http://localhost:8000/auth';
+  private base = `${environment.apiUrl}/auth`;
   constructor(private http: HttpClient) {}
 
   private headers() {

@@ -8,6 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { AnalyticsService } from '../../services/analytics.service';
 import { EmpresaGruposService } from '../../services/empresa-grupos.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-subcarpeta-detalle',
@@ -313,7 +314,7 @@ export class SubcarpetaDetalleComponent implements OnInit, OnDestroy {
   }
 
   abrirModalEstudiante(archivo: any) {
-    const fileUrl = `http://localhost:8000/auth/estudiantes/subcarpetas/${this.unidadId}/SOLO%20TAREAS/files/${archivo.filename}`;
+    const fileUrl = `${environment.apiUrl}/auth/estudiantes/subcarpetas/${this.unidadId}/SOLO%20TAREAS/files/${archivo.filename}`;
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     
     // Para archivos de imagen, descargar con fetch y crear blob URL

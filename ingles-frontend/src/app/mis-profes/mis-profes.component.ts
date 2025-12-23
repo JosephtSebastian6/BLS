@@ -5,6 +5,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { MisProfesService, Profesor } from './mis-profes.service';
 import { EmpresaGruposService } from '../services/empresa-grupos.service';
+import { environment } from '../../environments/environment';
 import { forkJoin, of, Observable } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 
@@ -1363,7 +1364,7 @@ export class MisProfesComponent implements OnInit {
   cargandoEstudiantes = false;
   procesandoAsignacion = false;
   showTabla = false;
-  private apiUrl = 'http://localhost:8000/auth';
+  private apiUrl = `${environment.apiUrl}/auth`;
   gruposMap: Record<string, any[] | null> = {};
   verGruposOpen: Record<string, boolean> = {};
   // Exponer fallback al template

@@ -2,10 +2,11 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class EmpresaGruposService {
-  private base = 'http://localhost:8000/auth';
+  private base = `${environment.apiUrl}/auth`;
   constructor(private http: HttpClient) {}
 
   private headers(): HttpHeaders {

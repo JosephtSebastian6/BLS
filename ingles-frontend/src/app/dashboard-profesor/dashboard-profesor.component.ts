@@ -5,6 +5,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { HttpClient, HttpClientModule, HttpHeaders } from '@angular/common/http';
 import { LayoutProfesorComponent } from '../layout-profesor/layout-profesor.component';
 import { EmpresaGruposService } from '../services/empresa-grupos.service';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-dashboard-profesor',
@@ -34,13 +35,15 @@ export class DashboardProfesorComponent implements OnInit {
     score: number | null;
   } = { estudiante_username: '', unidad_id: null, tipo: 'tarea', filename: '', quiz_id: null, score: null };
 
+  private backendBase = environment.apiUrl;
+
   constructor(private router: Router, private http: HttpClient, private gruposSvc: EmpresaGruposService) {}
 
   ngOnInit() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const username = user.username;
     if (username) {
-      this.http.get<any>(`http://localhost:8000/auth/profesor/${username}`)
+      this.http.get<any>(`${this.backendBase}/auth/profesor/${username}`)
         .subscribe({
           next: (data) => {
             this.perfil = data;
@@ -50,7 +53,7 @@ export class DashboardProfesorComponent implements OnInit {
           }
         });
       // Obtener clases del profesor
-      this.http.get<any[]>(`http://localhost:8000/auth/clases-profesor/${username}`)
+      this.http.get<any[]>(`${this.backendBase}/auth/clases-profesor/${username}`)
         .subscribe({
           next: (data) => {
             this.clases = data;
@@ -64,7 +67,7 @@ export class DashboardProfesorComponent implements OnInit {
       const token = localStorage.getItem('access_token') || localStorage.getItem('token');
       const headers = token ? new HttpHeaders({ 'Authorization': `Bearer ${token}` }) : undefined;
       this.http.get<Array<{ identificador: number; username: string; nombres: string; apellidos: string }>>(
-        `http://localhost:8000/auth/profesores/${encodeURIComponent(username)}/estudiantes`, { headers }
+        `${this.backendBase}/auth/profesores/${encodeURIComponent(username)}/estudiantes`, { headers }
       ).subscribe({
         next: (est) => { this.estudiantesAsignados = est || []; if (!this.formCalificar.estudiante_username && this.estudiantesAsignados[0]) { this.formCalificar.estudiante_username = this.estudiantesAsignados[0].username; } },
         error: () => { this.estudiantesAsignados = []; }
@@ -97,7 +100,7 @@ export class DashboardProfesorComponent implements OnInit {
 
   onSubmit() {
     // Llama al endpoint para actualizar el perfil
-    this.http.put<any>('http://localhost:8000/auth/update-perfil', this.perfil)
+    this.http.put<any>(`${this.backendBase}/auth/update-perfil`, this.perfil)
       .subscribe({
         next: (data) => {
           this.perfil = data; // Actualiza el perfil con la respuesta del backend
@@ -118,7 +121,7 @@ export class DashboardProfesorComponent implements OnInit {
 
   cancelarClase(clase: any) {
     if (confirm('¿Seguro que deseas cancelar esta clase?')) {
-      this.http.delete(`http://localhost:8000/auth/clase/${clase.id}`)
+      this.http.delete(`${this.backendBase}/auth/clase/${clase.id}`)
         .subscribe({
           next: () => {
             this.clases = this.clases.filter(c => c.id !== clase.id);

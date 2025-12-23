@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 // Interfaces para el sistema de calificaciones V2
 export interface GradeComponent {
@@ -144,7 +145,7 @@ export interface SyncResult {
 
 @Injectable({ providedIn: 'root' })
 export class GradingV2Service {
-  private baseUrl = 'http://localhost:8000/api/v2/grades';
+  private baseUrl = `${environment.apiUrl}/api/v2/grades`;
 
   constructor(private http: HttpClient) {}
 

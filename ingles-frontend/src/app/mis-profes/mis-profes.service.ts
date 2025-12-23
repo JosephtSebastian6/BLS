@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface Profesor {
   identificador: number;
@@ -14,8 +15,8 @@ export interface Profesor {
 
 @Injectable({ providedIn: 'root' })
 export class MisProfesService {
-  private apiUrl = 'http://localhost:8000/auth/profesor/'; // URL correcta según tu backend
-  private baseAuth = 'http://localhost:8000/auth';
+  private baseAuth = `${environment.apiUrl}/auth`;
+  private apiUrl = `${this.baseAuth}/profesor/`;
 
   constructor(private http: HttpClient) {}
 

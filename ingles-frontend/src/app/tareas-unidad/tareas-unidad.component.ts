@@ -7,6 +7,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { FormsModule } from '@angular/forms';
 import { AnalyticsService } from '../services/analytics.service';
+import { environment } from '../../environments/environment';
 
 interface TareaFile {
   filename: string;
@@ -36,7 +37,7 @@ export class TareasUnidadComponent implements OnInit {
   tipoUsuario: string = '';
   profesorUsername: string | null = null;
 
-  private backendBase = 'http://localhost:8000/auth';
+  private backendBase = `${environment.apiUrl}/auth`;
 
   displayedColumns = ['original_name', 'upload_date', 'size', 'score', 'feedback', 'actions'];
 

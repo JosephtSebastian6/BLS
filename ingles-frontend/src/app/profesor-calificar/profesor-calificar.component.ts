@@ -5,6 +5,7 @@ import { HttpClient, HttpClientModule, HttpHeaders } from '@angular/common/http'
 import { ActivatedRoute } from '@angular/router';
 import { EmpresaGruposService } from '../services/empresa-grupos.service';
 import { forkJoin } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-profesor-calificar',
@@ -36,6 +37,8 @@ export class ProfesorCalificarComponent implements OnInit {
   formFinal = { score: null as number | null, aprobado: false };
   finalUnidadesSeleccionadas: number[] = [];
 
+  private backendBase = environment.apiUrl;
+
   constructor(private http: HttpClient, private gruposSvc: EmpresaGruposService, private route: ActivatedRoute) {}
 
   ngOnInit(): void {
@@ -52,7 +55,7 @@ export class ProfesorCalificarComponent implements OnInit {
 
     if (profesorUsername) {
       this.http.get<Array<{ identificador: number; username: string; nombres: string; apellidos: string }>>(
-        `http://localhost:8000/auth/profesores/${encodeURIComponent(profesorUsername)}/estudiantes`, { headers }
+        `${this.backendBase}/auth/profesores/${encodeURIComponent(profesorUsername)}/estudiantes`, { headers }
       ).subscribe({
         next: (est) => {
           this.estudiantesAsignados = est || [];
@@ -110,7 +113,7 @@ export class ProfesorCalificarComponent implements OnInit {
   private cargarQuizzes(unidadId: number) {
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     const headers = token ? new HttpHeaders({ 'Authorization': `Bearer ${token}` }) : undefined;
-    this.http.get<any[]>(`http://localhost:8000/auth/unidades/${unidadId}/quizzes`, { headers })
+    this.http.get<any[]>(`${this.backendBase}/auth/unidades/${unidadId}/quizzes`, { headers })
       .subscribe({
         next: (qs) => {
           this.quizzes = (qs || []).map(q => ({ id: q.id ?? q.quiz_id ?? q.quizId ?? q.id_quiz, titulo: q.titulo ?? q.nombre ?? `Quiz ${q.id}` }));

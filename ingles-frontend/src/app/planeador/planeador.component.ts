@@ -2,6 +2,7 @@ import { Component, OnInit, LOCALE_ID } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, CommonModule, registerLocaleData } from '@angular/common';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 import localeEs from '@angular/common/locales/es';
 import { AttendanceService, AsistenciaRegistro } from '../services/attendance.service';
 
@@ -401,7 +402,7 @@ export class PlaneadorComponent implements OnInit {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    this.http.get<any[]>(`http://localhost:8000/auth/clases/${this.profesorUsername}`, {
+    this.http.get<any[]>(`${environment.apiUrl}/auth/clases/${this.profesorUsername}`, {
       headers: headers
     })
       .subscribe({

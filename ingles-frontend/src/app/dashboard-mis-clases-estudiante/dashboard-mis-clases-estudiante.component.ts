@@ -8,6 +8,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { DashboardLayoutComponent } from '../dashboard-layout/dashboard-layout.component';
 import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 import { addDays, startOfMonth, endOfMonth, getDay, format } from 'date-fns';
 
 
@@ -1115,7 +1116,7 @@ export class DashboardMisClasesEstudianteComponent implements OnInit {
   ngOnInit() {
     const username = localStorage.getItem('username');
     this.loading = true;
-    this.http.get<any[]>(`http://localhost:8000/auth/clases-estudiante/${username}`)
+    this.http.get<any[]>(`${environment.apiUrl}/auth/clases-estudiante/${username}`)
       .subscribe({
         next: (data) => {
           this.clases = data.map(clase => ({

@@ -4,6 +4,7 @@ import { DashboardEstudianteService } from './dashboard-estudiante.service';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 
@@ -22,6 +23,7 @@ export class DashboardEstudiante implements OnInit, OnDestroy {
   imagenInvalida = false;
   currentUrl = '';
   private routerSubscription: Subscription = new Subscription();
+  private backendBase = environment.apiUrl;
 
   constructor(
     private dashboardEstudianteService: DashboardEstudianteService,
@@ -55,7 +57,7 @@ export class DashboardEstudiante implements OnInit, OnDestroy {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const username = user.username;
     if (username) {
-      this.http.get(`http://localhost:8000/auth/usuario/${username}`)
+      this.http.get(`${this.backendBase}/auth/usuario/${username}`)
         .subscribe({
           next: (data) => {
             this.perfil = data;

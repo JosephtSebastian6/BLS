@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 export interface ResumenResponse {
   progreso_general: number;
@@ -20,7 +21,7 @@ export interface UnidadAnalytics {
 
 @Injectable({ providedIn: 'root' })
 export class AnalyticsService {
-  private base = 'http://localhost:8000/auth';
+  private base = `${environment.apiUrl}/auth`;
   constructor(private http: HttpClient) {}
 
   private headers() {

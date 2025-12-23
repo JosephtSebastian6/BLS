@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpClientModule, HttpHeaders } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 import { forkJoin } from 'rxjs';
 
 interface Estudiante {
@@ -798,7 +799,7 @@ export class MatriculasComponent implements OnInit {
   matriculas: Matricula[] = [];
   loading = true;
   error = '';
-  private apiUrl = 'http://localhost:8000/auth';
+  private apiUrl = `${environment.apiUrl}/auth`;
 
   constructor(private http: HttpClient) {}
 
