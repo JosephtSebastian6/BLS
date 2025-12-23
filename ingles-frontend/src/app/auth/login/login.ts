@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms'; // <-- Importa FormsModule aquí
 import { Router, RouterModule } from '@angular/router'; // <-- Agrega RouterModule si no está
 import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -18,6 +19,7 @@ export class LoginComponent {
   password: string = '';
   // Propiedad para mostrar mensajes al usuario
   message: string = '';
+  private backendBase = environment.apiUrl;
 
   // Inyecta el Router y el HttpClient para hacer peticiones
   constructor(private http: HttpClient, private router: Router) {}
@@ -29,7 +31,7 @@ export class LoginComponent {
     };
 
     // Realiza la petición POST al backend
-    this.http.post('http://localhost:8000/auth/login', userData)
+    this.http.post(`${this.backendBase}/auth/login`, userData)
       .subscribe({
         next: (response: any) => {
           this.message = 'Inicio de sesión exitoso.';
