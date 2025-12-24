@@ -47,7 +47,9 @@ export class AppComponent {
   cerrarSesion() {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
-    window.location.href = '/login';
+    localStorage.removeItem('username');
+    localStorage.removeItem('tipo_usuario');
+    this.router.navigate(['/login']);
   }
 
   // Mostrar botón WhatsApp solo en Home
