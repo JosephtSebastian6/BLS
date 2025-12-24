@@ -78,14 +78,19 @@ async def registro_user(db: Session, user: schemas.RegistroCreate, background_ta
     verification_url = urljoin(base_url_str, path_to_verify)
     print(f"DEBUG CRUD: URL de verificación generada: {verification_url}")
 
-    await send_verification_email(
-        recipient_email=nuevo_registro.email,
-        username=nuevo_registro.username,
-        verification_url=verification_url,
-        background_tasks=background_tasks,
-        request=request
-    )
-    print("DEBUG CRUD: Correo de verificación programado para envío.")
+    # No bloquear el registro si falla el envío de correo: registrar el error pero
+    # devolver igualmente el usuario creado.
+    try:
+        await send_verification_email(
+            recipient_email=nuevo_registro.email,
+            username=nuevo_registro.username,
+            verification_url=verification_url,
+            background_tasks=background_tasks,
+            request=request
+        )
+        print("DEBUG CRUD: Correo de verificación programado para envío.")
+    except Exception as e:
+        print(f"WARN CRUD: Falló el envío de correo de verificación, pero el usuario fue creado correctamente: {e}")
 
     return nuevo_registro
 
