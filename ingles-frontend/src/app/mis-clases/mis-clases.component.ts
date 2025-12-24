@@ -11,6 +11,7 @@ import { LOCALE_ID } from '@angular/core';
 import { addHours, startOfDay } from 'date-fns';
 import { AttendanceService, AsistenciaRegistro } from '../services/attendance.service';
 import { EmpresaGruposService } from '../services/empresa-grupos.service';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-mis-clases',
@@ -93,6 +94,8 @@ export class MisClasesComponent implements OnInit {
   eliminando = false;
   confirmDeleteOpen = false;
 
+  private readonly baseUrl = environment.apiUrl;
+
   constructor(
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
@@ -143,7 +146,7 @@ export class MisClasesComponent implements OnInit {
     const headers: any = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const id = this.selectedClaseId;
-    this.http.delete(`http://localhost:8000/auth/clases/${id}`, { headers }).subscribe({
+    this.http.delete(`${this.baseUrl}/auth/clases/${id}`, { headers }).subscribe({
       next: () => { this.mostrarToast('Clase eliminada', 'exito'); this.selectedClaseId = ''; this.cargarClases(); this.eliminando = false; this.confirmDeleteOpen = false; },
       error: () => { this.mostrarToast('No se pudo eliminar la clase', 'error'); this.eliminando = false; this.confirmDeleteOpen = false; }
     });
@@ -307,7 +310,7 @@ export class MisClasesComponent implements OnInit {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    this.http.get<any[]>(`http://localhost:8000/auth/clases/${this.profesorUsername}`, {
+    this.http.get<any[]>(`${this.baseUrl}/auth/clases/${this.profesorUsername}`, {
       headers: headers
     })
       .subscribe({
@@ -350,7 +353,7 @@ export class MisClasesComponent implements OnInit {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    this.http.get<any[]>('http://localhost:8000/auth/estudiantes-disponibles', {
+    this.http.get<any[]>(`${this.baseUrl}/auth/estudiantes-disponibles`, {
       headers: headers
     })
       .subscribe({
@@ -548,7 +551,7 @@ export class MisClasesComponent implements OnInit {
       estudiantes: []
     };
     
-    this.http.post('http://localhost:8000/auth/clases/', body, {
+    this.http.post(`${this.baseUrl}/auth/clases/`, body, {
       headers: headers
     }).subscribe({
       next: () => {
@@ -587,7 +590,7 @@ export class MisClasesComponent implements OnInit {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    this.http.post(`http://localhost:8000/auth/clases/${claseId}/agendar-estudiante`, 
+    this.http.post(`${this.baseUrl}/auth/clases/${claseId}/agendar-estudiante`, 
       { estudiante_username: clase.nuevoEstudiante },
       { headers: headers }
     )
@@ -647,7 +650,7 @@ export class MisClasesComponent implements OnInit {
     const headers: any = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const dias = this.LIMITE_DIAS_PASADO;
-    const url = `http://localhost:8000/auth/clases/antiguas?dias=${dias}&profesor_username=${encodeURIComponent(this.profesorUsername)}`;
+    const url = `${this.baseUrl}/auth/clases/antiguas?dias=${dias}&profesor_username=${encodeURIComponent(this.profesorUsername)}`;
     this.http.delete(url, { headers }).subscribe({
       next: (res: any) => {
         if (res && typeof res.eliminadas === 'number') {
