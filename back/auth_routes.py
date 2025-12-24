@@ -4358,6 +4358,20 @@ def empresa_reporte_asistencias_mensual(
     db: Session = Depends(get_db),
     who=Depends(require_roles(["empresa", "admin"]))
 ):
+    try:
+        return _empresa_reporte_asistencias_mensual_impl(anio, mes, db, who)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error generando reporte mensual de asistencias: {e}")
+
+
+def _empresa_reporte_asistencias_mensual_impl(
+    anio: int,
+    mes: int,
+    db: Session,
+    who,
+):
     """Reporte mensual de asistencia agrupado por unidad (estudiante_unidad).
 
     - Columnas: solo días en los que hubo clase en el mes.
