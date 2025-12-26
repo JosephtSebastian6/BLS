@@ -71,13 +71,21 @@ export class RegisterComponent implements OnInit {
           console.error('¡¡DEBUG: RegisterComponent: Error en la suscripción:', error); // Log completo del error
 
           let errorMessage = 'Error desconocido en el registro.';
-          if (error.error && error.error.detail) {
+
+          // Manejo específico para errores de validación de FastAPI (422 Unprocessable Entity)
+          if (error.status === 422 && error.error && Array.isArray(error.error.detail)) {
+            const detalles = error.error.detail as any[];
+            const mensajes = detalles.map((d: any) => d.msg || JSON.stringify(d));
+            errorMessage = 'Error de validación: ' + mensajes.join(' | ');
+          } else if (error.error && typeof error.error.detail === 'string') {
+            // Otros errores de FastAPI con detail como string
             errorMessage = 'Error en el registro: ' + error.error.detail;
           } else if (error.message) {
             errorMessage = 'Error de red o HTTP: ' + error.message;
           } else if (typeof error.error === 'string') {
             errorMessage = 'Error del servidor: ' + error.error;
           }
+
           this.message = errorMessage;
         }
       });
