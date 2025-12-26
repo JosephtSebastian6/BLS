@@ -750,8 +750,9 @@ export class UnidadesComponent {
       this.cargarUnidades();
       return;
     }
-    console.log('[UI] GET /auth/estudiantes/me/unidades-habilitadas');
-    this.http.get<any[]>(`${environment.apiUrl}/auth/estudiantes/me/unidades-habilitadas`, {
+    const url = `${environment.apiUrl}/auth/estudiantes/me/unidades-habilitadas`;
+    console.log('[UI] GET unidades-habilitadas URL ->', url);
+    this.http.get<any[]>(url, {
       headers: { Authorization: `Bearer ${token}` }
     }).subscribe({
       next: (unidades) => {
