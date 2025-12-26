@@ -32,7 +32,14 @@ mysqlConn = mysql.connector.Connect(  # Establece la conexión con la base de da
 DATABASE_URL = f"mysql+mysqlconnector://{user}:{password}@{host}/{database}"  # Construye la URL de conexión compatible con SQLAlchemy
 
 # Crear el motor de base de datos
-engine = create_engine(DATABASE_URL, echo=True)  # `echo=True` muestra en consola las consultas SQL ejecutadas  # Crea el motor de base de datos para SQLAlchemy
+engine = create_engine(
+    DATABASE_URL,
+    echo=True,
+    pool_size=2,
+    max_overflow=0,
+    pool_recycle=280,
+    pool_pre_ping=True,
+)  # `echo=True` muestra en consola las consultas SQL ejecutadas  # Crea el motor de base de datos para SQLAlchemy
 
 # Crear una sesión para interactuar con la base de datos
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)  # Crea una sesión local para interactuar con la BD usando SQLAlchemy
