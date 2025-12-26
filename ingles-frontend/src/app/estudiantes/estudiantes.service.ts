@@ -26,6 +26,7 @@ export class EstudiantesService {
       ? new HttpHeaders({ Authorization: `Bearer ${token}` })
       : new HttpHeaders();
 
+    console.log('[UI] GET estudiantes-disponibles URL ->', this.apiUrl);
     return this.http.get<Estudiante[]>(this.apiUrl, { headers });
   }
 }
