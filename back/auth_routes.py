@@ -75,6 +75,13 @@ authRouter = APIRouter()
 security = HTTPBearer()
 
 
+# ===== Debug CORS =====
+@authRouter.get("/debug/cors-origins")
+def debug_cors_origens():
+    """Devuelve los orígenes actualmente permitidos por CORS."""
+    return {"origins": settings.ALLOWED_ORIGINS}
+
+
 # ===== Seguridad (helpers) =====
 def require_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
