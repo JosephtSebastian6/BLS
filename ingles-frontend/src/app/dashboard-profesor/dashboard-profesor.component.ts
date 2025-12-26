@@ -53,7 +53,7 @@ export class DashboardProfesorComponent implements OnInit {
           }
         });
       // Obtener clases del profesor
-      this.http.get<any[]>(`${this.backendBase}/auth/clases-profesor/${username}`)
+      this.http.get<any[]>(`${this.backendBase}/auth/clases/${username}`)
         .subscribe({
           next: (data) => {
             this.clases = data;

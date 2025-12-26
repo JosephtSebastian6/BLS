@@ -35,9 +35,9 @@ class Settings:
         env_origins = os.getenv("ALLOWED_ORIGINS")
         if env_origins:
             # Separados por coma
-            self.ALLOWED_ORIGINS = [o.strip() for o in env_origins.split(",") if o.strip()]
+            origins = [o.strip() for o in env_origins.split(",") if o.strip()]
         else:
-            self.ALLOWED_ORIGINS = [
+            origins = [
                 # Dominios locales comunes (web)
                 "http://localhost",
                 "http://localhost:3000",
@@ -54,5 +54,15 @@ class Settings:
                 "http://localhost.tiangolo.com",
                 "https://localhost.tiangolo.com",
             ]
+
+        # Asegurar siempre el dominio del frontend en Render
+        extra_origins = [
+            "https://bls-front.onrender.com",
+        ]
+        for origin in extra_origins:
+            if origin not in origins:
+                origins.append(origin)
+
+        self.ALLOWED_ORIGINS = origins
 
 settings = Settings()
