@@ -964,8 +964,8 @@ export class EstudiantesComponent implements OnInit {
   cargarUnidadesEstudiante(username: string): void {
     this.cargandoUnidades = true;
     const token = localStorage.getItem('token');
-    
-    this.http.get<Unidad[]>(`http://localhost:8000/auth/estudiantes/${username}/unidades/estado`, {
+    const url = `${environment.apiUrl}/auth/estudiantes/${username}/unidades/estado`;
+    this.http.get<Unidad[]>(url, {
       headers: { Authorization: `Bearer ${token}` }
     }).subscribe({
       next: (unidades) => {
@@ -984,8 +984,8 @@ export class EstudiantesComponent implements OnInit {
     
     this.cargandoUnidad = unidadId;
     const token = localStorage.getItem('token');
-    
-    this.http.put(`http://localhost:8000/auth/estudiantes/${this.estudianteSeleccionado.username}/unidades/${unidadId}/toggle`, {}, {
+    const url = `${environment.apiUrl}/auth/estudiantes/${this.estudianteSeleccionado.username}/unidades/${unidadId}/toggle`;
+    this.http.put(url, {}, {
       headers: { Authorization: `Bearer ${token}` }
     }).subscribe({
       next: (response: any) => {
