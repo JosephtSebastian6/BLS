@@ -699,29 +699,34 @@ def ver_clases_profesor(profesor_username: str, db: Session = Depends(get_db)):
     Se excluyen los "grupos por unidad" creados desde el rol empresa,
     que se representan internamente como Clase con tema "Grupo Unidad X".
     """
-    clases = crud.obtener_clases_profesor(db, profesor_username)
-    clases_filtradas = [
-        c for c in clases
-        if not (getattr(c, "tema", "") or "").startswith("Grupo Unidad")
-    ]
-
-    respuesta: list[ClaseResponse] = []
-    for clase in clases_filtradas:
-        estudiantes = [
-            schemas.EstudianteEnClase.from_orm(est)
-            for est in clase.estudiantes
+    try:
+        clases = crud.obtener_clases_profesor(db, profesor_username)
+        clases_filtradas = [
+            c for c in clases
+            if not (getattr(c, "tema", "") or "").startswith("Grupo Unidad")
         ]
-        respuesta.append(schemas.ClaseResponse(
-            id=clase.id,
-            dia=clase.dia,
-            hora=clase.hora,
-            tema=clase.tema,
-            meet_link=clase.meet_link,
-            profesor_username=clase.profesor_username,
-            unidad_id=getattr(clase, "unidad_id", None),
-            estudiantes=estudiantes
-        ))
-    return respuesta
+
+        respuesta: list[ClaseResponse] = []
+        for clase in clases_filtradas:
+            estudiantes = [
+                schemas.EstudianteEnClase.from_orm(est)
+                for est in clase.estudiantes
+            ]
+            respuesta.append(schemas.ClaseResponse(
+                id=clase.id,
+                dia=clase.dia,
+                hora=clase.hora,
+                tema=clase.tema,
+                meet_link=clase.meet_link,
+                profesor_username=clase.profesor_username,
+                unidad_id=getattr(clase, "unidad_id", None),
+                estudiantes=estudiantes
+            ))
+        return respuesta
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error obteniendo clases del profesor {profesor_username}: {e}")
 
 
 @authRouter.get("/grupos-profesor/{profesor_username}", response_model=list[ClaseResponse])
